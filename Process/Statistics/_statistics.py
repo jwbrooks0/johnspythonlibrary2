@@ -1,7 +1,6 @@
 
 import numpy as _np
 import pandas as _pd
-#import matplotlib.pyplot as _plt
 import scipy as _sp
 
 
@@ -138,7 +137,22 @@ def rms(data):
 	----------
 	# http://stackoverflow.com/questions/17197492/root-mean-square-error-in-python
 	# http://statweb.stanford.edu/~susan/courses/s60/split/node60.html
+	
+	Examples
+	--------
+	>>> rms([-1,1,-1,1,-1,1])
+	1.0
+	>>> rms([-1,1,-1,1,-1,1,_np.nan])
+	1.0
+	>>> rms([-1,1,-1,1,-1,1,_np.inf])
+	Traceback (most recent call last):
+	...
+	Exception: data contains +- inf
 	"""
+	if type(data)==list:
+		data=_np.array(data)
+	if True in _np.isinf(data):
+		raise Exception('data contains +- inf')
 	return _np.sqrt(_np.nanmean((data - 0) ** 2))
 
 
@@ -166,8 +180,22 @@ def rejectOutliers(data, sigma=2):
 	References
 	----------
 	http://stackoverflow.com/questions/11686720/is-there-a-numpy-builtin-to-reject-outliers-from-a-list
+	
+	Examples
+	--------
+	>>> rejectOutliers([1,1.1,1,1,1,10])
+	(array([1. , 1.1, 1. , 1. , 1. ]), array([ True,  True,  True,  True,  True, False]))
+	>>> rejectOutliers([1,1.1,1,1,1,10,_np.nan])
+	(array([1. , 1.1, 1. , 1. , 1. ]), array([ True,  True,  True,  True,  True, False, False]))
 	"""
-	indicesToKeep=abs(data - _np.mean(data)) < sigma* _np.std(data)
+	if type(data)==list:
+		data=_np.array(data)
+	if True in _np.isinf(data):
+		raise Exception('data contains +- inf')
+	indicesToKeep=_np.less(abs(data - _np.nanmean(data)), sigma* _np.nanstd(data))
 	return data[indicesToKeep],indicesToKeep
 				
 			
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
