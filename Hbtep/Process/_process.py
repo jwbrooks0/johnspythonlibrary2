@@ -2,17 +2,19 @@
 import numpy as _np
 import pandas as _pd
 import matplotlib.pyplot as _plt
-from johnspythonlibraries2.Process.Filters.NoPhaseShift import gaussianFilter_df as _gaussianFilter_df
-import johnspythonlibraries2.Plot._plot as _plot
-from johnspythonlibraries2.Process.Pandas import filterDFByTime as _filterDFByTime
-from johnspythonlibraries2.Process.Spectral import unwrapPhase as _unwrapPhase
+from johnspythonlibrary2.Process.Filters.NoPhaseShift import gaussianFilter_df as _gaussianFilter_df
+import johnspythonlibrary2.Plot._plot as _plot
+from johnspythonlibrary2.Process.Pandas import filterDFByTime as _filterDFByTime
+from johnspythonlibrary2.Process.Spectral import unwrapPhase as _unwrapPhase
 
 
 
-def leastSquareAnalysis(	df,
-							angles,
-							modeNumbers=[0,-1,-2],
-							timeFWHM_phaseFilter=0.1e-3):
+def leastSquareModeAnalysis(	df,
+								angles,
+								modeNumbers=[0,-1,-2],
+								timeFWHM_phaseFilter=0.1e-3,
+								plot=True,
+								title=''):
 	"""
 	Parameters
 	----------
@@ -38,9 +40,9 @@ def leastSquareAnalysis(	df,
 		import hbtepLib as hbt
 		df,dfRaw,dfMeta=hbt.get.taData_df(100000)
 		angles=dfMeta.Phi.values
-		dfResults=leastSquareAnalysis(	df*1e4,
-										angles,
-										[0,-1,-2])
+		dfResults=leastSquareModeAnalysis(	df*1e4,
+											angles,
+											[0,-1,-2])
 		dfResults.plot()
 	"""
 	
@@ -70,8 +72,6 @@ def leastSquareAnalysis(	df,
 	dfResults=_pd.DataFrame(index=df.index)
 	i=0
 	for mode in modeNumbers:
-		print(mode)
-		print(timeFWHM_phaseFilter)
 		if mode == 0:
 			dfResults['0']=x[i,:]
 			i+=1
@@ -88,16 +88,58 @@ def leastSquareAnalysis(	df,
 			dfResults['%sFreq'%mode]=_np.gradient(dfResults['%sPhaseFilt'%mode])/_np.gradient(df.index.to_numpy())/(_np.pi*2)
 			i+=2
 			
+	if plot==True:
+		
+		from johnspythonlibrary2.Process.Pandas import filterDFByColOrIndex
+		import johnspythonlibrary2.Plot as _plot
+		import matplotlib.pyplot as _plt
+		from johnspythonlibrary2.Process.Misc import extractIntsFromStr
+		
+		fig,ax=_plt.subplots(3,sharex=True)
+		
+		dfTemp=filterDFByColOrIndex(dfResults,'Amp')
+		for key,val in dfTemp.iteritems():
+			modeNum=extractIntsFromStr(key)[0]
+			ax[0].plot(val.index*1e3,val,label=modeNum)
+		_plot.finalizeSubplot(ax[0],
+								ylabel='G',
+								subtitle='amp.',
+								title='%s'%title)
+		
+		dfTemp=filterDFByColOrIndex(dfResults,'Phase')
+		dfTemp=filterDFByColOrIndex(dfTemp,'Filt',invert=True)
+		for key,val in dfTemp.iteritems():
+			modeNum=extractIntsFromStr(key)[0]
+			ax[1].plot(val.index*1e3,val,'.',label=modeNum)
+		_plot.finalizeSubplot(ax[1],
+								ylabel='rad',
+								subtitle='phase',
+#								title='%s'%title,
+								)
+		
+		dfTemp=filterDFByColOrIndex(dfResults,'Freq')
+		for key,val in dfTemp.iteritems():
+			modeNum=extractIntsFromStr(key)[0]
+			ax[2].plot(val.index*1e3,val*1e-3,label=modeNum)
+		_plot.finalizeSubplot(ax[2],
+								ylabel='kHz',
+								subtitle='Freq.',
+								xlabel='Time (ms)'
+								)
+		
+		_plot.finalizeFigure(fig)
+			
+			
 	return dfResults
 
 	
 
-def removeMagneticOffsetWithMask(	dfArrayRaw,
-									dfCurrent,
-									timeFWHM=4e-4,
-									spatialFilter=False,
-									plot=False,
-									shotno=0):
+def removeMagneticOffsetWithCurrentReference(	dfArrayRaw,
+												dfCurrent,
+												timeFWHM=4e-4,
+												spatialFilter=False,
+												plot=False,
+												shotno=0):
 	"""
 	Same as standard offset subtraction but with an extra feature.  This is that
 	an additional dataframe with an oscillating current is also include.  The filter
@@ -198,4 +240,7 @@ def removeMagneticOffsetWithMask(	dfArrayRaw,
 													shotno=shotno)
 		
 	return dfFiltered
+
+
+
 
