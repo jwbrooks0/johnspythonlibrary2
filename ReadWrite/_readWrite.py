@@ -81,7 +81,7 @@ def backupDFs(func,defaultDir='/home/john/shotData/',debug=False):
 		if debug:
 			print(args)
 			print(kwargs)
-		
+			
 		name=args[0]
 		if debug:
 			print(name)
@@ -136,7 +136,7 @@ def backupDFs(func,defaultDir='/home/john/shotData/',debug=False):
 
 
 
-@backupDFs
+#@backupDFs
 def readOdsToDF(filename, sheetName='Sheet1', header=0):
 	""" 
 	Convert ods file to pandas dataframe 
