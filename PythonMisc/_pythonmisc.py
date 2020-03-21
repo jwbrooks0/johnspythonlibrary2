@@ -3,6 +3,32 @@ import numpy as _np
 import inspect as _inspect
 
 
+def createLibrarySimple(keys,vals):
+	"""
+	Simple method to create library by passing a list of keys and a list of 
+	values (vals)
+	
+	Parameters
+	----------
+	keys : list of strings
+		keys for the library
+	vals : list
+		values(vals) to be associated with each key
+		
+	Example
+	-------
+	::
+		
+		keys = ['a', 'b', 'c']
+		vals = [1, 2, 3]
+		zipped = createLibrarySimple(keys,vals)
+		print(zipped)
+	"""
+	if len(keys)!=len(vals):
+		raise Exception('Lengths of keys and vals are not equal')
+	return dict(zip(keys, vals))
+
+
 def retrieveVariableName(var):
 	"""
 	Returns the "name" of a variable as a string
