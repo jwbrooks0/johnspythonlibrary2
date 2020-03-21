@@ -40,8 +40,8 @@ def stft(df,numberSamplesPerSegment=1000,numberSamplesToOverlap=500,frequencyRes
 	zOut : 2D numpy.array, dtype=complex
 		complex output from analysis		
 	
-	Example
-	-------
+	Examples
+	--------
 	Example1::
 		
 		import numpy as np
