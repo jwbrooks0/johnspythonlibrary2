@@ -1,7 +1,8 @@
 
+### Import
+
 import numpy as _np
 import pandas as _pd
-import sys as _sys
 import johnspythonlibrary2.Hbtep.Process as _process
 from johnspythonlibrary2.ReadWrite import readOdsToDF
 from johnspythonlibrary2.ReadWrite import backupDFs as _backupDFs
@@ -12,15 +13,18 @@ import johnspythonlibrary2.Plot._plot as _plot
 #from johnspythonlibrary2.Process.Pandas import filterDFByTime as _filterDFByTime
 #from johnspythonlibrary2.Process.Spectral import unwrapPhase as _unwrapPhase
 
-_TSTART=0e-3
-_TSTOP=10e-3
-
 try:
 	import johnspythonlibrary2.Hbtep.Get.hbtepSettings as _settings
 except ImportError:
-	_sys.exit("Code hault: _hbtPreferences.py file not found.  See readme.md" +
-	" concerning the creation of _hbtPreferences.py")
+	raise Exception('Code hault: hbtepSettings.py file not found.')
 	
+
+### Settings
+_TSTART=0e-3
+_TSTOP=10e-3
+
+
+### Functions
 def latestShotNumber(serverAddress=_settings._SERVER_ADDRESS,
 					 port=_settings._SERVER_PORT):
 	"""

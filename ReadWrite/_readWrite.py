@@ -5,6 +5,13 @@ import matplotlib.pyplot as _plt
 from functools import wraps as _wraps
 
 
+try:
+	import johnspythonlibrary2.ReadWrite.settings as _settings
+except ImportError:
+	raise Exception('Code hault: settings.py file not found.')
+	
+
+
 
 def convertMatToDF(filename):
 	"""
@@ -41,7 +48,7 @@ def convertMatToDF(filename):
 	return df
 
 
-def backupDFs(func,defaultDir='/home/john/shotData/',debug=False):
+def backupDFs(func,defaultDir=_settings.localDirToSaveData,debug=False):
 	"""
 	Decorator for functions that return one or more DataFrames.
 	This decorator stores the data locally so it doesn't need to be download from 
