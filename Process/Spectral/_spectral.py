@@ -2,7 +2,7 @@
 import numpy as _np
 import pandas as _pd
 import matplotlib.pyplot as _plt
-from johnspythonlibraries2 import Plot as _plot
+from johnspythonlibrary2 import Plot as _plot
 
 
 

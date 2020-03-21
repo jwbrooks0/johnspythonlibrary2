@@ -1,9 +1,45 @@
 
 import numpy as _np
 import pandas as _pd
-import matplotlib.pyplot as _plt
+#import matplotlib.pyplot as _plt
 
 
+
+def extractIntsFromStr(string):
+	"""
+	Extracts all integers from a string.
+	
+	Parameters
+	----------
+	string : str
+		str with numbers embedded
+		
+	Returns
+	-------
+	numbers : list (of int)
+		list of numbers that were within string
+		
+	Example
+	-------
+	::
+		
+		print(extractNumsFromStr("123HelloMy65Is23"))
+	
+	Notes
+	-----
+	Does not work with decimal points.  Integers only.
+	"""
+	import re
+	
+	# get list of numbers
+	numbers=re.findall(r'\d+',string)
+	
+	# convert to integers
+	for i in range(0,len(numbers)):
+		numbers[i]=int(numbers[i])
+		
+	return numbers
+	 
 
 def findNearest(array,value):
 	"""
