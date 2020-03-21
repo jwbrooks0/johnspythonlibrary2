@@ -6,7 +6,7 @@ from functools import wraps as _wraps
 
 
 try:
-	import johnspythonlibrary2.ReadWrite.settings as _settings
+	import johnspythonlibrary2.ReadWrite._settings as _settings
 except ImportError:
 	raise Exception('Code hault: settings.py file not found.')
 	
