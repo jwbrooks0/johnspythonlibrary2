@@ -3,18 +3,20 @@
 
 import numpy as _np
 import pandas as _pd
-import johnspythonlibrary2.Hbtep.Process as _process
-from johnspythonlibrary2.ReadWrite import readOdsToDF
+import matplotlib.pyplot as _plt
+
+from johnspythonlibrary2.Hbtep.Process import leastSquareModeAnalysis as _leastSquareModeAnalysis
+from johnspythonlibrary2.ReadWrite import readOdsToDF as _readOdsToDF
 from johnspythonlibrary2.ReadWrite import backupDFs as _backupDFs
 from johnspythonlibrary2.Process.Filters.NoPhaseShift import gaussianFilter_df as _gaussianFilter_df
-import matplotlib.pyplot as _plt
-#from johnspythonlibrary2.Process.Filters.NoPhaseShift import gaussianFilter_df as _gaussianFilter_df
 import johnspythonlibrary2.Plot._plot as _plot
+#from johnspythonlibrary2.Process.Filters.NoPhaseShift import gaussianFilter_df as _gaussianFilter_df
+
 #from johnspythonlibrary2.Process.Pandas import filterDFByTime as _filterDFByTime
 #from johnspythonlibrary2.Process.Spectral import unwrapPhase as _unwrapPhase
 
 try:
-	import johnspythonlibrary2.Hbtep.Get.hbtepSettings as _settings
+	import johnspythonlibrary2.Hbtep.Get._settings as _settings
 except ImportError:
 	raise Exception('Code hault: hbtepSettings.py file not found.')
 	
@@ -295,7 +297,7 @@ def magneticSensorData(	shotno=98173,
 		return dfFBRaw
 	
 	# load meta data
-	dfMeta=readOdsToDF('listOfAllSensorsOnHBTEP.ods',sensor).set_index('names')
+	dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods',sensor).set_index('names')
 	
 	
 	# load raw data
@@ -368,7 +370,7 @@ def solData(	shotno=98030,
 		return dfSOLRaw
 	
 	# load meta data
-	dfMeta=readOdsToDF('listOfAllSensorsOnHBTEP.ods','SOL').set_index('names')
+	dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods','SOL').set_index('names')
 	
 	# load raw data
 	dfRaw=dfSOLRaw(shotno,tStart,tStop,dfMeta)
@@ -474,7 +476,7 @@ def quartzJumperAndGroundingBusData(	shotno=96530,
 		return dfJumperRaw
 	
 	# load meta data
-	dfMeta=readOdsToDF('listOfAllSensorsOnHBTEP.ods','Jumper').set_index('names')
+	dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods','Jumper').set_index('names')
 	
 	# load raw data
 	dfRaw=dfJumperRaw(shotno,tStart,tStop,dfMeta)
@@ -792,7 +794,7 @@ def sxrData(	shotno=98170,
 		return dfSXR
 	
 	# load meta data
-	dfMeta=readOdsToDF('listOfAllSensorsOnHBTEP.ods','SXR').set_index('names')
+	dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods','SXR').set_index('names')
 	
 	# drop bad channels
 	if dropBadChannels==True:
@@ -1208,7 +1210,7 @@ def euvData(	shotno=101393,
 		return dfEUV
 	
 	# load meta data
-	dfMeta=readOdsToDF('listOfAllSensorsOnHBTEP.ods','EUV').set_index('names')
+	dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods','EUV').set_index('names')
 	
 	# load raw data
 	df=dfEUV(shotno,tStart,tStop,dfMeta)
@@ -1328,7 +1330,7 @@ def nModeData(	shotno,
 		raise Exception('Bad sensor name')
 
 	angles=dfMeta.phi.values
-	dfResults=_process.leastSquareModeAnalysis(	df*1e4,
+	dfResults=_leastSquareModeAnalysis(	df*1e4,
 									angles,
 									modeNumbers=modeNumbers,
 									plot=plot,
@@ -1388,7 +1390,7 @@ def mModeData(	shotno,
 									forceDownload=False)
 
 	angles=dfMeta.theta.values
-	dfResults=_process.leastSquareModeAnalysis(	df*1e4,
+	dfResults=_leastSquareModeAnalysis(	df*1e4,
 									angles,
 									modeNumbers=modeNumbers,
 									plot=plot,
