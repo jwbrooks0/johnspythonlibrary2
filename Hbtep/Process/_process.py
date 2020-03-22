@@ -2,7 +2,7 @@
 import numpy as _np
 import pandas as _pd
 import matplotlib.pyplot as _plt
-from johnspythonlibrary2.Process.Filters.NoPhaseShift import gaussianFilter_df as _gaussianFilter_df
+from johnspythonlibrary2.Process.Filters import gaussianFilter_df as _gaussianFilter_df
 import johnspythonlibrary2.Plot._plot as _plot
 from johnspythonlibrary2.Process.Pandas import filterDFByTime as _filterDFByTime
 from johnspythonlibrary2.Process.Spectral import unwrapPhase as _unwrapPhase
