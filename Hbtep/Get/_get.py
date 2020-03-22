@@ -8,17 +8,13 @@ import matplotlib.pyplot as _plt
 from johnspythonlibrary2.Hbtep.Process import leastSquareModeAnalysis as _leastSquareModeAnalysis
 from johnspythonlibrary2.ReadWrite import readOdsToDF as _readOdsToDF
 from johnspythonlibrary2.ReadWrite import backupDFs as _backupDFs
-from johnspythonlibrary2.Process.Filters.NoPhaseShift import gaussianFilter_df as _gaussianFilter_df
+from johnspythonlibrary2.Process.Filters import gaussianFilter_df as _gaussianFilter_df
 import johnspythonlibrary2.Plot._plot as _plot
-#from johnspythonlibrary2.Process.Filters.NoPhaseShift import gaussianFilter_df as _gaussianFilter_df
-
-#from johnspythonlibrary2.Process.Pandas import filterDFByTime as _filterDFByTime
-#from johnspythonlibrary2.Process.Spectral import unwrapPhase as _unwrapPhase
 
 try:
 	import johnspythonlibrary2.Hbtep.Get._settings as _settings
 except ImportError:
-	raise Exception('Code hault: hbtepSettings.py file not found.')
+	raise Exception('Code hault: _settings.py file not found.')
 	
 
 ### Settings
