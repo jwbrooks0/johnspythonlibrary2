@@ -473,6 +473,9 @@ def fft_df(df,plot=False):
 	"""
 	from numpy.fft import fft
 	
+	if type(df)==_pd.core.series.Series:
+		df=_pd.DataFrame(df)
+	
 	# initialize
 	dt=df.index[1]-df.index[0]
 	N=df.shape[0]
