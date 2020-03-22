@@ -1,4 +1,6 @@
 
+###################################################################################
+### import libraries
 import numpy as _np
 import pandas as _pd
 import matplotlib.pyplot as _plt
@@ -6,62 +8,8 @@ import matplotlib as _mpl
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-
-def arrow(ax,xyTail=(0,0),xyHead=(1,1),color='r',width=3,headwidth=10,headlength=10,alpha=1.0):
-	"""
-	Draws an arrow
-	
-	References
-	----------
-	https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.axes.Axes.annotate.html
-	"""
-	ax.annotate("", xy=xyHead, xytext=xyTail, arrowprops=dict(	width=width,
-														headwidth=headwidth,
-														headlength=headlength,
-														color=color,
-														alpha=alpha),
-				label='current')
-	
-
-def rectangle(ax,x_bottomleft,y_bottomleft,width,height,color='r',alpha=0.5):
-	"""
-	Adds a colored rectangle to a plot
-	
-	ax : matplotlib.axes._subplots.AxesSubplot
-		axis handle for the rectangle
-	x_bottomleft : float
-		x-coordinate of the bottom left corner of the rectangle
-	y_bottomleft : float
-		y-coordinate of the bottom left corner of the rectangle
-	width : float
-		width of rectangle
-	height : float
-		height of the rectangle
-	color : str
-		color of the rectangle
-	alpha : float
-		alpha (transparency) value of the rectangle, between 0.0 and 1.0.  
-		
-	Example
-	-------
-	::
-		
-		import numpy
-		import matplotlib.pyplot as plt
-		fig,ax=plt.subplots()
-		ax.plot(np.arange(0,10))
-		rectangle(ax,1,1,7,2.5)
-	"""
-		
-
-	from matplotlib.patches import Rectangle
-	from matplotlib.collections import PatchCollection
-
-	rect=Rectangle((x_bottomleft,y_bottomleft),width,height)
-	pc=PatchCollection([rect],facecolor=color,alpha=alpha)
-	ax.add_collection(pc)
-
-
+###################################################################################
+### figure/ax related
 
 def subTitle(ax,string,
 			xy=(0.5, .98),
@@ -330,61 +278,7 @@ def finalizeSubplot(	ax,
 		ax[i].set_ylim(ylim)
 		ax[i].set_xlim(xlim)
 		
-		
-		
-def contourPlot(	ax,
-					x,
-					y,
-					z,
-					levels,
-					ylabel='',
-					zlabel='',
-					yticklabels=None,
-					xlabel='',
-					title='',
-					zlim=[],
-					zticklabels='',
-					ztickLabels=[],
-					colorMap=_plt.cm.viridis,
-					fill=True,
-					fontsize=8,
-					colorBar=True):
-	"""
-	wrapper for contour plot.  under development
-	"""
-	X,Y=_np.meshgrid(x,y)
-	if len(zlim)>0:
-		vmin=zlim[0]
-		vmax=zlim[1]
-	else:
-		vmin=None
-		vmax=None
-#	if levels!=[]:
-	if fill==True:
-		CS=ax.contourf(X,Y,z,levels=levels,cmap=colorMap,vmin=vmin,vmax=vmax)#vmin=zlim[0],vmax=zlim[1],
-	else:
-		CS=ax.contour(X,Y,z,levels=levels,cmap=colorMap,vmin=vmin,vmax=vmax)#vmin=zlim[0],vmax=zlim[1],
-
-	ax.set_xlabel(xlabel,fontsize=fontsize)
-	ax.set_ylabel(ylabel,fontsize=fontsize)
-	ax.set_title(title,fontsize=fontsize)
-	if type(yticklabels) != type(None):
-		ax.set_yticks(y)
-		ax.set_yticklabels(yticklabels)
-	if colorBar==True:
-		if zticklabels!='':
-			cbar = _plt.colorbar(CS,ax=ax,ticks=zticklabels,pad=0.01)
-			cbar.ax.set_yticklabels(ztickLabels,fontsize=fontsize)
-		else:
-			cbar = _plt.colorbar(CS,ax=ax,pad=0.01)
-		cbar.ax.set_ylabel(zlabel,fontsize=fontsize)
-	ax.tick_params(axis='x',labelsize=fontsize)
-	ax.tick_params(axis='y',labelsize=fontsize)
 	
-	
-	for c in CS.collections:
-	    c.set_edgecolor("face")
-		
 		
 		
 def subplotsWithColormaps(nrows=2,sharex=False):
@@ -431,3 +325,121 @@ def subplotsWithColormaps(nrows=2,sharex=False):
 		cax=divider.append_axes("right", size="2%", pad=.05)
 			
 	return fig,ax,cax
+
+
+
+###################################################################################
+### shapes
+def arrow(ax,xyTail=(0,0),xyHead=(1,1),color='r',width=3,headwidth=10,headlength=10,alpha=1.0):
+	"""
+	Draws an arrow
+	
+	References
+	----------
+	https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.axes.Axes.annotate.html
+	"""
+	ax.annotate("", xy=xyHead, xytext=xyTail, arrowprops=dict(	width=width,
+														headwidth=headwidth,
+														headlength=headlength,
+														color=color,
+														alpha=alpha),
+				label='current')
+	
+
+def rectangle(ax,x_bottomleft,y_bottomleft,width,height,color='r',alpha=0.5):
+	"""
+	Adds a colored rectangle to a plot
+	
+	ax : matplotlib.axes._subplots.AxesSubplot
+		axis handle for the rectangle
+	x_bottomleft : float
+		x-coordinate of the bottom left corner of the rectangle
+	y_bottomleft : float
+		y-coordinate of the bottom left corner of the rectangle
+	width : float
+		width of rectangle
+	height : float
+		height of the rectangle
+	color : str
+		color of the rectangle
+	alpha : float
+		alpha (transparency) value of the rectangle, between 0.0 and 1.0.  
+		
+	Example
+	-------
+	::
+		
+		import numpy
+		import matplotlib.pyplot as plt
+		fig,ax=plt.subplots()
+		ax.plot(np.arange(0,10))
+		rectangle(ax,1,1,7,2.5)
+	"""
+		
+
+	from matplotlib.patches import Rectangle
+	from matplotlib.collections import PatchCollection
+
+	rect=Rectangle((x_bottomleft,y_bottomleft),width,height)
+	pc=PatchCollection([rect],facecolor=color,alpha=alpha)
+	ax.add_collection(pc)
+
+
+
+
+###################################################################################
+### specialty plots
+def contourPlot(	ax,
+					x,
+					y,
+					z,
+					levels,
+					ylabel='',
+					zlabel='',
+					yticklabels=None,
+					xlabel='',
+					title='',
+					zlim=[],
+					zticklabels='',
+					ztickLabels=[],
+					colorMap=_plt.cm.viridis,
+					fill=True,
+					fontsize=8,
+					colorBar=True):
+	"""
+	wrapper for contour plot.  under development
+	#TODO this needs an overhaul
+	"""
+	X,Y=_np.meshgrid(x,y)
+	if len(zlim)>0:
+		vmin=zlim[0]
+		vmax=zlim[1]
+	else:
+		vmin=None
+		vmax=None
+#	if levels!=[]:
+	if fill==True:
+		CS=ax.contourf(X,Y,z,levels=levels,cmap=colorMap,vmin=vmin,vmax=vmax)#vmin=zlim[0],vmax=zlim[1],
+	else:
+		CS=ax.contour(X,Y,z,levels=levels,cmap=colorMap,vmin=vmin,vmax=vmax)#vmin=zlim[0],vmax=zlim[1],
+
+	ax.set_xlabel(xlabel,fontsize=fontsize)
+	ax.set_ylabel(ylabel,fontsize=fontsize)
+	ax.set_title(title,fontsize=fontsize)
+	if type(yticklabels) != type(None):
+		ax.set_yticks(y)
+		ax.set_yticklabels(yticklabels)
+	if colorBar==True:
+		if zticklabels!='':
+			cbar = _plt.colorbar(CS,ax=ax,ticks=zticklabels,pad=0.01)
+			cbar.ax.set_yticklabels(ztickLabels,fontsize=fontsize)
+		else:
+			cbar = _plt.colorbar(CS,ax=ax,pad=0.01)
+		cbar.ax.set_ylabel(zlabel,fontsize=fontsize)
+	ax.tick_params(axis='x',labelsize=fontsize)
+	ax.tick_params(axis='y',labelsize=fontsize)
+	
+	
+	for c in CS.collections:
+	    c.set_edgecolor("face")
+		
