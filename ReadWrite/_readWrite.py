@@ -7,8 +7,10 @@ from functools import wraps as _wraps
 
 try:
 	import johnspythonlibrary2.ReadWrite._settings as _settings
+	LOCALDIRTOSAVEDATA=_settings.localDirToSaveData
 except ImportError:
-	raise Exception('Code hault: settings.py file not found.')
+	print('Warning: settings.py file not found.  Have you modified the _settingsTemplate.py file yet?')
+	LOCALDIRTOSAVEDATA=''
 	
 
 
@@ -48,7 +50,7 @@ def convertMatToDF(filename):
 	return df
 
 
-def backupDFs(func,defaultDir=_settings.localDirToSaveData,debug=False):
+def backupDFs(func,defaultDir=LOCALDIRTOSAVEDATA,debug=False):
 	"""
 	Decorator for functions that return one or more DataFrames.
 	This decorator stores the data locally so it doesn't need to be download from 
@@ -105,7 +107,9 @@ def backupDFs(func,defaultDir=_settings.localDirToSaveData,debug=False):
 			print(partialFileName)
 		
 		try:
-			if forceDownload==True:
+			if LOCALDIRTOSAVEDATA=='':
+				raise Exception('Default directory not specified.  Forcing download.')
+			elif forceDownload==True:
 				raise Exception('forcing download')
 			import glob
 			inList=glob.glob('%s%s*.pkl'%(defaultDir,partialFileName))
@@ -125,15 +129,17 @@ def backupDFs(func,defaultDir=_settings.localDirToSaveData,debug=False):
 		except:
 			read=func(*args, **kwargs)
 			if type(read)==_pd.core.frame.DataFrame:
-				fileName='%s%s_%s.pkl'%(defaultDir,str(name),func.__name__)
-				read.to_pickle(fileName)
-				print('downloading and storing %s'%fileName)
+				if LOCALDIRTOSAVEDATA!='':
+					fileName='%s%s_%s.pkl'%(defaultDir,str(name),func.__name__)
+					read.to_pickle(fileName)
+					print('downloading and storing %s'%fileName)
 			else:
 				for i in range(len(read)):
 					df=read[i]
-					fileName='%s%s_%s_%d.pkl'%(defaultDir,str(name),func.__name__,i)
-					df.to_pickle(fileName)
-					print('downloading and storing %s'%fileName)
+					if LOCALDIRTOSAVEDATA!='':
+						fileName='%s%s_%s_%d.pkl'%(defaultDir,str(name),func.__name__,i)
+						df.to_pickle(fileName)
+						print('downloading and storing %s'%fileName)
 			df=read
 			
 		return df
