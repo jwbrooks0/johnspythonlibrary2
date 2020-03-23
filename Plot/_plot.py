@@ -8,6 +8,25 @@ import matplotlib as _mpl
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
+###############################################################################
+### custom color cycle.  now 15 colors long
+_colors=[ 	"k",
+			"tab:blue",
+			"tab:orange",
+			"tab:green",
+			"tab:red",
+			"tab:purple",
+			"tab:brown",
+			"tab:pink",
+			"tab:gray",
+			"tab:olive",
+			"tab:cyan",
+			"lime",
+			"blue",
+			"red",
+			"m"]
+_mpl.rcParams['axes.prop_cycle'] = _mpl.cycler(color=_colors)
+
 ###################################################################################
 ### figure/ax related
 
@@ -72,6 +91,7 @@ def finalizeFigure(fig,
 				   fontSizeTitle=12,
 				   figSize=[],
 				   pad=0.5):
+	#TODO update paramters to kwargs
 	""" 
 	Performs many of the "same old" commands that need to be performed for
 	each figure but wraps it up into one function
@@ -156,8 +176,8 @@ def finalizeSubplot(	ax,
 						subtitle='',
 						xlim=[],
 						ylim=[],
-						fontSizeStandard=8, 
-						fontSizeTitle=8,
+						fontsize=8, 
+						fontSizeTitle=None,
 						legendLoc='best', 
 						color='grey',
 						linestyle=':',
@@ -174,6 +194,7 @@ def finalizeSubplot(	ax,
 						handlelength=2,
 						tickDirection='out',
 						):
+	#TODO update paramters to kwargs
 	"""
 	Performs many of the "same old" commands that need to be performed for
 	each subplot but wraps it up into one function
@@ -209,6 +230,9 @@ def finalizeSubplot(	ax,
 	"""
 #	legend=False
 	
+	if fontSizeTitle==None:
+		fontSizeTitle=fontsize
+	
 	# check to see if ax is a list or array
 	if type(ax)==list or type(ax)==_np.ndarray:
 		pass
@@ -219,15 +243,15 @@ def finalizeSubplot(	ax,
 	for i in range(0,len(ax)):
 		
 		# title and axis labels
-		ax[i].set_ylabel(ylabel,fontsize=fontSizeStandard,color=yAxisColor)
+		ax[i].set_ylabel(ylabel,fontsize=fontsize,color=yAxisColor)
 		if i==0:
 			ax[i].set_title(title,fontsize=fontSizeTitle)
 		if i==len(ax)-1:
-			ax[i].set_xlabel(xlabel,fontsize=fontSizeStandard)
+			ax[i].set_xlabel(xlabel,fontsize=fontsize)
 		
 		# subtitle
 		if subtitle!='':
-			subTitle(ax[i],subtitle,fontSize=fontSizeStandard)
+			subTitle(ax[i],subtitle,fontSize=fontsize)
 		
 		# add a legend only if "any" plot label has been defined # TODO(John) does not work for multiple columns of subplots.  Fix
 		if legendOn==True:
@@ -236,7 +260,7 @@ def finalizeSubplot(	ax,
 ##				if label[0]==u'_':
 ##					legendOn=False
 			if legendOn==True:
-				ax[i].legend(	fontsize=fontSizeStandard,
+				ax[i].legend(	fontsize=fontsize,
 							loc=legendLoc,
 							numpoints=numberLegendPoints, # numpoints is the number of markers in the legend
 							ncol=ncol,
@@ -245,7 +269,7 @@ def finalizeSubplot(	ax,
 				
 		# set x and y axis tick label fontsize
 		ax[i].tick_params(	axis='both',
-						labelsize=fontSizeStandard,
+						labelsize=fontsize,
 						direction=tickDirection
 						)
 			
