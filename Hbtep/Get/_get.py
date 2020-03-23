@@ -4,17 +4,21 @@
 import numpy as _np
 import pandas as _pd
 import matplotlib.pyplot as _plt
+import os.path as _path
 
 from johnspythonlibrary2.Hbtep.Process import leastSquareModeAnalysis as _leastSquareModeAnalysis
 from johnspythonlibrary2.ReadWrite import readOdsToDF as _readOdsToDF
 from johnspythonlibrary2.ReadWrite import backupDFs as _backupDFs
 from johnspythonlibrary2.Process.Filters import gaussianFilter_df as _gaussianFilter_df
 import johnspythonlibrary2.Plot._plot as _plot
+import johnspythonlibrary2.Hbtep.Plot._plot as _plotHbt
+from johnspythonlibrary2.Process.Pandas import filterDFByTime as _filterDFByTime
+from johnspythonlibrary2.Process.Pandas import filterDFByColOrIndex as _filterDFByColOrIndex
 
 try:
 	import johnspythonlibrary2.Hbtep.Get._settings as _settings
 except ImportError:
-	raise Exception('Code hault: _settings.py file not found.')
+	raise Exception('Code hault: _settings.py file not found.  Have you modified the template file yet in Hbtep/Get/?')
 	
 
 ### Settings
@@ -79,7 +83,7 @@ def mdsData(shotno,
 	
 	## subfunctions
 	def _initRemoteMDSConnection(	shotno,
-									serverAddress=_settings._SERVER_PORT,
+									serverAddress=_settings._SERVER_ADDRESS,
 									port=_settings._SERVER_PORT):
 		"""
 		Initiate remote connection with MDSplus HBT-EP tree
@@ -122,12 +126,11 @@ def mdsData(shotno,
 		dataAddress=[dataAddress];
 		
 	shotno=int(shotno)
-		
-	## create a dataframe of data for each provided shotnumber
-
+	
 	mdsConn=_initRemoteMDSConnection(shotno);
 	
-	
+		
+	## create a dataframe of data for each provided shotnumber
 	df=_pd.DataFrame()
 	for j,jkey in enumerate(dataAddress):
 		ds=_pd.Series(mdsConn.get(jkey).data(),
@@ -184,7 +187,12 @@ def magneticSensorDataAll(	shotno,
 	dfMetaAll : pandas.core.frame.DataFrame
 		Meta data for the sensors
 		
-	dfRaw,dfSmoothed,dfMeta=magneticSensorDataAll(100000)
+	Examples
+	--------
+	Example1::
+		
+		dfRaw,dfSmoothed,dfMeta=magneticSensorDataAll(106000,plot=True,tStart=1.5e-3,tStop=5.5e-3)
+		
 	"""
 	
 	sensors=['TA','PA1','PA2','FB']
@@ -253,18 +261,19 @@ def magneticSensorData(	shotno=98173,
 	
 	Notes
 	-----
-	other possible bad sensors
-	#	badSensors=['TA02_S1P','TA07_S3P','TA10_S3P']  # two of these three are not ALWAYS bad...
+	other possible bad sensors: ['TA02_S1P','TA07_S3P','TA10_S3P'] 
+	The sensors that are bad are not necessarily consistent from shot to shot or year to year
  
 	
 	Examples
 	--------
 	::
 		
-		a,b,c=magneticSensorData(98173,sensor='TA')
-		a,b,c=magneticSensorData(98173,sensor='PA1')
-		a,b,c=magneticSensorData(98173,sensor='PA2')
-		a,b,c=magneticSensorData(98173,sensor='FB')
+		shotno=106000
+		a,b,c=magneticSensorData(shotno,sensor='TA',plot=True,tStart=1.5e-3,tStop=5.5e-3)
+		a,b,c=magneticSensorData(shotno,sensor='PA1',plot=True,tStart=1.5e-3,tStop=5.5e-3)
+		a,b,c=magneticSensorData(shotno,sensor='PA2',plot=True,tStart=1.5e-3,tStop=5.5e-3)
+		a,b,c=magneticSensorData(shotno,sensor='FB',plot=True,tStart=1.5e-3,tStop=5.5e-3,forceDownload=True)
 
 	"""
 	
@@ -293,9 +302,12 @@ def magneticSensorData(	shotno=98173,
 		return dfFBRaw
 	
 	# load meta data
-	dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods',sensor).set_index('names')
-	
-	
+	try:
+		directory=_path.dirname(_path.realpath(__file__))
+		dfMeta=_readOdsToDF('%s/listOfAllSensorsOnHBTEP.ods'%directory,sensor).set_index('names')
+	except:
+		dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods',sensor).set_index('names')
+		
 	# load raw data
 	if sensor=='TA':
 		dfRaw=dfTARaw(shotno,tStart,tStop,dfMeta,forceDownload=forceDownload)
@@ -308,10 +320,32 @@ def magneticSensorData(	shotno=98173,
 	if removeBadSensors:
 		dfRaw=dfRaw.drop(columns=dfMeta[dfMeta.bad==True].index.to_list())
 		dfMeta=dfMeta.drop(dfMeta[dfMeta.bad==True].index.to_list())
-		
+	dfRaw=_filterDFByTime(dfRaw,tStart,tStop)
 		
 	# filter data
 	dfSmoothed=_gaussianFilter_df(dfRaw,timeFWHM=timeFWHMSmoothing,filterType='high',plot=False)
+	
+	# optional stripey plots
+	if plot==True:
+		if 'PA' in sensor:
+			angle=dfMeta.theta.values
+			dfSmoothed.columns=angle
+			dfSmoothed.index*=1e3
+			fig,ax,cax=_plotHbt.stripeyPlot(dfSmoothed*1e4,title='%d'%shotno,poloidal=True,subtitle=sensor,xlabel='Time (ms)',ylabel=r'Poloidal angle, $\theta$')
+		elif sensor=='TA':
+			angle=dfMeta.phi.values
+			dfSmoothed.columns=angle
+			dfSmoothed.index*=1e3
+			fig,ax,cax=_plotHbt.stripeyPlot(dfSmoothed*1e4,title='%d'%shotno,toroidal=True,subtitle=sensor,xlabel='Time (ms)',ylabel=r'Toroidal angle, $\phi$')
+		else: #FB arrays
+			for s in ['S1P','S2P','S3P','S4P']:
+				dfTemp=_filterDFByColOrIndex(dfSmoothed,s)
+				dfTempMeta=_filterDFByColOrIndex(dfMeta,s,col=False)
+				angle=dfTempMeta.phi.values
+				dfTemp.columns=angle
+				dfTemp.index*=1e3
+				fig,ax,cax=_plotHbt.stripeyPlot(dfTemp*1e4,title='%d'%shotno,toroidal=True,subtitle='FB_'+s,xlabel='Time (ms)',ylabel=r'Toroidal angle, $\phi$')
+			
 
 	return dfRaw,dfSmoothed,dfMeta
 
@@ -370,6 +404,7 @@ def solData(	shotno=98030,
 	
 	# load raw data
 	dfRaw=dfSOLRaw(shotno,tStart,tStop,dfMeta)
+	dfRaw=_filterDFByTime(dfRaw,tStart,tStop)
 	
 	# filter data
 	dfSmoothed=_gaussianFilter_df(dfRaw,timeFWHM=timeFWHMSmoothing,filterType='high',plot=False)
@@ -478,6 +513,7 @@ def quartzJumperAndGroundingBusData(	shotno=96530,
 	dfRaw=dfJumperRaw(shotno,tStart,tStop,dfMeta)
 	dfRaw['WestRackGround']*=100
 	dfRaw['NorthRackGround']*=100
+	dfRaw=_filterDFByTime(dfRaw,tStart,tStop)
 	
 	# filter data
 	dfSmoothed=_gaussianFilter_df(dfRaw,timeFWHM=timeFWHMSmoothing,filterType='high',plot=False)
@@ -564,6 +600,7 @@ def ipData(	shotno=96530,
 					tStart=tStart, 
 					tStop=tStop,
 					forceDownload=False)
+	dfIp=_filterDFByTime(dfIp,tStart,tStop)
 	
 	# integrate PA1 sensor data to get IP
 	if paIntegrate==True:
@@ -729,6 +766,7 @@ def cos1RogowskiData(	shotno=96530,
 	dfData=getCos1RogData(shotno,
 					   tStart=tStart,
 					   tStop=tStop)
+	dfData=_filterDFByTime(dfData,tStart,tStop)
 
 	# remove offest
 	dfData['COS_1_RAW']-=dfData.COS_1_RAW[dfData.COS_1_RAW.index<0].mean()
@@ -776,7 +814,7 @@ def sxrData(	shotno=98170,
 	-------
 	::
 		
-		df=sxrData(100000,plot=True)
+		df=sxrData(106000,plot=True,tStart=1.5e-3,tStop=5.2e-3)
 
 	"""
 	
@@ -798,12 +836,20 @@ def sxrData(	shotno=98170,
 		
 	# load raw data
 	df=dfSXR(shotno,tStart,tStop,dfMeta,forceDownload=False)
+	df=_filterDFByTime(df,tStart,tStop)
 	
 	# optional plot
 	if plot==True:
 		df.plot()
 		
-	return df
+		dfHP=_gaussianFilter_df(df,timeFWHM=0.4e-3)
+		temp=_np.copy(dfHP.columns).astype(str)
+		columns=_np.array(['%d'%int(temp[i][-2:]) for i in range(len(temp))]).astype(float)
+		dfHP.columns=columns
+		fig,ax,_=_plotHbt.stripeyPlot(dfHP,title='%d'%shotno)		
+		_plot.finalizeFigure(fig)
+		
+	return df,dfHP
 			
 
 
@@ -909,6 +955,7 @@ def tfData(	shotno=96530,
 	df=dfTF(shotno,
 		 tStart=tStart,
 		 tStop=tStop)
+	dfTF=_filterDFByTime(dfTF,tStart,tStop)
 	
 
 	if plot==True:
@@ -996,6 +1043,7 @@ def capBankData(	shotno=96530,
 		return df
 	
 	df=capBankData(shotno,tStart=tStart,tStop=tStop)
+	df=_filterDFByTime(df,tStart,tStop)
 
 	if plot == True:	
 		# get TF data
@@ -1100,6 +1148,7 @@ def plasmaRadiusData(	shotno=95782,
 	dfData=dfPlasmaRadius(shotno,
 					   tStart=tStart,
 					   tStop=tStop)
+	dfData=_filterDFByTime(dfData,tStart,tStop)
 	
 	if plot==True:
 		fig,ax=_plt.subplots(2,sharex=True)
@@ -1210,6 +1259,7 @@ def euvData(	shotno=101393,
 	
 	# load raw data
 	df=dfEUV(shotno,tStart,tStop,dfMeta)
+	df=_filterDFByTime(df,tStart,tStop)
 	
 	if plot==True:
 		df.plot()
