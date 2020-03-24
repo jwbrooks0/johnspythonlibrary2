@@ -30,14 +30,15 @@ _mpl.rcParams['axes.prop_cycle'] = _mpl.cycler(color=_colors)
 ###################################################################################
 ### figure/ax related
 
-def subTitle(ax,string,
-			xy=(0.5, .98),
-			box=True,
-			textColor='k',
-			xycoords='axes fraction',
-			fontSize=8,
-			horizontalalignment='center',
-			verticalalignment='top'):
+def subTitle(	ax,
+				string,
+				xy=(0.5, .98),
+				box=True,
+				textColor='k',
+				xycoords='axes fraction',
+				fontSize=8,
+				horizontalalignment='center',
+				verticalalignment='top'):
 	"""
 	wrapper for the annotate axis function.  the default setting is for a
 	figure subtitle at the top of a particular axis
@@ -66,7 +67,6 @@ def subTitle(ax,string,
 	verticalalignment : str
 		'top' - coordinates are centered at the top of the box
 	
-	TODO(John) Expand functionality
 	"""
 	if box==True:
 		box=dict(boxstyle="square, pad=.25", fc="w",edgecolor='k')
@@ -85,12 +85,13 @@ def subTitle(ax,string,
 
 
 def finalizeFigure(fig,
-				   title='',
-				   h_pad=0.25,
-				   w_pad=0.25, 
-				   fontSizeTitle=12,
+#				   title='',
+#				   h_pad=0.25,
+#				   w_pad=0.25, 
+#				   fontSizeTitle=12,
 				   figSize=[],
-				   pad=0.5):
+#				   pad=0.5,
+				   **kwargs):
 	#TODO update paramters to kwargs
 	""" 
 	Performs many of the "same old" commands that need to be performed for
@@ -100,9 +101,19 @@ def finalizeFigure(fig,
 	----------
 	fig : matplotlib.figure.Figure
 		Figure to be modified
-	title : str
-		(Optional) Figure title
+	figSize : list of floats
+		Figure size.  Units in inches.  E.g. figSize=[6,4]
 	"""
+	# default input parameters
+	params={	'title':'',
+				'h_pad' : 0.25,
+				'w_pad' : 0.25,
+				'fontSizeTitle':12,
+				'pad':0.5,
+				}
+	
+	# update default input parameters with kwargs
+	params.update(kwargs)
 	
 	# fig.suptitle(title) # note: suptitle is not compatible with set_tight_layout
 	
@@ -170,31 +181,8 @@ def positionPlot(	fig,
 	
 
 def finalizeSubplot(	ax,
-						xlabel='',
-						ylabel='',
-						title='',
-						subtitle='',
-						xlim=[],
-						ylim=[],
-						fontsize=8, 
-						fontSizeTitle=None,
-						legendLoc='best', 
-						color='grey',
-						linestyle=':',
-						alpha=1.0,
-						yticks=[],
-						ytickLabels=[],
-						xticks=[],
-						xtickLabels=[],
-						yAxisColor='k',
-						legendOn=True,
-						ncol=1,
-						labelspacing=0.1,
-						numberLegendPoints=2,
-						handlelength=2,
-						tickDirection='out',
+						**kwargs
 						):
-	#TODO update paramters to kwargs
 	"""
 	Performs many of the "same old" commands that need to be performed for
 	each subplot but wraps it up into one function
@@ -203,35 +191,67 @@ def finalizeSubplot(	ax,
 	----------
 	ax : matplotlib.axes._subplots.AxesSubplot
 		figure axis to be modified
-	xlabel : str
-		x label
-	ylabel : str
-		y label
-	title : str
-		title
-	xlim : tuple or list of two floats
-		x limits of plot
-	ylim : tuple or list of two floats
-		y limits of plot
-	fontSizeStandard : int
-		font size of everything but the title
-	fontSizeTitle : int
-		font size of title
-	legendLoc : str
-		location of legend
-	color : str
-		color for axis markings
-	linestyle : str
-		linestyle for axis markings
-	alpha : float
-		value between 0 and 1 for axis markings
-	
-	# TODO(John) Add font sizes, axis ticks, and axis tick labels
+	kwargs : dict
+		misc. parameters for the plot
+
+	Examples
+	--------
+	Example1::
+		
+		t=_np.arange(0,10e-3,2e-6)
+		y1=_np.cos(_np.pi*2*t*2e3)
+		y2=_np.sin(_np.pi*2*t*2e3)
+		y3=_np.sin(_np.pi*2*t*3e3)
+		fig,ax=_plt.subplots(2,sharex=True)
+		ax[0].plot(t*1e3,y1,label='y1')
+		ax[1].plot(t*1e3,y2,label='y2')
+		ax[1].plot(t*1e3,y3,label='y3')
+		finalizeSubplot( 	ax[0],
+							ylabel='y',
+							subtitle='fig1',
+							title='title!',
+							)
+		finalizeSubplot( 	ax[1],
+							ylabel='y',
+							subtitle='fig2',
+							xlabel='time (ms)',
+							)
+		finalizeFigure( fig,
+						figSize=[6,4])
+		
 	"""
-#	legend=False
+
+	# default input parameters
+	params={	'xlabel':'',
+				'yalebl':'',
+				'title':'',
+				'subtitle':'',
+				'xlim':[],
+				'ylim':[],
+				'fontsize':8,
+				'fontSizeTitle':None,
+				'legendLoc':'best',
+				'color':'grey',
+				'linestyle':':',
+				'alpha':1.0,
+				'yticks':[],
+				'ytickLabels':[],
+				'xticks':[],
+				'xtickLabels':[],
+				'yAxisColor':'k',
+				'legendOn':True,
+				'ncol':1,
+				'labelspacing':0.1,
+				'numberLegendPoints':2,
+				'handlelength':2,
+				'tickDirection':'out',
+				}
 	
-	if fontSizeTitle==None:
-		fontSizeTitle=fontsize
+	# update default input parameters with kwargs
+	params.update(kwargs)
+	
+	if params['fontSizeTitle']==None:
+		params['fontSizeTitle']=params['fontsize']
 	
 	# check to see if ax is a list or array
 	if type(ax)==list or type(ax)==_np.ndarray:
@@ -243,62 +263,56 @@ def finalizeSubplot(	ax,
 	for i in range(0,len(ax)):
 		
 		# title and axis labels
-		ax[i].set_ylabel(ylabel,fontsize=fontsize,color=yAxisColor)
+		ax[i].set_ylabel(params['ylabel'],fontsize=params['fontsize'],color=params['yAxisColor'])
 		if i==0:
-			ax[i].set_title(title,fontsize=fontSizeTitle)
+			ax[i].set_title(params['title'],fontsize=params['fontSizeTitle'])
 		if i==len(ax)-1:
-			ax[i].set_xlabel(xlabel,fontsize=fontsize)
+			ax[i].set_xlabel(params['xlabel'],fontsize=params['fontsize'])
 		
 		# subtitle
-		if subtitle!='':
-			subTitle(ax[i],subtitle,fontSize=fontsize)
+		if params['subtitle']!='':
+			subTitle(ax[i],params['subtitle'],fontSize=params['fontsize'])
 		
-		# add a legend only if "any" plot label has been defined # TODO(John) does not work for multiple columns of subplots.  Fix
-		if legendOn==True:
-#			for j in range(len(ax[i].lines)):
-#				label=ax[i].lines[j].get_label()
-##				if label[0]==u'_':
-##					legendOn=False
-			if legendOn==True:
-				ax[i].legend(	fontsize=fontsize,
-							loc=legendLoc,
-							numpoints=numberLegendPoints, # numpoints is the number of markers in the legend
-							ncol=ncol,
-							labelspacing=labelspacing,
-							handlelength=handlelength) 
+		# legend
+		if params['legendOn']==True:
+			ax[i].legend(	fontsize=params['fontsize'],
+						loc=params['legendLoc'],
+						numpoints=params['numberLegendPoints'], # numpoints is the number of markers in the legend
+						ncol=params['ncol'],
+						labelspacing=params['labelspacing'],
+						handlelength=params['handlelength']) 
 				
 		# set x and y axis tick label fontsize
 		ax[i].tick_params(	axis='both',
-						labelsize=fontsize,
-						direction=tickDirection
+						labelsize=params['fontsize'],
+						direction=params['tickDirection']
 						)
 			
 		# x and y limits
-		if len(xlim)>0:
-			ax[i].set_xlim(xlim)
-		if len(ylim)>0:
-			ax[i].set_ylim(ylim)
+		if len(params['xlim'])>0:
+			ax[i].set_xlim(params['xlim'])
+		if len(params['ylim'])>0:
+			ax[i].set_ylim(params['ylim'])
 			
 		# y ticks and y tick labels
-		if yticks!=[]:
-			ax[i].set_yticks(yticks)
-		if ytickLabels!=[]:
-			ax[i].set_yticklabels(ytickLabels)
+		if params['yticks']!=[]:
+			ax[i].set_yticks(params['yticks'])
+		if params['ytickLabels']!=[]:
+			ax[i].set_yticklabels(params['ytickLabels'])
 			
-		# y ticks and y tick labels
-		if xticks!=[]:
-			ax[i].set_xticks(xticks)
-		if xtickLabels!=[]:
-			ax[i].set_xticklabels(xtickLabels)
+		# x ticks and x tick labels
+		if params['xticks']!=[]:
+			ax[i].set_xticks(params['xticks'])
+		if params['xtickLabels']!=[]:
+			ax[i].set_xticklabels(params['xtickLabels'])
 			
-		# 
-		ax[i].tick_params(axis='y', labelcolor=yAxisColor)
+		ax[i].tick_params(axis='y', labelcolor=params['yAxisColor'])
 			
 		# add dotted lines along the x=0 and y=0 lines
 		ylim=ax[i].get_ylim()
 		xlim=ax[i].get_xlim()
-		ax[i].plot(xlim,[0,0],color=color,linestyle=linestyle,alpha=alpha)
-		ax[i].plot([0,0],ylim,color=color,linestyle=linestyle,alpha=alpha)
+		ax[i].plot(xlim,[0,0],color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
+		ax[i].plot([0,0],ylim,color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
 		ax[i].set_ylim(ylim)
 		ax[i].set_xlim(xlim)
 		
@@ -319,9 +333,9 @@ def subplotsWithColormaps(nrows=2,sharex=False):
 	Returns
 	-------
 	
-	Example
-	-------
-	::
+	Examples
+	--------
+	Example1::
 		
 		fig,ax,cax=subplotsWithColormaps(3,sharex=True)
 		
@@ -361,6 +375,27 @@ def arrow(ax,xyTail=(0,0),xyHead=(1,1),color='r',width=3,headwidth=10,headlength
 	References
 	----------
 	https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.axes.Axes.annotate.html
+	
+	Examples
+	--------
+	Example1::
+		
+		t=_np.arange(0,10,2e-3)
+		y1=_np.cos(_np.pi*2*t*2e-1)
+		fig,ax=_plt.subplots(1,sharex=True)
+		ax.plot(t,y1,label='y1')
+		arrow(ax,xyTail=(0,0.0),xyHead=(0,1))
+		arrow(ax,xyTail=(5,0.0),xyHead=(5,1))
+		arrow(ax,xyTail=(10,0.0),xyHead=(10,1))
+		arrow(ax,xyTail=(2.5,0.0),xyHead=(2.5,-1))
+		arrow(ax,xyTail=(7.5,0.0),xyHead=(7.5,-1))
+		finalizeSubplot( 	ax,
+							ylabel='y',
+							subtitle='fig1',
+							title='title!',
+							xlabel='t'
+							)
+		
 	"""
 	ax.annotate("", xy=xyHead, xytext=xyTail, arrowprops=dict(	width=width,
 														headwidth=headwidth,
