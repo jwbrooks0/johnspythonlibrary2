@@ -109,7 +109,7 @@ def stripeyPlot(	df,
 		
 	# convert dependent axes to 2D
 	angle=_np.copy(df.columns.values)	# make a deep copy of the columns
-	if angle.max() < 10: 	# make sure angle is in units of degrees, not radians.
+	if angle.max() < 4: 	# make sure angle is in units of degrees, not radians.
 		angle*=180/_np.pi
 	t=df.index.values
 	ANGLE,T=_np.meshgrid(angle,t)
@@ -134,7 +134,7 @@ def stripeyPlot(	df,
 		if temp<1.0:
 			params['ztickLabels']=['%.2e'%i for i in params['zticks']]
 		else:
-			params['ztickLabels']=['%.2f'%i for i in params['zticks']]
+			params['ztickLabels']=['%.1f'%i for i in params['zticks']]
 	if params['ytickLabels']==[]:
 		if params['toroidal']==True:
 			params['ytickLabels']=[r'$0^o$',r'$90^o$',r'$180^o$',r'$270^o$',r'$360^o$',]
@@ -180,5 +180,160 @@ def stripeyPlot(	df,
 								title=params['title'],
 								fontsize=params['fontsize']
 								)
+	
+	return fig,ax,cax
+
+
+
+
+def modeContourPlot(	dfData,
+						angles,
+						fig=None,
+						ax=None,
+						cax=None,
+						modeNumbers=_np.linspace(0.5,5.5,100),
+						zlim=[0,8],
+						title=''):
+	"""
+	calculates and then plots the amplitude of a range of non-integer poloidal mode
+	numbers.  
+	
+	Parameters
+	----------
+	dfData : pandas.core.frame.DataFrame
+		Dataframe containing the magnetic data.  E.g. PA1, TA.  The index is time (units in seconds and datatype as a float).  Columns are angles (units as degrees or radians and datatype as floats)
+	angles : numpy array
+		Angles (in radians) of associated with the sensor array
+	fig : matplotlib.figure.Figure, optional
+		optional figure on which to make the plot
+	ax : matplotlib.axes._subplots.AxesSubplot, optional
+		optional figure axis on which to make the plot
+	cax : matplotlib.axes._axes.Axes, optional
+		optional figire color axis on which to make the plot
+	modeNumbers : numpy.ndarray
+		Array of mode non-integer mode numbers to use in the analysis
+	zlim : list of two floats
+		This sets the colorbar scaling
+	title : str
+		(Optional) Title for the figure.
+		
+	Returns
+	-------
+	fig : matplotlib.figure.Figure
+		figure
+	ax : matplotlib.axes._subplots.AxesSubplot
+		axis
+	cax : matplotlib.axes._axes.Axes
+		color axis
+	
+	
+	Examples
+	--------
+	
+		shotno=70463; zlim=[0,5.1]; tlim=[1.1e-3,5.6e-3]
+		
+		dfRaw,df,dfMeta=jpl2.Hbtep.Get.magneticSensorDataAll(	shotno,
+																tStart=tlim[0],
+																tStop=tlim[1],
+																forceDownload=False)
+		
+		dfPA1=jpl2.Process.Pandas.filterDFByColOrIndex(df,'PA1')*1e4
+		dfPA1Meta=jpl2.Process.Pandas.filterDFByColOrIndex(dfMeta,'PA1',False)
+		
+		mNumbers=np.linspace(0.5,5.5,100)
+
+		fig,ax,cax=jpl2.Hbtep.Plot.modeContourPlot(dfPA1,dfPA1Meta.theta.values,modeNumbers=mNumbers,zlim=zlim,title='%d'%shotno)
+
+	"""
+	
+	
+	import matplotlib as _mpl
+	
+	def leastSquareModeAnalysis(	df,
+									angles,
+									modeNumbers=[0,-1,-2],
+									timeFWHM_phaseFilter=0.1e-3,
+									plot=False,
+									title=''):
+		"""
+		Parameters
+		----------
+		df : pandas.core.frame.DataFrame
+			Dataframe with multiple columns associated with different angles
+			index = time
+		angles : numpy.ndarray
+			array of angles associated with the columns in df
+		mode numbers : list of ints
+			mode numbers to be analyzed
+		timeFWHM_phaseFilter : float
+			timewidth associated with pre-frequency calculating low-pass filter
+			
+		Returns
+		-------
+		dfResults : pandas.core.frame.DataFrame
+			output
+		"""
+		
+		# initialize
+		n=len(angles)
+		m=len(modeNumbers)*2
+		if 0 in modeNumbers:
+			m-=1
+			
+		# construct A matrix
+		A=_np.zeros((n,m))
+		i=0
+		for mode in modeNumbers:
+			if mode == 0:
+				A[:,i]=1
+				i+=1
+			else:
+				A[:,i]=_np.sin(mode*angles)
+				A[:,i+1]=_np.cos(mode*angles)
+				i+=2
+		Ainv=_np.linalg.pinv(A)
+		
+		# perform least squares analysis	
+		x=Ainv.dot(df.transpose().values)
+		
+		# calculate amplitudes, phases, frequencies, etc.
+		dfResults=_pd.DataFrame(index=df.index)
+		i=0
+		for mode in modeNumbers:
+				sin=x[i,:]
+				cos=x[i+1,:]
+				dfResults['%s'%mode]=_np.sqrt(sin**2+cos**2)
+
+		return dfResults
+	
+
+	
+	dfResults=_pd.DataFrame(index=dfData.index,columns=modeNumbers)
+	for i,m in enumerate(modeNumbers):
+#		print(i,m)
+		dfResults[m]=leastSquareModeAnalysis(	dfData.copy(),
+												angles,
+												modeNumbers=[m])
+	dfResults.index*=1e3
+	
+	fig,ax,cax=stripeyPlot(	dfResults,
+								zlim=zlim,
+								fig=fig,
+								ax=ax,
+								cax=cax,
+#								colorMap=_mpl.cm.YlOrRd,
+								colorMap=_mpl.cm.magma_r,
+								ylabel='Poloidal mode \nnumber, m',
+								zticks=_np.arange(zlim[0],zlim[-1]+0.5,2),
+								ztickLabels=_np.arange(zlim[0],zlim[-1]+0.5,2),
+								levels=_np.linspace(zlim[0],zlim[-1],41),
+								xlabel='Time (ms)',
+								zlabel=r'$ |\delta B_\theta |_m$ (G)',
+#								zlabel='Mode\namplitude (G)',
+								title=title
+								)
+	t=dfResults.index.values
+	for m in [1,2,3,4,5]:
+		ax.plot([t[0],t[-1]],[m]*2,'k--',linewidth=0.5)
 	
 	return fig,ax,cax
