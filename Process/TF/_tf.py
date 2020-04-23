@@ -46,6 +46,8 @@ def phaseCalcFromComplexSignal(dfComplex,plot=False):
 		dfComplex=_pd.DataFrame(_np.sin(_np.linspace(0,_np.pi*2*5,1000))-_np.cos(_np.linspace(0,_np.pi*2*5,1000))*1j)
 		phaseCalcFromComplexSignal(dfComplex,plot=True)
 	"""
+	if type(dfComplex)==_pd.core.series.Series:
+		dfComplex=_pd.DataFrame(dfComplex)
 	dfPhase= _pd.DataFrame(_np.arctan2(_np.imag(dfComplex),_np.real(dfComplex)).reshape(-1),index=dfComplex.index,columns=dfComplex.columns)
 	
 	if plot==True:
@@ -150,6 +152,7 @@ def bodePlotFromTF(	dfTF,
 						  )
 	if semilogXAxis==True:
 		ax[0].set_xscale('log')
+		ax[0].set_xlim([amp.index[0],amp.index[-1]])
 	_finalizeFigure(	fig)
 	
 	return fig,ax
