@@ -6,7 +6,13 @@ from johnspythonlibrary2 import Plot as _plot
 
 
 
-def stft(df,numberSamplesPerSegment=1000,numberSamplesToOverlap=500,frequencyResolutionScalingFactor=1.,plot=False,verbose=True,logScale=False):
+def stft(	df,
+			numberSamplesPerSegment=1000,
+			numberSamplesToOverlap=500,
+			frequencyResolutionScalingFactor=1.,
+			plot=False,
+			verbose=True,
+			logScale=False):
 	"""
 	Short time fourier transform across a range of frequencies
 	
@@ -33,17 +39,14 @@ def stft(df,numberSamplesPerSegment=1000,numberSamplesToOverlap=500,frequencyRes
 		
 	Returns
 	-------
-	fOut : numpy.array
-		frequency bins
-	tOut : numpy.array
-		time
-	zOut : 2D numpy.array, dtype=complex
-		complex output from analysis		
+	dfResult : pandas dataframe
+		index is time. columns is frequency.  values are the complex results at each time and frequency.	
 	
 	Examples
 	--------
 	Example1::
 		
+		# create fake signal.
 		import numpy as np
 		fs = 10e3
 		N = 1e5
@@ -54,32 +57,67 @@ def stft(df,numberSamplesPerSegment=1000,numberSamplesToOverlap=500,frequencyRes
 		carrier = amp * np.sin(2*np.pi*3e3*time + mod)
 		noise = np.random.normal(scale=np.sqrt(noise_power),
 		                         size=time.shape)
+		noise *= np.exp(-time/3)
+		x = carrier + noise + 1*np.cos(2*np.pi*time*2000)
+		df = _pd.DataFrame(x,index=time)
+		
+		# function call
+		dfResult=stft(df,plot=True)
+		
+		
+	Example2::
+		
+		# create fake signal.
+		import numpy as np
+		fs = 10e3
+		N = 1e5
+		amp = 2 * np.sqrt(2)
+		noise_power = 0.01 * fs / 2
+		time = np.arange(N) / float(fs)
+		mod = 200*np.cos(2*np.pi*0.25e1*time)
+		carrier = amp * np.sin(2*np.pi*1e3*time + mod)
+		noise = np.random.normal(scale=np.sqrt(noise_power),
+		                         size=time.shape)
 		noise *= np.exp(-time/5)
 		x = carrier + noise + 1*np.cos(2*np.pi*time*2000)
 		df = _pd.DataFrame(x,index=time)
+		
+		# function call
 		dfResult=stft(df,plot=True)
 		
+	Notes
+	-----
+		1. The sampling rate sets the upper limit on frequency resolution
+		2. numberSamplesPerSegment sets the lower limit on the (effective) frequency resolution 
+		3. numberSamplesPerSegment sets an (effective) upper limit on the time responsiveness of the algorithm (meaning, if the frequency rapidly shifts from one value to another)
+
 	"""
 	from scipy.signal import stft as scipystft
 	import numpy as np
+	
+	if type(df)==_pd.core.series.Series:
+		df=_pd.DataFrame(df)
 	
 	dt=df.index[1]-df.index[0]
 	fs=1./dt
 	
 	if verbose:
+		
+		print("Sampling rate: %.3e Hz"%fs)
+		
 		timeWindow=dt*numberSamplesPerSegment
-		print("Time window: %.3e s"%timeWindow)
+		print("Width of sliding time window: %.3e s"%timeWindow)
 	
-		# lowest frequency to get a full wavelength
+		# lowest frequency to get at least one full wavelength
 		fLow=1./(numberSamplesPerSegment*dt)
-		print("Lowest freq. to get 1 wavelength, %.2f" % fLow )
+		print("Lowest freq. to get at least one full wavelength: %.2f" % fLow )
 	
-		# highest frequency
+		# frequency upper limit
 		nyF=fs/2.
-		print("Nyquist freq., %.2f" % nyF)
+		print("Nyquist freq. (freq. upperlimit): %.2f" % nyF)
 	
 	fOut,tOut,zOut=scipystft(df.iloc[:,0].values,fs,nperseg=numberSamplesPerSegment,noverlap=numberSamplesToOverlap,nfft=df.shape[0]*frequencyResolutionScalingFactor)
-	zOut*=2 # TODO(John) double check this scaling factor.  
+	zOut*=2 # TODO(John) double check this scaling factor.   Then cite a reason for it.  (I don't like arbitrary factors sitting around)
 	tOut+=df.index[0]
 	
 	dfResult=_pd.DataFrame(zOut.transpose(),index=tOut,columns=fOut)
@@ -92,10 +130,15 @@ def stft(df,numberSamplesPerSegment=1000,numberSamplesToOverlap=500,frequencyRes
 			pc=ax.contourf(dfResult.index,dfResult.columns,np.abs(dfResult.values.transpose()),levels=levels,cmap='Blues')
 			fig.colorbar(pc,ax=ax,cax=cax)
 			_plot.finalizeSubplot(ax,
-								 xlabel='Time',
-								 ylabel='Frequency',
+								 xlabel='Time (s)',
+								 ylabel='Frequency (Hz)',
 								 legendOn=False)
 			_plot.finalizeFigure(fig)
+		else:
+			raise Exception('Not implemented yet...')
+			#TODO implement stft spectrogram plot with logscale on the zaxis (colorbar) 
+			# starting reference : https://matplotlib.org/3.1.0/gallery/images_contours_and_fields/contourf_log.html
+			
 			
 	return dfResult
 	
@@ -704,6 +747,206 @@ def unwrapPhase(inData):
 		
 	"""
 	return _np.unwrap(inData)
+
+
+
+def bicoherence(sx,windowLength,numberWindows,plot=False,windowFunc='Hann'):
+	"""
+	Bicoherence and bispectrum analysis.  This algorithm is based [Kim1979].
+	
+	Parameters
+	----------
+	sx : pandas.core.series.Series
+		Signal.  index is time.
+	windowLength : int
+		Length of each data window
+	numberWindows : int
+		Number of data windows
+	plot : bool
+		Optional plot of data
+	windowFunc : str
+		'Hann' uses a Hann window (Default)
+		Otherise, uses no window 
+		
+	Returns
+	-------
+	dfBicoh : pandas.core.frame.DataFrame
+		Bicoherence results.  Index and columns are frequencies.
+	dfBispec : pandas.core.frame.DataFrame
+		Bispectrum results.  Index and columns are frequencies.
+	
+	References
+	----------
+	* Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979). 
+
+	* D.Kong et al Nuclear Fusion 53, 113008 (2013).
+
+	Example
+	-------
+	Example1::
+		
+		### Example dataset.  Figure 4 in reference: Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979).
+	
+		numberRecords=int(64)
+		recordLength=128*3
+		N=recordLength
+		M=numberRecords
+		dt=5e-1
+		t=np.arange(0,N*M)*dt
+		fN=1
+		fb=0.220*fN
+		fc=0.375*fN
+		fd=fb+fc
+		
+		def randomPhase():
+			return (np.random.rand()-0.5)*np.pi
+		
+		thetab=randomPhase()
+		thetac=randomPhase()
+		thetad=randomPhase()
+		
+		x=np.cos(2*np.pi*t*fb+thetab)+\
+			np.cos(2*np.pi*t*fc+thetac)+\
+			0.5*np.cos(2*np.pi*t*fd+thetad)+\
+			np.cos(2*np.pi*t*fc+thetac)*np.cos(2*np.pi*t*fb+thetab)+\
+			np.random.normal(0,0.1,len(t))
+			
+		s1=pd.Series(x,index=t)
+					
+		dfBicoh,dfBispec=bicoherence(	s1,
+						windowLength=recordLength,
+						numberWindows=numberRecords,
+						windowFunc='Hann',
+						plot=True)
+		dfBicoh,dfBispec=bicoherence(	s1,
+						windowLength=recordLength,
+						numberWindows=numberRecords,
+						windowFunc='',
+						plot=True)
+
+	"""
+	
+	from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+	N=windowLength
+	M=numberWindows
+		
+	### subfunctions	
+	def FFT(s,plot=False,shift=False):
+		""" Wrapper for the scipy fft algorithm """
+		N=s.shape[0]
+		dt=s.index[1]-s.index[0]
+		from scipy.fft import fft, fftfreq, fftshift
+		xi=s.values.reshape(-1)
+		ti=s.index.values
+		
+		if shift==True:
+			X=fftshift(fft(xi)*2/N)
+			f = fftshift(fftfreq(ti.shape[-1]))/dt
+			sX=_pd.Series(X,index=f)#.iloc[1:,:]
+		else:
+			X=fft(xi)[0:N//2]*2/N
+			f = fftfreq(ti.shape[-1])[0:N//2]/dt
+			sX=_pd.Series(X,index=f)
+			
+		if plot:
+			fig,ax=_plt.subplots()
+			ax.semilogy(sX.abs(),marker='.')
+		
+		return sX
+	
+	
+	
+	def plot_2D(dfB,title='Bispectrum'):
+		""" Plot the bispectrum """
+		
+		fig, ax = _plt.subplots(1,1,sharex=False)
+		divider=make_axes_locatable(ax)
+		cax=divider.append_axes("right", size="2%", pad=.05)
+		fx=dfB.columns.values
+		fy=dfB.index.values
+		Fx,Fy=_np.meshgrid(fx,fy)
+		draw=ax.pcolormesh(Fx,Fy,dfB.abs().values)
+		_plt.colorbar(draw,cax=cax,ax=ax)
+		ax.axis('equal')
+		ax.set_xlabel(r'$f_1$ (Hz)')
+		ax.set_ylabel(r'$f_2$ (Hz)')
+		ax.set_title(title)
+
+
+	### main code
+	
+	# calculate window function
+	if windowFunc=='Hann':
+		n=_np.arange(0,N)
+		window=_np.sin(_np.pi*n/(N-1.))**2
+		window/=_np.sum(window)*1.0/N  	# normalize
+	else:
+		window=_np.ones(N)
+		
+	# step in time
+	for i in range(M):
+		
+		# window data
+		index=_np.arange(N*(i),N*(i+1),)
+		sxi=(sx.iloc[index]-sx.iloc[index].mean())*window
+		
+		# fft 
+		sXi=FFT(sxi,shift=True,plot=False)
+		
+		# calculate Xk and Xl
+		sXk=sXi[sXi.index>=0]
+		sXl=sXi.copy()
+		Xk,Xl=_np.meshgrid(sXk,sXl)
+		
+		# misc parameters for later
+		f=sXi.index.values
+		df=f[1]-f[0]
+		q=f[-1]
+		K=f[f>=0]
+		L=f
+		Kmesh,Lmesh=_np.meshgrid(K,L)
+		A,B=_np.meshgrid(	_np.arange(0,len(K)),
+						    _np.arange(0,len(L)))
+		C=A+B
+		
+		# calculate Xkl
+		dfXTemp=sXi.append(_pd.DataFrame(_np.zeros(N)*_np.nan,index=f-f[0]+f[-1]+df))
+		Xkl=dfXTemp.iloc[C.reshape(-1),0].values.reshape(N,N//2)
+
+		# initialize dataframes and mask on first iteration
+		if i==0:
+			
+			# dataframes
+			dfBispec=_pd.DataFrame(_np.zeros((len(L),len(K))),index=L,columns=K,dtype=complex)
+			dfDenom1=_pd.DataFrame(_np.zeros((len(L),len(K))),index=L,columns=K,dtype=complex)
+			dfDenom2=_pd.DataFrame(_np.zeros((len(L),len(K))),index=L,columns=K,dtype=complex)
+			
+			# create mask
+			inRegionA= ((0<=Lmesh) & (Lmesh<=q/2) & (Lmesh<=Kmesh) & (Kmesh<=q-Lmesh))
+			inRegionB= ((-q<=Lmesh) & (Lmesh<=0) & (Kmesh>_np.abs(Lmesh)) & (Kmesh<=q))
+			mask=(inRegionA | inRegionB).astype(float)
+			mask[mask==False]=_np.nan
+	
+		# main calculations for each time step.
+		dfBispec+=Xl*Xk*_np.conjugate(Xkl)#*np.conjugate(Xkl).values
+		dfDenom1+=_np.abs(Xl*Xk)**2
+		dfDenom2+=_np.abs(Xkl)**2
+		
+	# apply mask and trim frequency domain
+	dfBicoh=dfBispec**2*mask/(dfDenom1*dfDenom2)
+	dfBicoh=dfBicoh[dfBicoh.index<=(q+df)/2]
+	dfBispec=dfBispec*mask/M
+	dfBispec=dfBispec[dfBispec.index<=(q+df)/2]
+					
+	# optional plots
+	if plot==True:
+		plot_2D(dfBispec,title='Bispectrum')
+		plot_2D(dfBicoh,title='Bicoherence')
+		_plt.plot(sx)
+		
+		
+	return dfBicoh,dfBispec
 
 
 
