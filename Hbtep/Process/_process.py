@@ -13,7 +13,7 @@ def leastSquareModeAnalysis(	df,
 								angles,
 								modeNumbers=[0,-1,-2],
 								timeFWHM_phaseFilter=0.1e-3,
-								plot=True,
+								plot=False,
 								title=''):
 	"""
 	Parameters
