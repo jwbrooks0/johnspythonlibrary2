@@ -133,8 +133,19 @@ def mdsData(shotno,
 	## create a dataframe of data for each provided shotnumber
 	df=_pd.DataFrame()
 	for j,jkey in enumerate(dataAddress):
-		ds=_pd.Series(mdsConn.get(jkey).data(),
-						index=mdsConn.get('dim_of('+jkey+')').data(),
+		data=mdsConn.get(jkey).data()
+		time=mdsConn.get('dim_of('+jkey+')').data()
+		
+		# sometimes data and time don't have the same dimensions.  I don't know why.
+		if time.shape[0]!=data.shape[0]:
+			Warning('Time and data dimensions do not agree.  %d and %d, respetively.'%(time.shape[0],data.shape[0]))
+			
+			# when this happens, typically time is only 1 size larger.  this fixes this one case.  shot 70246 is an example
+			if time.shape[0]-1 == data.shape[0]:
+				time=time[:-1]
+				
+		ds=_pd.Series(data,
+						time,
 						name=jkey)
 		
 		ds=ds[(ds.index>=tStart)&(ds.index<=tStop)]
@@ -153,7 +164,8 @@ def magneticSensorDataAll(	shotno,
 							tStop=_TSTOP,
 							plot=False,
 							removeBadSensors=True,
-							timeFWHMSmoothing=0.4e-3):
+							timeFWHMSmoothing=0.4e-3,
+							forceDownload=False):
 	"""
 	
 	Downloads magnetic sensor data for all sensors.  Presently, only poloidal
@@ -202,7 +214,8 @@ def magneticSensorDataAll(	shotno,
 													tStop=tStop,
 													plot=plot,
 													removeBadSensors=removeBadSensors,
-													sensor=sensor)
+													sensor=sensor,
+													forceDownload=forceDownload)
 
 		if sensor=='TA':
 			dfRawAll=dfRaw.copy()
@@ -282,22 +295,22 @@ def magneticSensorData(	shotno=98173,
 	
 	# subfunctions
 	@_backupDFs
-	def dfTARaw(shotno, tStart, tStop,	dfTAMeta):
+	def dfTARaw(shotno, dfTAMeta, tStart=_TSTART, tStop=_TSTOP,	):
 		dfTARaw=mdsData(shotno,dfTAMeta.addresses.to_list(), tStart, tStop,	columnNames=dfTAMeta.index.to_list())
 		return dfTARaw
 	
 	@_backupDFs
-	def dfPA1Raw(shotno, tStart, tStop,	dfPA1Meta):
+	def dfPA1Raw(shotno, dfPA1Meta, tStart=_TSTART, tStop=_TSTOP):
 		dfPA1Raw=mdsData(shotno,dfPA1Meta.addresses.to_list(), tStart, tStop,	columnNames=dfPA1Meta.index.to_list())
 		return dfPA1Raw
 	
 	@_backupDFs
-	def dfPA2Raw(shotno, tStart, tStop,	dfPA2Meta):
+	def dfPA2Raw(shotno, dfPA2Meta, tStart=_TSTART, tStop=_TSTOP):
 		dfPA2Raw=mdsData(shotno,dfPA2Meta.addresses.to_list(), tStart, tStop,	columnNames=dfPA2Meta.index.to_list())
 		return dfPA2Raw
 	
 	@_backupDFs
-	def dfFBRaw(shotno, tStart, tStop,	dfFBMeta):
+	def dfFBRaw(shotno, dfFBMeta, tStart=_TSTART, tStop=_TSTOP):
 		dfFBRaw=mdsData(shotno,dfFBMeta.addresses.to_list(), tStart, tStop,	columnNames=dfFBMeta.index.to_list())
 		return dfFBRaw
 	
@@ -310,13 +323,13 @@ def magneticSensorData(	shotno=98173,
 		
 	# load raw data
 	if sensor=='TA':
-		dfRaw=dfTARaw(shotno,tStart,tStop,dfMeta,forceDownload=forceDownload)
+		dfRaw=dfTARaw(shotno,dfMeta,forceDownload=forceDownload)
 	elif sensor=='PA1':
-		dfRaw=dfPA1Raw(shotno,tStart,tStop,dfMeta,forceDownload=forceDownload)
+		dfRaw=dfPA1Raw(shotno,dfMeta,forceDownload=forceDownload)
 	elif sensor=='PA2':
-		dfRaw=dfPA2Raw(shotno,tStart,tStop,dfMeta,forceDownload=forceDownload)
+		dfRaw=dfPA2Raw(shotno,dfMeta,forceDownload=forceDownload)
 	elif sensor=='FB':
-		dfRaw=dfFBRaw(shotno,tStart,tStop,dfMeta,forceDownload=forceDownload)
+		dfRaw=dfFBRaw(shotno,dfMeta,forceDownload=forceDownload)
 	if removeBadSensors:
 		dfRaw=dfRaw.drop(columns=dfMeta[dfMeta.bad==True].index.to_list())
 		dfMeta=dfMeta.drop(dfMeta[dfMeta.bad==True].index.to_list())
@@ -766,7 +779,6 @@ def cos1RogowskiData(	shotno=96530,
 	dfData=getCos1RogData(shotno,
 					   tStart=tStart,
 					   tStop=tStop)
-	dfData=_filterDFByTime(dfData,tStart,tStop)
 
 	# remove offest
 	dfData['COS_1_RAW']-=dfData.COS_1_RAW[dfData.COS_1_RAW.index<0].mean()
@@ -785,7 +797,8 @@ def sxrData(	shotno=98170,
 				tStart=_TSTART,
 				tStop=_TSTOP,
 				plot=False,
-				dropBadChannels=True):
+				dropBadChannels=True,
+				forceDownload=False):
 	"""
 	Downloads (and optionally plots) soft xray sensor data.   
 	
@@ -820,34 +833,83 @@ def sxrData(	shotno=98170,
 	
 	# subfunctions
 	@_backupDFs
-	def dfSXR(shotno, tStart, tStop, dfSXRMeta):
+	def dfSXR(shotno,  dfSXRMeta):
 		dfSXR=mdsData(	shotno,
 							dfSXRMeta.addresses.to_list(), 
-							tStart, 
-							tStop,	columnNames=dfSXRMeta.index.to_list())
+							columnNames=dfSXRMeta.index.to_list())
 		return dfSXR
 	
 	# load meta data
-	dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods','SXR').set_index('names')
+	sensor='SXR'
+	try:
+		directory=_path.dirname(_path.realpath(__file__))
+		dfMeta=_readOdsToDF('%s/listOfAllSensorsOnHBTEP.ods'%directory,sensor).set_index('names')
+	except:
+		dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods',sensor).set_index('names')
+	
+	# load raw data
+	df=dfSXR(shotno,dfMeta,forceDownload=forceDownload)
 	
 	# drop bad channels
 	if dropBadChannels==True:
-		dfMeta=dfMeta.drop(dfMeta[dfMeta.bad==True].index.to_list(),axis=0)
+		badSensors=dfMeta[dfMeta.bad==True].index.to_list()
+		dfMeta=dfMeta.drop(badSensors,axis=0)
+		df=df.drop(columns=badSensors)
 		
-	# load raw data
-	df=dfSXR(shotno,tStart,tStop,dfMeta,forceDownload=False)
+	# trim time
 	df=_filterDFByTime(df,tStart,tStop)
+	
+	# optional high-pass filter
+	dfHP=_gaussianFilter_df(df,timeFWHM=0.4e-3)
 	
 	# optional plot
 	if plot==True:
-		df.plot()
 		
-		dfHP=_gaussianFilter_df(df,timeFWHM=0.4e-3)
-		temp=_np.copy(dfHP.columns).astype(str)
-		columns=_np.array(['%d'%int(temp[i][-2:]) for i in range(len(temp))]).astype(float)
-		dfHP.columns=columns
-		fig,ax,_=_plotHbt.stripeyPlot(dfHP,title='%d'%shotno)		
-		_plot.finalizeFigure(fig)
+		if True: # raw data
+			fig,ax,cax=_plot.subplotsWithColormaps(2,sharex=True)
+			cax[0].remove()
+			for key,val in df.iteritems():
+				
+				ax[0].plot(val,label=key)
+			_plot.finalizeSubplot(ax[0],
+											title='%d, raw'%shotno,)
+			
+			temp=_np.copy(df.columns).astype(str)
+			columns=_np.array(['%d'%int(temp[i][-2:]) for i in range(len(temp))]).astype(float)
+			df2=df.copy()
+			df2.columns=columns
+			fig,ax,_=_plotHbt.stripeyPlot(	df2,
+											fig=fig,
+											ax=ax[1],
+											cax=cax[1],
+	#										title='%d, raw'%shotno,
+											colorMap='magma_r',
+											zlim=[0,df.max().max()],
+											levels=_np.linspace(0,df.max().max(),41),
+											ylabel='Channel #')	
+			_plot.finalizeFigure(fig)
+			
+		if True: # filtered data
+			fig,ax,cax=_plot.subplotsWithColormaps(2,sharex=True)
+			cax[0].remove()
+			for key,val in dfHP.iteritems():
+				
+				ax[0].plot(val,label=key)
+			_plot.finalizeSubplot(ax[0],
+											title='%d, high-pass filtered'%shotno,)
+			
+			 
+			temp=_np.copy(dfHP.columns).astype(str)
+			columns=_np.array(['%d'%int(temp[i][-2:]) for i in range(len(temp))]).astype(float)
+			dfHP2=dfHP.copy()
+			dfHP2.columns=columns
+			fig,ax,_=_plotHbt.stripeyPlot(dfHP2,
+											fig=fig,
+											ax=ax[1],
+											cax=cax[1],
+#								 title='%d, high-pass filtered'%shotno,
+											ylabel='Channel #')		
+			_plot.finalizeFigure(fig)
 		
 	return df,dfHP
 			
@@ -955,7 +1017,7 @@ def tfData(	shotno=96530,
 	df=dfTF(shotno,
 		 tStart=tStart,
 		 tStop=tStop)
-	dfTF=_filterDFByTime(dfTF,tStart,tStop)
+	df=_filterDFByTime(df,tStart,tStop)
 	
 
 	if plot==True:
@@ -1147,7 +1209,8 @@ def plasmaRadiusData(	shotno=95782,
 	
 	dfData=dfPlasmaRadius(shotno,
 					   tStart=tStart,
-					   tStop=tStop)
+					   tStop=tStop,
+					   forceDownload=False)
 	dfData=_filterDFByTime(dfData,tStart,tStop)
 	
 	if plot==True:
@@ -1314,7 +1377,7 @@ def nModeData(	shotno,
 				tStop=_TSTOP,
 				sensor='TA',
 				modeNumbers=[0,-1,-2],
-				plot=True):
+				plot=False):
 	"""
 	n mode analysis
 		
