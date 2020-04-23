@@ -9,12 +9,14 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 ###############################################################################
-### custom color cycle.  now 15 colors long
+### custom matplotlib settings
+
+# custom color cycle.  now 15 colors long
 _colors=[ 	"k",
 			"tab:blue",
 			"tab:orange",
 			"tab:green",
-			"tab:red",
+#			"tab:red",
 			"tab:purple",
 			"tab:brown",
 			"tab:pink",
@@ -26,6 +28,21 @@ _colors=[ 	"k",
 			"red",
 			"m"]
 _mpl.rcParams['axes.prop_cycle'] = _mpl.cycler(color=_colors)
+
+# custom linewidth
+_mpl.rcParams['lines.linewidth'] = 1.0
+
+# custom fontsizes
+_FONTSIZE=8
+_mpl.rcParams['xtick.labelsize'] = _FONTSIZE
+_mpl.rcParams['ytick.labelsize'] = _FONTSIZE
+_mpl.rcParams['font.size'] = _FONTSIZE
+_mpl.rcParams['legend.fontsize'] = _FONTSIZE
+_mpl.rcParams['axes.titlesize'] = _FONTSIZE+2
+
+# legend
+_mpl.rcParams['legend.numpoints'] = 2
+
 
 ###################################################################################
 ### figure/ax related
@@ -85,14 +102,8 @@ def subTitle(	ax,
 
 
 def finalizeFigure(fig,
-#				   title='',
-#				   h_pad=0.25,
-#				   w_pad=0.25, 
-#				   fontSizeTitle=12,
 				   figSize=[],
-#				   pad=0.5,
 				   **kwargs):
-	#TODO update paramters to kwargs
 	""" 
 	Performs many of the "same old" commands that need to be performed for
 	each figure but wraps it up into one function
@@ -104,11 +115,12 @@ def finalizeFigure(fig,
 	figSize : list of floats
 		Figure size.  Units in inches.  E.g. figSize=[6,4]
 	"""
+	
 	# default input parameters
 	params={	'title':'',
 				'h_pad' : 0.25,
 				'w_pad' : 0.25,
-				'fontSizeTitle':12,
+				'fontSizeTitle':_FONTSIZE+2,
 				'pad':0.5,
 				}
 	
@@ -117,14 +129,14 @@ def finalizeFigure(fig,
 	
 	# fig.suptitle(title) # note: suptitle is not compatible with set_tight_layout
 	
-	if title!='':
-		fig.axes[0].set_title(title,fontsize=fontSizeTitle)
+	if params['title']!='':
+		fig.axes[0].set_title(params['title'],fontsize=params['fontSizeTitle'])
 		
 	if figSize!=[]:
 		fig.set_size_inches(figSize)
 		
 #	fig.set_tight_layout(True)
-	fig.tight_layout(h_pad=h_pad,w_pad=w_pad,pad=pad) # sets tight_layout and sets the padding between subplots
+	fig.tight_layout(h_pad=params['h_pad'],w_pad=params['w_pad'],pad=params['pad']) # sets tight_layout and sets the padding between subplots
 			
 	
 	
@@ -223,7 +235,7 @@ def finalizeSubplot(	ax,
 
 	# default input parameters
 	params={	'xlabel':'',
-				'yalebl':'',
+				'ylabel':'',
 				'title':'',
 				'subtitle':'',
 				'xlim':[],
@@ -308,13 +320,11 @@ def finalizeSubplot(	ax,
 			
 		ax[i].tick_params(axis='y', labelcolor=params['yAxisColor'])
 			
-		# add dotted lines along the x=0 and y=0 lines
-		ylim=ax[i].get_ylim()
-		xlim=ax[i].get_xlim()
-		ax[i].plot(xlim,[0,0],color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
-		ax[i].plot([0,0],ylim,color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
-		ax[i].set_ylim(ylim)
-		ax[i].set_xlim(xlim)
+		# add dotted lines along the x=0 and y=0 axes
+		ax[i].axhline(y=0, color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
+		ax[i].axvline(x=0, color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
+		
+
 		
 	
 		
