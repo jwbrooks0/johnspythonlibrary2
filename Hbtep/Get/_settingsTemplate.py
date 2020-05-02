@@ -9,6 +9,6 @@ _SERVER_ADDRESS=''
 
 ### Server port
 # This is the internet port of the HBTEP server
-_SERVER_PORT=-1
+_SERVER_PORT=int()
 
 
