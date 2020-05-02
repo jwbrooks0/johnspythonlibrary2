@@ -7,9 +7,14 @@ import matplotlib.pyplot as _plt
 
 from johnspythonlibrary2.Plot import finalizeFigure as _finalizeFigure
 from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot
-from johnspythonlibrary2.Process.Spectral import fft_df
+from johnspythonlibrary2.Process.Spectral import fft_df, ifft
 #from johnspythonlibrary2.Process.Misc import findNearest
 
+
+def fftSignalReconstruct(s,tf):
+	X=fft_df(s)
+	s_recon=ifft(_pd.DataFrame(tf.iloc[:,0].values*X.iloc[:,0].values,index=tf.index))
+	return s_recon
 
 
 def _dB(y,yRef=1.0):
@@ -161,7 +166,7 @@ def bodePlotFromTF(	dfTF,
 
 	
 	
-def calcTransferFunctionFromSingleTimeSeriesSpanningMultipleFrequencies(dfInput,dfOutput,plot=False):
+def calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(dfInput,dfOutput,plot=False):
 	"""
 	Calculated the transfer function from a single time series input and output signal.
 	Ideally, these singals contain a freq. sweep (or similar) that has multiple frequencies contained within.
@@ -187,7 +192,7 @@ def calcTransferFunctionFromSingleTimeSeriesSpanningMultipleFrequencies(dfInput,
 	Example1::
 		
 		from johnspythonlibrary2.Process.Filters import gaussianFilter_df as _gaussianFilter_df
-		from johnspythonlibrary2.Process.SigGen import chirp 
+		from johnspythonlibrary2.Process.SigGen import chirp as _chirp
 
 		t=_np.arange(0,20e-3,2e-6)
 		fStart=2e2
@@ -207,8 +212,8 @@ def calcTransferFunctionFromSingleTimeSeriesSpanningMultipleFrequencies(dfInput,
 		ax.plot(dfHP)
 		ax.plot(dfLP)
 	
-		tf1=calcTransferFunctionFromSingleTimeSeriesSpanningMultipleFrequencies(df,dfHP)
-		tf2=calcTransferFunctionFromSingleTimeSeriesSpanningMultipleFrequencies(df,dfLP)
+		tf1=calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(df,dfHP)
+		tf2=calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(df,dfLP)
 		
 		fig,ax=_plt.subplots(2,sharex=True)
 		bodePlotFromTF(tf1,fig,ax)
@@ -218,8 +223,8 @@ def calcTransferFunctionFromSingleTimeSeriesSpanningMultipleFrequencies(dfInput,
 	
 
 	"""
-	Xin,_,_=fft_df(dfInput)
-	Xout,_,_=fft_df(dfOutput)
+	Xin=fft_df(dfInput)
+	Xout=fft_df(dfOutput)
 	
 	dfTF=_pd.DataFrame(Xout.iloc[:,0]/Xin.iloc[:,0],columns=Xout.columns)
 	
