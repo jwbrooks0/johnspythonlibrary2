@@ -41,7 +41,7 @@ _mpl.rcParams['legend.fontsize'] = _FONTSIZE
 _mpl.rcParams['axes.titlesize'] = _FONTSIZE+2
 
 # legend
-_mpl.rcParams['legend.numpoints'] = 2
+_mpl.rcParams['legend.numpoints'] = 3  # not working
 
 
 ###################################################################################
@@ -130,7 +130,8 @@ def finalizeFigure(fig,
 	# fig.suptitle(title) # note: suptitle is not compatible with set_tight_layout
 	
 	if params['title']!='':
-		fig.axes[0].set_title(params['title'],fontsize=params['fontSizeTitle'])
+#		fig.axes[0].set_title(params['title'],fontsize=params['fontSizeTitle'])
+		fig.suptitle(params['title'],fontsize=params['fontSizeTitle'])
 		
 	if figSize!=[]:
 		fig.set_size_inches(figSize)
