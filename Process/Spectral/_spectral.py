@@ -2,9 +2,8 @@
 import numpy as _np
 import pandas as _pd
 import matplotlib.pyplot as _plt
+from scipy import fftpack as _fftpack
 from johnspythonlibrary2 import Plot as _plot
-
-
 
 def stft(	df,
 			numberSamplesPerSegment=1000,
@@ -436,7 +435,6 @@ def coherenceAnalysis(t,y1,y2,numPointsPerSegment=1024,plot=False,noverlap=None,
 
 	"""
 	
-#	from scipy import signal
 	import matplotlib.pyplot as plt
 	import numpy as np
 	
@@ -465,9 +463,8 @@ def coherenceAnalysis(t,y1,y2,numPointsPerSegment=1024,plot=False,noverlap=None,
 		ax1.plot(t,y2,label='Raw 2')
 		ax1.legend()
 		ax1.set_xlabel('time (s)')
-		# ax1.set_title('Raw Signal')
 		ax2.plot(f, np.abs(Cxy),'.-',label='Coherence')
-#		ax2.semilogy(f, Cxy,label='Coherence')
+		# ax2.semilogy(f, Cxy,label='Coherence')
 		ax2.set_xlabel('frequency (Hz)')
 		ax2.set_ylabel('Coherence')
 		ax2.legend()
@@ -475,8 +472,117 @@ def coherenceAnalysis(t,y1,y2,numPointsPerSegment=1024,plot=False,noverlap=None,
 		
 	return f, Cxy
 
+
+def ifft(	dfFFT,
+			t=None,
+			plot=False,
+			invertNormalizedAmplitude=True,
+			returnRealOnly=True):
 	
-def fft_df(df,plot=False):
+	"""
+	Examples
+	--------
+	
+	Example1::
+		
+		import numpy as np
+		dt=2e-6
+		f=1e3
+		t=np.arange(0,10e-3,dt)
+		y=np.sin(2*np.pi*t*f)
+		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
+							index=t,
+							columns=['a','b','c'])
+		dfFFT=fft_df(df,plot=False,normalizeAmplitude=False)
+		
+		df2=ifft(dfFFT)
+		
+		for key,val in df.iteritems():
+			
+			_plt.figure()
+			_plt.plot(df.index,val)
+			sig=df2[key]
+			sig2=_pd.DataFrame(sig.abs())*np.exp(phase(sig))
+			_plt.plot(df2.index,sig)
+			
+			
+	Example2::
+			
+		import pandas as pd
+		import numpy as np
+		import johnspythonlibrary2 as jpl2
+		
+		# input signal
+		dt=2e-6
+		f=1e3
+		t=np.arange(0,10e-3,dt)
+		y1=jpl2.Process.SigGen.chirp(t,[1e-3,9e-3],[1e3,1e5])
+		df1=pd.DataFrame(y1,index=t)
+		
+		# filter type 1 : butterworth filter
+		y2=jpl2.Process.Filters.butterworthFilter(df1,10e3,plot=False)
+		df2=pd.DataFrame(y2,index=t)
+		
+		# filter type 2 : IFFT reconstructed Butterworth filter
+		tf=jpl2.Process.TF.calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(df1,df2,plot=False)
+		dfFFT=fft_df(df1,plot=False,normalizeAmplitude=False)
+		df3=ifft(pd.DataFrame(tf['lowpassFiltered']*dfFFT[0]))
+		
+		# plots
+		fig,ax=plt.subplots(2,sharex=True)
+		ax[0].plot(df1,label='Input signal')
+		ax[0].plot(df2,label='Output signal')
+		ax[1].plot(df1,label='Input signal')
+		ax[1].plot(df3,label='Output signal')
+		_plot.finalizeSubplot( 	ax[0],
+								subtitle='Butterworth filter')
+		_plot.finalizeSubplot( 	ax[1],
+								subtitle='IFFT reconstructed Butterworth filter')
+		
+	"""
+	
+	if type(dfFFT)==_pd.core.series.Series:
+		dfFFT=_pd.DataFrame(dfFFT)
+	
+	# create a time basis if not provided
+	if t==None:
+		N=dfFFT.shape[0]
+		df=dfFFT.index[1]-dfFFT.index[0]
+		dt=1/df/N
+		t=_np.arange(0,N)*dt
+		
+	# IFFT function
+	dfIFFT=dfFFT.apply(_fftpack.ifft,axis=0).set_index(t)
+	
+	# option
+	if returnRealOnly==True:
+		dfIFFT=_pd.DataFrame(_np.real(dfIFFT),index=dfIFFT.index,columns=dfIFFT.columns)
+	
+	# plots
+	if plot==True:
+		fig,ax=_plt.subplots()
+		ax.plot(dfIFFT)
+		
+	return dfIFFT
+	
+	
+	
+def phase(df):
+	"""
+	Calculates the phase of complex data series.
+	Basis can be time, frequency, etc.
+	"""
+	
+	if type(df)==_pd.core.series.Series:
+		df=_pd.DataFrame(df)
+	
+	return _pd.DataFrame(_np.arctan2(_np.imag(df),_np.real(df)),
+						      index=df.index,
+							  columns=df.columns)
+	
+
+	
+def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
 	"""
 	Simple wrapper for fft from scipy
 	
@@ -486,16 +592,16 @@ def fft_df(df,plot=False):
 		dataframe of time dependent data
 		index = time
 	plot : bool
-		(optional) create plot
+		(optional) Plot results
+	trimNegFreqs : bool
+		(optional) True - only returns positive frequencies
+	normalizeAmplitude : bool
+		(optional) True - normalizes the fft (output) amplitudes to match the time series (input) amplitudes
 		
 	Returns
 	-------
 	dfFFT : pandas.core.frame.DataFrame
 		complex FFT of df
-	dfAmp : pandas.core.frame.DataFrame
-		amplitude of FFT
-	dfPhase : pandas.core.frame.DataFrame
-		phase of FFT
 	
 	References
 	-----------
@@ -512,46 +618,52 @@ def fft_df(df,plot=False):
 		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
 							index=t,
 							columns=['a','b','c'])
-		dfFFT, dfAmp, dfPhase=fft_df(df,plot=True)
+		dfFFT=fft_df(df,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
 	"""
-	from numpy.fft import fft
 	
-	if type(df)==_pd.core.series.Series:
-		df=_pd.DataFrame(df)
+	if type(df)!=_pd.core.frame.DataFrame:
+		if type(df)==_pd.core.series.Series:
+			df=_pd.DataFrame(df)
+		else:
+			raise Exception('Input data not formatted correctly')
 	
 	# initialize
-	dt=df.index[1]-df.index[0]
-	N=df.shape[0]
 	
-	# fft, amplitude, and phase analysis 
-	freq = _np.linspace(0.0, 1.0/(2.0*dt), int(_np.floor(N/2.0))) # clip results up to the nyquist freq.
-	dfFFT=_pd.DataFrame(2.0/N*df.apply(fft,axis=0).values[0:int(N/2),:],
-						index=freq,
-						columns=df.columns)
-	dfAmp=dfFFT.abs()
-	dfPhase=_pd.DataFrame(_np.arctan2(_np.imag(dfFFT),_np.real(dfFFT)),
-					      index=freq,
-						  columns=df.columns)
+	# fft
+	dt=df.index[1]-df.index[0]
+	freq = _fftpack.fftfreq(df.shape[0],d=dt)
+	dfFFT=df.apply(_fftpack.fft,axis=0).set_index(freq)
+	
+	# options
+	if trimNegFreqs==True:
+		dfFFT=dfFFT[dfFFT.index>=0]
+	if normalizeAmplitude==True:
+		N=df.shape[0]
+		dfFFT*=2.0/N
 		
 	# optional plot of results
 	if plot==True:
+		
+		dfAmp=dfFFT.abs()
+		dfPhase=phase(dfFFT)
 		for i,(key,val) in enumerate(df.iteritems()):
-#			print(key)
 			f,(ax1,ax2,ax3)=_plt.subplots(nrows=3)
+			
 			ax1.plot(val)
 			ax1.set_ylabel('Orig. signal')
+			ax1.set_xlabel('Time')
 			ax1.set_title(key)
 			
-			ax2.plot(freq,dfAmp[key],marker='.')
+			ax2.plot(dfPhase.index,dfAmp[key],marker='.')
 			ax2.set_ylabel('Amplitude')
 			
-			ax3.plot(freq,dfPhase[key],marker='.',linestyle='')
+			ax3.plot(dfPhase.index,dfPhase[key],marker='.',linestyle='')
 			ax3.set_ylabel('Phase')
 			ax3.set_xlabel('Frequency')
 			ax3.set_ylim([-_np.pi,_np.pi])
 		
 	# return results
-	return dfFFT, dfAmp, dfPhase
+	return dfFFT
 
 
 
@@ -750,9 +862,14 @@ def unwrapPhase(inData):
 
 
 
-def bicoherence(sx,windowLength,numberWindows,plot=False,windowFunc='Hann'):
+def bicoherence(	sx,
+					windowLength,
+					numberWindows,
+					plot=False,
+					windowFunc='Hann',
+					title=''):
 	"""
-	Bicoherence and bispectrum analysis.  This algorithm is based [Kim1979].
+	Bicoherence and bispectrum analysis.  This algorithm is based on [Kim1979].
 	
 	Parameters
 	----------
@@ -781,53 +898,13 @@ def bicoherence(sx,windowLength,numberWindows,plot=False,windowFunc='Hann'):
 
 	* D.Kong et al Nuclear Fusion 53, 113008 (2013).
 
-	Example
-	-------
-	Example1::
-		
-		### Example dataset.  Figure 4 in reference: Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979).
-	
-		numberRecords=int(64)
-		recordLength=128*3
-		N=recordLength
-		M=numberRecords
-		dt=5e-1
-		t=np.arange(0,N*M)*dt
-		fN=1
-		fb=0.220*fN
-		fc=0.375*fN
-		fd=fb+fc
-		
-		def randomPhase():
-			return (np.random.rand()-0.5)*np.pi
-		
-		thetab=randomPhase()
-		thetac=randomPhase()
-		thetad=randomPhase()
-		
-		x=np.cos(2*np.pi*t*fb+thetab)+\
-			np.cos(2*np.pi*t*fc+thetac)+\
-			0.5*np.cos(2*np.pi*t*fd+thetad)+\
-			np.cos(2*np.pi*t*fc+thetac)*np.cos(2*np.pi*t*fb+thetab)+\
-			np.random.normal(0,0.1,len(t))
-			
-		s1=pd.Series(x,index=t)
-					
-		dfBicoh,dfBispec=bicoherence(	s1,
-						windowLength=recordLength,
-						numberWindows=numberRecords,
-						windowFunc='Hann',
-						plot=True)
-		dfBicoh,dfBispec=bicoherence(	s1,
-						windowLength=recordLength,
-						numberWindows=numberRecords,
-						windowFunc='',
-						plot=True)
 
 	"""
-	
+	import numpy as np
+	import matplotlib.pyplot as plt
+	import pandas as pd
 	from mpl_toolkits.axes_grid1 import make_axes_locatable
-
+	
 	N=windowLength
 	M=numberWindows
 		
@@ -838,36 +915,33 @@ def bicoherence(sx,windowLength,numberWindows,plot=False,windowFunc='Hann'):
 		dt=s.index[1]-s.index[0]
 		from scipy.fft import fft, fftfreq, fftshift
 		xi=s.values.reshape(-1)
-		ti=s.index.values
+		xi-=xi.mean()
+		ti=s.index.values-s.index.values[0]
 		
 		if shift==True:
 			X=fftshift(fft(xi)*2/N)
 			f = fftshift(fftfreq(ti.shape[-1]))/dt
-			sX=_pd.Series(X,index=f)#.iloc[1:,:]
+			sX=pd.Series(X,index=f)#.iloc[1:,:]
 		else:
 			X=fft(xi)[0:N//2]*2/N
 			f = fftfreq(ti.shape[-1])[0:N//2]/dt
-			sX=_pd.Series(X,index=f)
+			sX=pd.Series(X,index=f)
 			
 		if plot:
-			fig,ax=_plt.subplots()
+			fig,ax=plt.subplots()
 			ax.semilogy(sX.abs(),marker='.')
 		
 		return sX
 	
 	
-	
-	def plot_2D(dfB,title='Bispectrum'):
+	def plot_2D(dfB,fig,ax,cax,title='Bispectrum'):
 		""" Plot the bispectrum """
 		
-		fig, ax = _plt.subplots(1,1,sharex=False)
-		divider=make_axes_locatable(ax)
-		cax=divider.append_axes("right", size="2%", pad=.05)
 		fx=dfB.columns.values
 		fy=dfB.index.values
-		Fx,Fy=_np.meshgrid(fx,fy)
-		draw=ax.pcolormesh(Fx,Fy,dfB.abs().values)
-		_plt.colorbar(draw,cax=cax,ax=ax)
+		Fx,Fy=np.meshgrid(fx,fy)
+		draw=ax.pcolormesh(Fx,Fy,dfB.abs().values,vmin=0,vmax=1)
+		plt.colorbar(draw,cax=cax,ax=ax)
 		ax.axis('equal')
 		ax.set_xlabel(r'$f_1$ (Hz)')
 		ax.set_ylabel(r'$f_2$ (Hz)')
@@ -878,17 +952,18 @@ def bicoherence(sx,windowLength,numberWindows,plot=False,windowFunc='Hann'):
 	
 	# calculate window function
 	if windowFunc=='Hann':
-		n=_np.arange(0,N)
-		window=_np.sin(_np.pi*n/(N-1.))**2
-		window/=_np.sum(window)*1.0/N  	# normalize
+		n=np.arange(0,N)
+		window=np.sin(np.pi*n/(N-1.))**2
+		window/=np.sum(window)*1.0/N  	# normalize
 	else:
-		window=_np.ones(N)
+		window=np.ones(N)
+		window/=np.sum(window)*1.0/N  	# normalize   ???
 		
 	# step in time
 	for i in range(M):
 		
 		# window data
-		index=_np.arange(N*(i),N*(i+1),)
+		index=np.arange(N*(i),N*(i+1),)
 		sxi=(sx.iloc[index]-sx.iloc[index].mean())*window
 		
 		# fft 
@@ -897,7 +972,7 @@ def bicoherence(sx,windowLength,numberWindows,plot=False,windowFunc='Hann'):
 		# calculate Xk and Xl
 		sXk=sXi[sXi.index>=0]
 		sXl=sXi.copy()
-		Xk,Xl=_np.meshgrid(sXk,sXl)
+		Xk,Xl=np.meshgrid(sXk,sXl)
 		
 		# misc parameters for later
 		f=sXi.index.values
@@ -905,33 +980,33 @@ def bicoherence(sx,windowLength,numberWindows,plot=False,windowFunc='Hann'):
 		q=f[-1]
 		K=f[f>=0]
 		L=f
-		Kmesh,Lmesh=_np.meshgrid(K,L)
-		A,B=_np.meshgrid(	_np.arange(0,len(K)),
-						    _np.arange(0,len(L)))
+		Kmesh,Lmesh=np.meshgrid(K,L)
+		A,B=np.meshgrid(	np.arange(0,len(K)),
+						    np.arange(0,len(L)))
 		C=A+B
 		
 		# calculate Xkl
-		dfXTemp=sXi.append(_pd.DataFrame(_np.zeros(N)*_np.nan,index=f-f[0]+f[-1]+df))
+		dfXTemp=sXi.append(pd.DataFrame(np.zeros(N)*np.nan,index=f-f[0]+f[-1]+df))
 		Xkl=dfXTemp.iloc[C.reshape(-1),0].values.reshape(N,N//2)
 
 		# initialize dataframes and mask on first iteration
 		if i==0:
 			
 			# dataframes
-			dfBispec=_pd.DataFrame(_np.zeros((len(L),len(K))),index=L,columns=K,dtype=complex)
-			dfDenom1=_pd.DataFrame(_np.zeros((len(L),len(K))),index=L,columns=K,dtype=complex)
-			dfDenom2=_pd.DataFrame(_np.zeros((len(L),len(K))),index=L,columns=K,dtype=complex)
+			dfBispec=pd.DataFrame(np.zeros((len(L),len(K))),index=L,columns=K,dtype=complex)
+			dfDenom1=pd.DataFrame(np.zeros((len(L),len(K))),index=L,columns=K,dtype=complex)
+			dfDenom2=pd.DataFrame(np.zeros((len(L),len(K))),index=L,columns=K,dtype=complex)
 			
 			# create mask
 			inRegionA= ((0<=Lmesh) & (Lmesh<=q/2) & (Lmesh<=Kmesh) & (Kmesh<=q-Lmesh))
-			inRegionB= ((-q<=Lmesh) & (Lmesh<=0) & (Kmesh>_np.abs(Lmesh)) & (Kmesh<=q))
+			inRegionB= ((-q<=Lmesh) & (Lmesh<=0) & (Kmesh>np.abs(Lmesh)) & (Kmesh<=q))
 			mask=(inRegionA | inRegionB).astype(float)
-			mask[mask==False]=_np.nan
+			mask[mask==False]=np.nan
 	
 		# main calculations for each time step.
-		dfBispec+=Xl*Xk*_np.conjugate(Xkl)#*np.conjugate(Xkl).values
-		dfDenom1+=_np.abs(Xl*Xk)**2
-		dfDenom2+=_np.abs(Xkl)**2
+		dfBispec+=Xl*Xk*np.conjugate(Xkl)#*np.conjugate(Xkl).values
+		dfDenom1+=np.abs(Xl*Xk)**2
+		dfDenom2+=np.abs(Xkl)**2
 		
 	# apply mask and trim frequency domain
 	dfBicoh=dfBispec**2*mask/(dfDenom1*dfDenom2)
@@ -941,18 +1016,38 @@ def bicoherence(sx,windowLength,numberWindows,plot=False,windowFunc='Hann'):
 					
 	# optional plots
 	if plot==True:
-		plot_2D(dfBispec,title='Bispectrum')
-		plot_2D(dfBicoh,title='Bicoherence')
-		_plt.plot(sx)
+		
+		fig, ax = plt.subplots(1,2,sharex=False)
+		cax=[]
+		for axi in ax:
+			divider=make_axes_locatable(axi)
+			cax.append(divider.append_axes("right", size="2%", pad=.05))
+		
+		plot_2D(dfBicoh,fig,ax[0],cax[0],title='Bicoherence')
+		
+		cax[1].remove()
+		ax[1].plot(FFT(sx.iloc[0:N]).abs())
+		ax[1].set_title('Power spectrum')
+		ax[1].set_xlabel('Hz')
+		
+		fig.suptitle(title)
+		fig.tight_layout(h_pad=0.25,w_pad=3,pad=0.5) # sets tight_layout and sets the padding between subplots
+			
+			
+		if plot=='all':
+			plot_2D(dfBispec,title='Bispectrum')
+			plt.figure();plt.plot(sx);
 		
 		
 	return dfBicoh,dfBispec
 
 
 
+
 def calcPhaseDifference(dfX1,dfX2,plot=False,title=''):
 	"""
 	Calculates the phase difference between two complex signals.
+	Also calculates the average and standard deviation of the phase difference.
 
 	Parameters
 	----------
