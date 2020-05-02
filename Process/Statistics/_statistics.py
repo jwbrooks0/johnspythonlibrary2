@@ -4,6 +4,28 @@ import pandas as _pd
 import scipy as _sp
 
 
+
+def correlationCoefficient(data,fit):
+	""" 
+	Correlation coefficient 
+	
+	Reference
+	---------
+	https://mathworld.wolfram.com/CorrelationCoefficient.html
+	"""
+	if type(data)==_pd.core.frame.DataFrame or type(data)==_pd.core.frame.Series:
+		y=data.values.reshape(-1)
+		f=fit.values.reshape(-1)
+	elif type(data)==_np.ndarray:
+		y=data.reshape(-1)
+		f=fit.reshape(-1)
+	SSxy=((f-f.mean())*(y-y.mean())).sum()
+	SSxx=((f-f.mean())**2).sum()
+	SSyy=((y-y.mean())**2).sum()
+	rho=SSxy**2/(SSxx*SSyy)
+	return rho
+
+
 def errorPropagationMonteCarlo(	func,
 								parameterMeanValues=[],
 								parameterStdValues=[],
