@@ -15,11 +15,9 @@ import johnspythonlibrary2.Hbtep.Plot._plot as _plotHbt
 from johnspythonlibrary2.Process.Pandas import filterDFByTime as _filterDFByTime
 from johnspythonlibrary2.Process.Pandas import filterDFByColOrIndex as _filterDFByColOrIndex
 
-try:
-	import johnspythonlibrary2.Hbtep.Get._settings as _settings
-except ImportError:
-	raise Exception('Code hault: _settings.py file not found.  Have you modified the template file yet in Hbtep/Get/?')
-	
+# This file does not exist by default.  Rename the template file and fill in the appropriate variables within.
+import johnspythonlibrary2.Hbtep.Get._settings as _settings
+
 
 ### Settings
 _TSTART=0e-3
