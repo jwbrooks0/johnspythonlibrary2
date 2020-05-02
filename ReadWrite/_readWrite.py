@@ -9,7 +9,7 @@ try:
 	import johnspythonlibrary2.ReadWrite._settings as _settings
 	LOCALDIRTOSAVEDATA=_settings.localDirToSaveData
 except ImportError:
-	print('Warning: settings.py file not found.  Have you modified the _settingsTemplate.py file yet?')
+	print('Warning: ReadWrite/_settings.py file not found.  Have you modified the ReadWrite/_settingsTemplate.py file yet?')
 	LOCALDIRTOSAVEDATA=''
 	
 
