@@ -132,6 +132,7 @@ dmypy.json
 Hbtep/Get/_settings.py
 ReadWrite/_settings.py
 *.ods#
+*.png
 
 
 
