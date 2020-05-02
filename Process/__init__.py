@@ -1,3 +1,4 @@
+from . import EDM
 from . import Filters
 from . import Fit
 from . import Misc
