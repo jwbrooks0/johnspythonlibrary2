@@ -15,6 +15,9 @@ import johnspythonlibrary2.Hbtep.Plot._plot as _plotHbt
 from johnspythonlibrary2.Process.Pandas import filterDFByTime as _filterDFByTime
 from johnspythonlibrary2.Process.Pandas import filterDFByColOrIndex as _filterDFByColOrIndex
 
+
+import MDSplus as _mds
+    
 # This file does not exist by default.  Rename the template file and fill in the appropriate variables within.
 import johnspythonlibrary2.Hbtep.Get._settings as _settings
 
