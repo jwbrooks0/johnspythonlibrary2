@@ -1,7 +1,7 @@
 
-import numpy as _np
-import pandas as _pd
-import matplotlib.pyplot as _plt
+# import numpy as _np
+# import pandas as _pd
+# import matplotlib.pyplot as _plt
 
 
 
@@ -110,46 +110,6 @@ def returnPythonVersion():
 
 
 
-def deprecated(func):
-	"""
-	This is a decorator which can be used to mark functions as deprecated. 
-	It will result in a warning being emitted when the function is used.
-	
-	References
-	----------
-	https://stackoverflow.com/questions/2536307/decorators-in-the-python-standard-lib-deprecated-specifically/30253848#30253848
-	
-	Examples
-	--------
-	::
-		
-		@deprecated
-		def some_old_function(x, y):
-			return x + y
-			
-		some_old_function(1,2)
-			
-	::
-		
-		class SomeClass:
-			@deprecated
-			def some_old_method(self, x, y):
-				return x + y
-		a=SomeClass()
-		a.some_old_method(2,3)
-	"""
-	import warnings
-	import functools
-	
-	@functools.wraps(func)
-	def new_func(*args, **kwargs):
-		warnings.simplefilter('always', DeprecationWarning)  # turn off filter
-		warnings.warn("Call to deprecated function {}.".format(func.__name__),
-					  category=DeprecationWarning,
-					  stacklevel=2)
-		warnings.simplefilter('default', DeprecationWarning)  # reset filter
-		return func(*args, **kwargs)
-	return new_func
 
 
 
