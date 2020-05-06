@@ -5,9 +5,11 @@ import scipy as _sp
 
 
 
+
 def correlationCoefficient(data,fit):
 	""" 
-	Correlation coefficient 
+	Correlation coefficient.
+	Compares a fit to data.  Note that this is only valid for a linear fit.
 	
 	Reference
 	---------
