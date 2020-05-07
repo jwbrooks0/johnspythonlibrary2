@@ -109,7 +109,7 @@ def stripeyPlot(	df,
 		
 	# convert dependent axes to 2D
 	angle=_np.copy(df.columns.values)	# make a deep copy of the columns
-	if angle.max() < 4: 	# make sure angle is in units of degrees, not radians.
+	if angle.max() < 10: 	# make sure angle is in units of degrees, not radians.
 		angle*=180/_np.pi
 	t=df.index.values
 	ANGLE,T=_np.meshgrid(angle,t)
