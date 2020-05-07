@@ -630,9 +630,11 @@ def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
 	# initialize
 	
 	# fft
+	from numpy.fft import fft
 	dt=df.index[1]-df.index[0]
 	freq = _fftpack.fftfreq(df.shape[0],d=dt)
-	dfFFT=df.apply(_fftpack.fft,axis=0).set_index(freq)
+	dfFFT=df.apply(fft,axis=0).set_index(freq)
+# 	dfFFT=df.apply(_fftpack.fft,axis=0).set_index(freq)
 	
 	# options
 	if trimNegFreqs==True:
