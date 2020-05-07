@@ -12,6 +12,22 @@ from johnspythonlibrary2.Process.Spectral import fft_df, ifft
 
 
 def fftSignalReconstruct(s,tf):
+	""" 
+	Reconstructs a time-base signal (s_recon) from an input signal (s) and a transfer function (tf) 
+	
+	Parameters
+	----------
+	s : pandas.core.series.Series
+		Input signal.  Index is time with units in seconds
+	tf : pandas.core.series.Series
+		Transfer function.  Index is frequency with units in Hz.
+		
+	Returns
+	-------
+	s_recon : pandas.core.series.Series
+		Output signal.  Index is time with units in seconds
+	"""
+	
 	X=fft_df(s)
 	s_recon=ifft(_pd.DataFrame(tf.iloc[:,0].values*X.iloc[:,0].values,index=tf.index))
 	return s_recon
@@ -107,9 +123,11 @@ def bodePlotFromTF(	dfTF,
 	
 	"""
 	
-	if 'float' not in dfTF.index.dtype.name:
-		raise Exception('dfTF columns should be data type float.  Instead \'%s\' found'%(dfTF.index.dtype.name))
+	if not (('float' in dfTF.index.dtype.name) or ('int' in dfTF.index.dtype.name)):
+		raise Exception('dfTF index should be data type float.  Instead \'%s\' found'%(dfTF.index.dtype.name))
 		
+	dfTF=dfTF.copy()
+	dfTF=dfTF.sort_index()
 		
 	if fig==None:
 		fig,ax=_plt.subplots(2,sharex=True)
@@ -131,7 +149,9 @@ def bodePlotFromTF(	dfTF,
 		y1Label='deg.'
 		y1Lim=[-180,180]
 		y1Ticks=_np.array([-180,-90,0,90,180])
-		y1TicksLabels=_np.array([r'$-180^o$',r'$-90^o$',r'$0^o$',r'$90^o$',r'$180^o$'])
+		y1TicksLabels=[]
+# 		y1TicksLabels=_np.array([-180,-90,0,90,180])
+# 		y1TicksLabels=_np.array([r'$-180^o$',r'$-90^o$',r'$0^o$',r'$90^o$',r'$180^o$'])
 	else:
 		y1Label='rad.'
 		y1Lim=[-_np.pi,_np.pi]
@@ -164,21 +184,24 @@ def bodePlotFromTF(	dfTF,
 	
 	
 
-	
-	
-def calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(dfInput,dfOutput,plot=False):
+
+def calcTF(dfInput,dfOutput,singleFreqs=False,plot=False):
 	"""
-	Calculated the transfer function from a single time series input and output signal.
-	Ideally, these singals contain a freq. sweep (or similar) that has multiple frequencies contained within.
+	Calculated the transfer function from one or more input signals
 	
 	Parameters
 	----------
 	dfInput : pandas.core.frame.DataFrame
 		The original (reference) signal that goes into your system.
 		Time should be index with units in seconds.
+		If singleFreqs=True, each column of data should be for a unique frequency and the column name should be the frequency of dtype=float.  See examples below
 	dfOutput : pandas.core.frame.DataFrame
 		The modified  signal that comes out of your system.
 		Time should be index with units in seconds.
+		If singleFreqs=True, each column of data should be for a unique frequency and the column name should be the frequency of dtype=float.  See examples below
+	singleFreqs : bool
+		False - dfInput and dfOutput are single column signals spanning multiple frequency components (frequency sweep, square wave, etc)
+		True - dfInput and dfOutput have multiple data columns.  Each is recorded with a fixed frequency (i.e. sin(2*pi*f*t)) and each column name should the frequency of dtype=float.  See examples below.
 	plot : bool
 		Optional plot of results
 		
@@ -191,20 +214,27 @@ def calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(dfInput,dfOutput,plot=
 	--------
 	Example1::
 		
-		from johnspythonlibrary2.Process.Filters import gaussianFilter_df as _gaussianFilter_df
+		### Single frequency sweep 
+		
+# 		from johnspythonlibrary2.Process.Filters import gaussianFilter_df as _gaussianFilter_df
 		from johnspythonlibrary2.Process.SigGen import chirp as _chirp
+		from johnspythonlibrary2.Process.Filters import butterworthFilter
 
 		t=_np.arange(0,20e-3,2e-6)
 		fStart=2e2
-		fStop=2.0e3
+		fStop=2.0e4
 		y1=_chirp(t,[0.5e-3,19.46e-3],[fStart,fStop])
 		df=_pd.DataFrame(y1,
 					  index=t,
-					  columns=['orig']) 
+					  columns=['orig'],
+					  dtype=float) 
 		fwhm=0.5e-3
-		dfHP=_gaussianFilter_df(df,fwhm,'high',plot=False)
+		f_corner=1e3
+		dfHP=butterworthFilter(df,f_corner,filterType='high')
+# 		dfHP=_gaussianFilter_df(df,fwhm,'high',plot=False)
 		dfHP.columns=['HP']
-		dfLP=_gaussianFilter_df(df,fwhm,'low',plot=False)
+		dfLP=butterworthFilter(df,f_corner)
+# 		dfLP=_gaussianFilter_df(df,fwhm,'low',plot=False)
 		dfLP.columns=['LP']
 		
 		fig,ax=_plt.subplots()
@@ -212,94 +242,221 @@ def calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(dfInput,dfOutput,plot=
 		ax.plot(dfHP)
 		ax.plot(dfLP)
 	
-		tf1=calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(df,dfHP)
-		tf2=calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(df,dfLP)
+		tf1=calcTF(df,dfHP)
+		tf2=calcTF(df,dfLP)
 		
+		tf1=tf1[(tf1.index>=fStart)&(tf1.index<=fStop)]
+		tf2=tf2[(tf2.index>=fStart)&(tf2.index<=fStop)]
 		fig,ax=_plt.subplots(2,sharex=True)
-		bodePlotFromTF(tf1,fig,ax)
-		bodePlotFromTF(tf2,fig,ax)
-		ax[0].set_xlim([0,fStop*2.])
-		
-	
+		bodePlotFromTF(tf1,fig,ax,semilogXAxis=True)
+		bodePlotFromTF(tf2,fig,ax,semilogXAxis=True)
+		ax[0].set_xlim([tf1.index[0],tf1.index[-1]])
 
+		
+	Example2::
+		
+		### Multiple data columns, each at a unique frequency
+		
+		from johnspythonlibrary2.Process.Filters import butterworthFilter
+		t=_np.arange(0,20e-3,2e-6)
+		freqRange=10**_np.arange(2,4.05,0.05)
+		y_in=_pd.DataFrame(index=t,columns=freqRange,dtype=float)
+		y_out=_pd.DataFrame(index=t,columns=freqRange,dtype=float)
+		f_corner=2e3
+		for f in freqRange:
+			y_in[f]=_np.sin(2*_np.pi*t*f)
+			y_out[f]=butterworthFilter(y_in[f],f_corner)
+			
+		tf=calcTF(y_in,y_out,plot=False,singleFreqs=True)
+		bodePlotFromTF(tf,semilogXAxis=True)
+		
 	"""
-	Xin=fft_df(dfInput)
-	Xout=fft_df(dfOutput)
 	
-	dfTF=_pd.DataFrame(Xout.iloc[:,0]/Xin.iloc[:,0],columns=Xout.columns)
-	
-	if plot==True:
-		fig,ax=_plt.subplots(2,sharex=True)
-		bodePlotFromTF(dfTF,fig,ax)
-	
-	return dfTF
-
-
-
-
-def calcTransferFunctionFromMultipleTimeSeriesAtSingleFrequencies(	dfInput, dfOutput, plot=False):
-	"""
-	Calculated the transfer function from multiple input and output signals, each at a single unique frequency
-	
-	Parameters
-	----------
-	dfInput : pandas.core.frame.DataFrame
-		The input signal.  Index is time with units in seconds.  Columns are the excitation frequency with units in Hz.  
-	dfOutput : pandas.core.frame.DataFrame
-		The output signal.  Index is time with units in seconds.  Columns are the excitation frequency with units in Hz.  
-	plot : bool
-		Optional plot of results
 		
-	Returns
-	-------
-	dfTF : pandas.core.frame.DataFrame
-		Transfer function.  Index is frequency with units in Hz.  Single column.
+	if singleFreqs==False:
+		Xin=fft_df(dfInput,trimNegFreqs=True)
+		Xout=fft_df(dfOutput,trimNegFreqs=True)
+		
+		dfTF=_pd.DataFrame(Xout.iloc[:,0]/Xin.iloc[:,0],columns=Xout.columns)
+		
+		if plot==True:
+			fig,ax=_plt.subplots(2,sharex=True)
+			bodePlotFromTF(dfTF,fig,ax)
+		
+		return dfTF
 	
-	Examples
-	--------
-	Example1::
+	else:
 		
-		yout=[]
-		yin=[]
-		t=_np.arange(0,10e-3,2e-6)
-		freq=_np.arange(1000,12000,1000)
-		for i,f in enumerate(freq):
-			print(i)
-			yout.append((2-i*0.1)*_np.sin(2*_np.pi*t*f+0.1*i*_np.pi))
-			yin.append(2*_np.sin(2*_np.pi*t*f))
-		dfInput=_pd.DataFrame(_np.array(yin).transpose(),index=t,columns=freq)
-		dfOutput=_pd.DataFrame(_np.array(yout).transpose(),index=t,columns=freq)
+		if not (('float' in dfInput.columns.dtype.name) or ('int' in dfInput.columns.dtype.name)):
+			raise Exception('dfInput columns should be data type float (i.e. frequency).  Instead \'%s\' found'%(dfInput.columns.dtype.name))
+			
+		if not (('float' in dfOutput.columns.dtype.name) or ('int' in dfOutput.columns.dtype.name)):
+			raise Exception('dfOutput columns should be data type float (i.e. frequency).  Instead \'%s\' found'%(dfOutput.columns.dtype.name))
+			
 		
-		calcTransferFunctionFromMultipleTimeSeriesAtSingleFrequencies(dfInput,dfOutput,plot=True)
+		
+		from johnspythonlibrary2.Process.Spectral import fftSingleFreq_df
+		
+		# solve input signals
+		dfInTimeAve=_pd.DataFrame(index=dfInput.columns,dtype=complex)
+		for i,(key,val) in enumerate(dfInput.iteritems()):
+			dfInTimeAve.at[key,'result']= fftSingleFreq_df(_pd.DataFrame(val),float(key)).at['fft',key]
+			
+		# solve output signals
+		dfTF=_pd.DataFrame(index=dfOutput.columns,dtype=complex)
+		for i,(key,val) in enumerate(dfOutput.iteritems()):
+			dfTF.at[key,'result']= fftSingleFreq_df(_pd.DataFrame(val),float(key)).at['fft',key]
+	
+		# solve for transfer function
+		dfTF/=dfInTimeAve
+		
+		# optional plot
+		if plot==True:
+			fig,ax=_plt.subplots(2,sharex=True)
+			bodePlotFromTF(dfTF,fig,ax)
+		
+		return dfTF
+		
 
-	"""
-	from johnspythonlibrary2.Process.Spectral import fftSingleFreq_df
-	
-	if 'float' not in dfInput.columns.dtype.name:
-		raise Exception('dfInput columns should be data type float.  Instead \'%s\' found'%(dfInput.columns.dtype.name))
-		
-	if 'float' not in dfOutput.columns.dtype.name:
-		raise Exception('dfOutput columns should be data type float.  Instead \'%s\' found'%(dfOutput.columns.dtype.name))
-	
-	
-	# solve input signals
-	dfInTimeAve=_pd.DataFrame(index=dfInput.columns,dtype=complex)
-	for i,(key,val) in enumerate(dfInput.iteritems()):
-#		print(key)
-		dfInTimeAve.at[key,'result']= fftSingleFreq_df(_pd.DataFrame(val),float(key)).at['fft',key]
-		
-	# solve output signals
-	dfTF=_pd.DataFrame(index=dfOutput.columns,dtype=complex)
-	for i,(key,val) in enumerate(dfOutput.iteritems()):
-		dfTF.at[key,'result']= fftSingleFreq_df(_pd.DataFrame(val),float(key)).at['fft',key]
 
-	# solve for transfer function
-	dfTF/=dfInTimeAve
 	
-	# optional plot
-	if plot==True:
-		fig,ax=_plt.subplots(2,sharex=True)
-		bodePlotFromTF(dfTF,fig,ax)
 	
-	return dfTF
+# def calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(dfInput,dfOutput,plot=False):
+# 	"""
+# 	Calculated the transfer function from a single time series input and output signal.
+# 	Ideally, these singals contain a freq. sweep (or similar) that has multiple frequencies contained within.
+# 	
+# 	Parameters
+# 	----------
+# 	dfInput : pandas.core.frame.DataFrame
+# 		The original (reference) signal that goes into your system.
+# 		Time should be index with units in seconds.
+# 	dfOutput : pandas.core.frame.DataFrame
+# 		The modified  signal that comes out of your system.
+# 		Time should be index with units in seconds.
+# 	plot : bool
+# 		Optional plot of results
+# 		
+# 	Returns
+# 	-------
+# 	dfTF : pandas.core.frame.DataFrame
+# 		Transfer function.  Index is frequency with units in Hz.
+# 	
+# 	Examples
+# 	--------
+# 	Example1::
+# 		
+# 		from johnspythonlibrary2.Process.Filters import gaussianFilter_df as _gaussianFilter_df
+# 		from johnspythonlibrary2.Process.SigGen import chirp as _chirp
+
+# 		t=_np.arange(0,20e-3,2e-6)
+# 		fStart=2e2
+# 		fStop=2.0e3
+# 		y1=_chirp(t,[0.5e-3,19.46e-3],[fStart,fStop])
+# 		df=_pd.DataFrame(y1,
+# 					  index=t,
+# 					  columns=['orig']) 
+# 		fwhm=0.5e-3
+# 		dfHP=_gaussianFilter_df(df,fwhm,'high',plot=False)
+# 		dfHP.columns=['HP']
+# 		dfLP=_gaussianFilter_df(df,fwhm,'low',plot=False)
+# 		dfLP.columns=['LP']
+# 		
+# 		fig,ax=_plt.subplots()
+# 		ax.plot(df)
+# 		ax.plot(dfHP)
+# 		ax.plot(dfLP)
+# 	
+# 		tf1=calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(df,dfHP)
+# 		tf2=calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(df,dfLP)
+# 		
+# 		tf1=tf1[(tf1.index>=fStart)&(tf1.index<=fStop)]
+# 		tf2=tf2[(tf2.index>=fStart)&(tf2.index<=fStop)]
+# 		fig,ax=_plt.subplots(2,sharex=True)
+# 		bodePlotFromTF(tf1,fig,ax)
+# 		bodePlotFromTF(tf2,fig,ax)
+# 		ax[0].set_xlim([tf1.index[0],tf1.index[-1]])
+# 		
+# 	
+
+# 	"""
+# 	Xin=fft_df(dfInput)
+# 	Xout=fft_df(dfOutput)
+# 	
+# 	dfTF=_pd.DataFrame(Xout.iloc[:,0]/Xin.iloc[:,0],columns=Xout.columns)
+# 	
+# 	if plot==True:
+# 		fig,ax=_plt.subplots(2,sharex=True)
+# 		bodePlotFromTF(dfTF,fig,ax)
+# 	
+# 	return dfTF
+
+
+
+
+# def calcTransferFunctionFromMultipleTimeSeriesAtSingleFrequencies(	dfInput, dfOutput, plot=False):
+# 	"""
+# 	Calculated the transfer function from multiple input and output signals, each at a single unique frequency
+# 	
+# 	Parameters
+# 	----------
+# 	dfInput : pandas.core.frame.DataFrame
+# 		The input signal.  Index is time with units in seconds.  Columns are the excitation frequency with units in Hz.  
+# 	dfOutput : pandas.core.frame.DataFrame
+# 		The output signal.  Index is time with units in seconds.  Columns are the excitation frequency with units in Hz.  
+# 	plot : bool
+# 		Optional plot of results
+# 		
+# 	Returns
+# 	-------
+# 	dfTF : pandas.core.frame.DataFrame
+# 		Transfer function.  Index is frequency with units in Hz.  Single column.
+# 	
+# 	Examples
+# 	--------
+# 	Example1::
+# 		
+# 		yout=[]
+# 		yin=[]
+# 		t=_np.arange(0,10e-3,2e-6)
+# 		freq=_np.arange(1000,12000,1000)
+# 		for i,f in enumerate(freq):
+# 			print(i)
+# 			yout.append((2-i*0.1)*_np.sin(2*_np.pi*t*f+0.1*i*_np.pi))
+# 			yin.append(2*_np.sin(2*_np.pi*t*f))
+# 		dfInput=_pd.DataFrame(_np.array(yin).transpose(),index=t,columns=freq)
+# 		dfOutput=_pd.DataFrame(_np.array(yout).transpose(),index=t,columns=freq)
+# 		
+# 		calcTransferFunctionFromMultipleTimeSeriesAtSingleFrequencies(dfInput,dfOutput,plot=True)
+
+# 	"""
+# 	from johnspythonlibrary2.Process.Spectral import fftSingleFreq_df
+# 	
+# 	if 'float' not in dfInput.columns.dtype.name:
+# 		raise Exception('dfInput columns should be data type float.  Instead \'%s\' found'%(dfInput.columns.dtype.name))
+# 		
+# 	if 'float' not in dfOutput.columns.dtype.name:
+# 		raise Exception('dfOutput columns should be data type float.  Instead \'%s\' found'%(dfOutput.columns.dtype.name))
+# 	
+# 	
+# 	# solve input signals
+# 	dfInTimeAve=_pd.DataFrame(index=dfInput.columns,dtype=complex)
+# 	for i,(key,val) in enumerate(dfInput.iteritems()):
+# #		print(key)
+# 		dfInTimeAve.at[key,'result']= fftSingleFreq_df(_pd.DataFrame(val),float(key)).at['fft',key]
+# 		
+# 	# solve output signals
+# 	dfTF=_pd.DataFrame(index=dfOutput.columns,dtype=complex)
+# 	for i,(key,val) in enumerate(dfOutput.iteritems()):
+# 		dfTF.at[key,'result']= fftSingleFreq_df(_pd.DataFrame(val),float(key)).at['fft',key]
+
+# 	# solve for transfer function
+# 	dfTF/=dfInTimeAve
+# 	
+# 	# optional plot
+# 	if plot==True:
+# 		fig,ax=_plt.subplots(2,sharex=True)
+# 		bodePlotFromTF(dfTF,fig,ax)
+# 	
+# 	return dfTF
 	
