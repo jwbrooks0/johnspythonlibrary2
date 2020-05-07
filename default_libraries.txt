@@ -1,0 +1,34 @@
+### This list of python libraries includes those needed to run johnspythonlibrary2.  It also includes a few libraries that I like to keep on hand.
+# NOTE:  This does not include the MDSplus library.  See the attached readme for instructions on installing it. 
+# Within your virtual environment, type the command: pip -r default_libraries.txt to install this list all in one go.   
+
+
+### python libraries
+#spyder==3.3.6	# this is the final release of spyder v3.  spyder v4 is too buggy at the moment, but I'll try it again at a later date
+spyder			# spyder v4 
+matplotlib		# plotting package
+numpy			# data arrays and scientific tool library
+pandas			# data structures, 2 dimentional
+xarray			# data structures, 3+ dimensional
+ezodf			# open office related libraries
+lxml			# processes processing XML and HTML.  required for ezodf
+scipy			# scientific tool library
+sklearn			# machine learning
+Pillow			# image handling
+glob3			# unix-like filenames.  includes using wildcards *
+sh				# shell scripting library
+deprecated		# has a decorator for flagging deprecated functions
+
+
+### I've also included a few of my favorite settings for my spyder environment.
+### spyder settings
+# Consider reverting to the default settings first.  I've had issues where it pulls in an old spyder config file from outside the virtualenv.
+# Preferences->Editor->Display->Source Code->Indention characters->Tabulations
+# Preferences->Editor->Advances->Edit template for new file->  (Then add numpy, pandas, mpl, etc)
+# Preferences->IPython console->Graphics->Graphics backend->Backend->Automatic
+# Preferences->Completion and linting->Show automatic completions after
+    characters entered->1
+# Preferences->Show automatic completions after
+    keyboard idle (ms)->100
+# PYTHONPATH
+
