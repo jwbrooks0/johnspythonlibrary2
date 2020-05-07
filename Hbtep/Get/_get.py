@@ -414,7 +414,12 @@ def solData(	shotno=98030,
 		return dfSOLRaw
 	
 	# load meta data
-	dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods','SOL').set_index('names')
+	sensor='SOL'
+	try:
+		directory=_path.dirname(_path.realpath(__file__))
+		dfMeta=_readOdsToDF('%s/listOfAllSensorsOnHBTEP.ods'%directory,sensor).set_index('names')
+	except:
+		dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods',sensor).set_index('names')
 	
 	# load raw data
 	dfRaw=dfSOLRaw(shotno,tStart,tStop,dfMeta)
@@ -423,6 +428,11 @@ def solData(	shotno=98030,
 	# filter data
 	dfSmoothed=_gaussianFilter_df(dfRaw,timeFWHM=timeFWHMSmoothing,filterType='high',plot=False)
 
+	# plot
+	if plot==True:
+		dfRaw.plot()
+		dfSmoothed.plot()
+		
 	return dfRaw,dfSmoothed,dfMeta
 
 
@@ -521,7 +531,13 @@ def quartzJumperAndGroundingBusData(	shotno=96530,
 		return dfJumperRaw
 	
 	# load meta data
-	dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods','Jumper').set_index('names')
+	sensor='Jumper'
+	try:
+		directory=_path.dirname(_path.realpath(__file__))
+		dfMeta=_readOdsToDF('%s/listOfAllSensorsOnHBTEP.ods'%directory,sensor).set_index('names')
+	except:
+		dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods',sensor).set_index('names')
+	
 	
 	# load raw data
 	dfRaw=dfJumperRaw(shotno,tStart,tStop,dfMeta)
@@ -1319,7 +1335,12 @@ def euvData(	shotno=101393,
 		return dfEUV
 	
 	# load meta data
-	dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods','EUV').set_index('names')
+	sensor='EUV'
+	try:
+		directory=_path.dirname(_path.realpath(__file__))
+		dfMeta=_readOdsToDF('%s/listOfAllSensorsOnHBTEP.ods'%directory,sensor).set_index('names')
+	except:
+		dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods',sensor).set_index('names')
 	
 	# load raw data
 	df=dfEUV(shotno,tStart,tStop,dfMeta)
