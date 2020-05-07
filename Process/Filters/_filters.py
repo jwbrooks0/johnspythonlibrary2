@@ -316,7 +316,7 @@ def butterworthFilter(	df,
 	samplingFreq=1.0/(df.index[1]-df.index[0])
 	
 	# construct butterworth filter
-	Wn=float(cornerFreq)/samplingFreq
+	Wn=float(cornerFreq)/samplingFreq*2  #TODO why is there a 2 here?  double check this.
 	b, a = butter(	filterOrder, 
 					Wn=Wn,
 					btype=filterType,
