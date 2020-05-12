@@ -1,5 +1,5 @@
 
-### Import
+#%% Libraries
 
 import numpy as _np
 import pandas as _pd
@@ -17,17 +17,19 @@ from johnspythonlibrary2.Process.Pandas import filterDFByColOrIndex as _filterDF
 
 
 import MDSplus as _mds
-    
+ 
+
+#%% Settings
+   
 # This file does not exist by default.  Rename the template file and fill in the appropriate variables within.
 import johnspythonlibrary2.Hbtep.Get._settings as _settings
 
-
-### Settings
 _TSTART=0e-3
 _TSTOP=10e-3
 
 
-### Functions
+#%% Functions - MDSplus related
+
 def latestShotNumber(serverAddress=_settings._SERVER_ADDRESS,
 					 port=_settings._SERVER_PORT):
 	"""
@@ -41,8 +43,6 @@ def latestShotNumber(serverAddress=_settings._SERVER_ADDRESS,
 	shot_num : int
 		latest shot number
 	"""
-	## libraries
-	import MDSplus as _mds
 	
 	conn = _mds.Connection('%s:%d'%(serverAddress,port));
 	shot_num = conn.get('current_shot("hbtep2")')
@@ -158,6 +158,444 @@ def mdsData(shotno,
 	_closeRemoteMDSConnection(mdsConn,shotno)
 		
 	return df
+
+
+#%% Functions - HBT data related
+
+
+def capBankData(	shotno=96530,
+					tStart=_TSTART,
+					tStop=_TSTOP,
+					plot=False):
+	"""
+	Capacitor bank data.  Currents.  
+	
+	Parameters
+	----------
+	shotno : int
+		shot number of desired data
+	tStart : float
+		time (in seconds) to trim data before
+		default is 0 ms
+	tStop : float
+		time (in seconds) to trim data after
+		default is 10 ms
+	plot : bool
+		plots all relevant plots if true
+		default is False
+		
+	Example
+	-------
+	::
+		
+		capBankData(96530,plot=True)
+		
+	"""
+		
+	def plotData(df,dfTF):
+		""" Plot all relevant plots """
+		
+		_plt.figure()
+		ax1 = _plt.subplot2grid((3,2), (0,1), rowspan=3)  #tf
+		ax2 = _plt.subplot2grid((3,2), (0,0)) #vf
+		ax3 = _plt.subplot2grid((3,2), (1,0),sharex=ax2) #oh
+		ax4 = _plt.subplot2grid((3,2), (2, 0),sharex=ax2) #sh
+		fig=_plt.gcf()
+		fig.set_size_inches(10,5)
+				
+		ax1.plot(dfTF.index,dfTF.TF)
+		ax1.axvspan(df.index[0],df.index[-1],color='r',alpha=0.3)
+		_plot.finalizeSubplot(	ax1,
+								xlabel='Time (s)',
+#								xlim=[-150,450],
+								ylabel='TF Field (T)',
+								title='%d'%shotno)
+		
+		ax2.plot(df.index*1e3,df.VF_CURRENT*1e-3)
+		_plot.finalizeSubplot(	ax2,
+								ylabel='VF Current\n(kA)')
+		
+		ax3.plot(df.index*1e3,df.OH_CURRENT*1e-3)
+		_plot.finalizeSubplot(	ax3,
+								ylim=[-20,30],
+								ylabel='OH Current\n(kA)')
+		
+		ax4.plot(df.index*1e3,df.SH_CURRENT*1e-3)
+		_plot.finalizeSubplot(	ax4,
+								ylim=[tStart,tStop],
+								xlabel='Time (s)',
+								ylabel='SH Current\n(kA)')
+		
+	# get vf data
+	
+	@_backupDFs
+	def capBankData(shotno,
+					 tStart,
+					 tStop):
+		df=mdsData(	shotno=shotno,
+					  dataAddress=['\HBTEP2::TOP.SENSORS.VF_CURRENT',
+								  '\HBTEP2::TOP.SENSORS.OH_CURRENT',
+								  '\HBTEP2::TOP.SENSORS.SH_CURRENT'],
+					  tStart=tStart, 
+					  tStop=tStop,
+					  columnNames=['VF_CURRENT','OH_CURRENT','SH_CURRENT']) 
+		return df
+	
+	df=capBankData(shotno,tStart=tStart,tStop=tStop)
+	df=_filterDFByTime(df,tStart,tStop)
+
+	if plot == True:	
+		# get TF data
+		dfTF=tfData(shotno,
+				tStart=-0.25,
+				tStop=0.5)
+		
+		# plot
+		plotData(df,dfTF)
+		
+	return df
+
+
+def cos1RogowskiData(	shotno=96530,
+						tStart=_TSTART,
+						tStop=_TSTOP,
+						plot=False):
+	"""
+	Gets cos 1 rogowski data
+	
+	Parameters
+	----------
+	shotno : int
+		shot number of desired data
+	tStart : float
+		time (in seconds) to trim data before
+		default is 0 ms
+	tStop : float
+		time (in seconds) to trim data after
+		default is 10 ms
+	plot : bool
+		plots all relevant plots if true
+		default is False
+		
+	Example
+	-------
+	::
+		
+		df=cos1RogowskiData(96530,plot=True)
+		
+	"""
+	# get data.  need early time data for offset subtraction
+	
+	@_backupDFs
+	def getCos1RogData(shotno,
+					tStart,
+					tStop):
+		dfData=mdsData(shotno=shotno,
+							  dataAddress=['\HBTEP2::TOP.SENSORS.ROGOWSKIS:COS_1',
+										   '\HBTEP2::TOP.SENSORS.ROGOWSKIS:COS_1:RAW'],
+							  tStart=-1e-3, 
+							  tStop=tStop,
+							  columnNames=['COS_1','COS_1_RAW'])
+		return dfData
+	
+	dfData=getCos1RogData(shotno,
+					   tStart=tStart,
+					   tStop=tStop)
+
+	# remove offest
+	dfData['COS_1_RAW']-=dfData.COS_1_RAW[dfData.COS_1_RAW.index<0].mean()
+	
+	# trim time
+	dfData=dfData[(dfData.index>=tStart)&(dfData.index<=tStop)]
+
+	if plot==True:
+		dfData.plot()
+	
+	return dfData
+		
+
+def egunData(	shotno=96530,
+				tStart=_TSTART,
+				tStop=_TSTOP,
+				plot=False):
+	"""
+	Gets egun data
+	
+	Parameters
+	----------
+	shotno : int
+		shot number of desired data
+	tStart : float
+		time (in seconds) to trim data before
+		default is 0 ms
+	tStop : float
+		time (in seconds) to trim data after
+		default is 10 ms
+	plot : bool
+		plots all relevant plots if true
+		default is False
+		
+	Returns
+	-------
+	dfData : pandas.core.frame.DataFrame
+		e-gun data
+		
+	Example
+	-------
+	::
+		
+		df=egunData(100000,plot=True)
+	
+	"""
+	
+	# get data
+	dfData=mdsData(	shotno,
+					dataAddress=['\HBTEP2::TOP.OPER_DIAGS.E_GUN:I_EMIS', 
+								'\HBTEP2::TOP.OPER_DIAGS.E_GUN:I_HEAT',
+								'\HBTEP2::TOP.OPER_DIAGS.E_GUN:V_BIAS',],
+					tStart=tStart,
+					tStop=tStop,
+					columnNames=['I_EMIS','I_HEAT','V_BIAS'])
+
+	# calculate RMS heating current
+	dfData['I_HEAT_RMS']=_np.sqrt(_np.average((dfData.I_HEAT-_np.average(dfData.I_HEAT))**2));
+
+	# optional plot
+	if plot==True:
+		dfData.plot()
+		
+	return dfData
+
+
+
+def euvData(	shotno=101393,
+				tStart=_TSTART,
+				tStop=_TSTOP,
+				plot=False):
+	"""""
+	Get EUV fan array data
+	
+	Parameters
+	----------
+	shotno : int
+		shot number of desired data
+	tStart : float
+		time (in seconds) to trim data before
+		default is 0 ms
+	tStop : float
+		time (in seconds) to trim data after
+		default is 10 ms
+	plot : bool
+		default is False
+		True - plots far array of all 11 (of 16) channels
+		'all' - plots 
+		
+		
+	Example
+	-------
+	::
+		
+		df=euvData(101393,plot=True)
+	"""""
+	
+	
+	# subfunctions
+	@_backupDFs
+	def dfEUV(shotno, tStart, tStop,	dfEUVMeta):
+		dfEUV=mdsData(shotno,dfEUVMeta.addresses.to_list(), tStart, tStop,	columnNames=dfEUVMeta.index.to_list())
+		return dfEUV
+	
+	# load meta data
+	sensor='EUV'
+	try:
+		directory=_path.dirname(_path.realpath(__file__))
+		dfMeta=_readOdsToDF('%s/listOfAllSensorsOnHBTEP.ods'%directory,sensor).set_index('names')
+	except:
+		dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods',sensor).set_index('names')
+	
+	# load raw data
+	df=dfEUV(shotno,tStart,tStop,dfMeta)
+	df=_filterDFByTime(df,tStart,tStop)
+	
+	if plot==True:
+		df.plot()
+		
+	return df
+
+
+def ipData(	shotno=96530,
+			tStart=_TSTART,
+			tStop=_TSTOP,
+			plot=False,
+			findDisruption=True,
+			verbose=False,
+			paIntegrate=True,
+			forceDownload=False):
+	"""
+	Gets plasma current (I_p) data
+	
+	Parameters
+	----------
+	shotno : int
+		shot number of desired data
+	tStart : float
+		time (in seconds) to trim data before
+		default is 0 ms
+	tStop : float
+		time (in seconds) to trim data after
+		default is 10 ms
+	plot : bool
+		plots all relevant plots if true
+		default is False
+	findDisruption : bool
+		Optional.  Finds the time of disruption.
+	verbose : bool
+		Plots intermediate steps associated with the time of disruption calculation
+	paIntegrate : bool
+		Integrates the PA1 and PA2 sensors to provide an alternative Ip measurement
+		
+	Returns
+	-------
+	dfIp : pandas.core.frame.DataFrame
+		Ip current from the Ip Rogowski
+		(Optional) Ip current from the PA1 and PA2 sensors
+		(Optional) Time of disruption
+	
+	Example:
+	--------
+	::
+		
+		ipData(96530,plot=True)
+	
+	"""
+	
+	# subfunctions
+	@_backupDFs
+	def dfIpData(shotno, tStart, tStop):
+		dataAddress=['\HBTEP2::TOP.SENSORS.ROGOWSKIS:IP']
+		df=mdsData(shotno,dataAddress, tStart, tStop,	columnNames=['IpRog'])
+		return df
+	
+	# download data form IPRogowski data
+	dfIp=dfIpData(	shotno,
+					tStart=tStart, 
+					tStop=tStop,
+					forceDownload=forceDownload)
+	dfIp=_filterDFByTime(dfIp,tStart,tStop)
+	
+	# integrate PA1 sensor data to get IP
+	if paIntegrate==True:
+		# constants
+		mu0=4*_np.pi*1e-7
+		minorRadius=0.16
+		
+		for key in ['PA1','PA2']:
+			dfPA,_,_=magneticSensorData(shotno,tStart,tStop,sensor=key,forceDownload=forceDownload)
+			ipPAIntegration=_np.array(dfPA.sum(axis=1)*1.0/dfPA.shape[1]*2*_np.pi*minorRadius/mu0)
+			dfIp['ip%s'%key]=ipPAIntegration
+
+	# finds the time of disruption
+	if findDisruption==True:
+		
+		try:
+			dfTemp=_pd.DataFrame(dfIp.IpRog[dfIp.index>1.5e-3])
+			
+			# filter data 
+			dfTemp['HP']=_gaussianFilter_df(dfTemp,
+							  timeFWHM=0.5e-3,
+							  filterType='high',
+							  plot=False)
+			dfTemp['LP']=_gaussianFilter_df(_pd.DataFrame(dfTemp['HP']),
+							  timeFWHM=0.01e-3,
+							  filterType='low',
+							  plot=False)
+			
+			# find time derivative of smoothed ip
+			dfTemp['dip2dt']=_np.gradient(dfTemp.LP.to_numpy())				
+
+			# find the first large rise in d(ip2)/dt
+			threshold=11.0
+			index=_np.where(dfTemp.dip2dt>threshold)[0][0]
+			
+			# find the max value of ip immediately after the disrup. onset
+			while(dfTemp.IpRog.to_numpy()[index]<dfTemp.IpRog.to_numpy()[index+1]):
+				index+=1
+			tDisrupt=dfTemp.iloc[index].name
+			
+			if verbose:			
+				dfTemp['timeDisruption']=_np.zeros(dfTemp.shape[0])
+				dfTemp['timeDisruption'].at[tDisrupt]=dfTemp.IpRog.at[tDisrupt]
+				dfTemp.plot()
+
+			dfIp['timeDisruption']=_np.zeros(dfIp.shape[0])
+			dfIp['timeDisruption'].at[tDisrupt]=dfIp.IpRog.at[tDisrupt]
+
+			
+		except:
+			print("time of disruption could not be found")
+	
+	if plot == True:
+		fig, ax=_plt.subplots()
+		for i,(key,val) in enumerate(dfIp.iteritems()):
+			ax.plot(val.index*1e3,val,label=key)
+		_plot.finalizeSubplot(	ax,
+								xlabel='Time (ms)',
+								ylabel='Current (A)',
+								title='%d'%shotno)
+		
+	return dfIp
+
+def loopVoltageData(	shotno=96530,
+						tStart=_TSTART,
+						tStop=_TSTOP,
+						plot=False):
+	"""
+	lopo voltage data
+	
+	Parameters
+	----------
+	shotno : int
+		shot number of desired data
+	tStart : float
+		time (in seconds) to trim data before
+		default is 0 ms
+	tStop : float
+		time (in seconds) to trim data after
+		default is 10 ms
+	plot : bool
+		plots all relevant plots if true
+		default is False
+		
+	Returns
+	-------
+	dfData : pandas.core.frame.DataFrame
+		Loop voltage data.  Time is index.
+		
+	Example
+	-------
+	::
+		
+		df=loopVoltageData(100000,plot=True)
+	
+	"""
+
+	# get data
+	dfData=mdsData(shotno=shotno,
+						  dataAddress=['\HBTEP2::TOP.SENSORS.LOOP_VOlTAGE'],
+						  tStart=tStart, tStop=tStop)   
+
+	# optional plot
+	if plot==True:
+		fig,ax=_plt.subplots()
+		ax.plot(dfData.index*1e3,dfData)
+		_plot.finalizeSubplot(	ax,
+								xlabel='Time',
+								ylabel='V',
+								title='%d'%shotno,
+								ylim=[3,15],
+								legendOn=False)
+		
+	return dfData
 
 
 def magneticSensorDataAll(	shotno,
@@ -365,15 +803,15 @@ def magneticSensorData(	shotno=98173,
 
 
 
-	
-def solData(	shotno=98030,
+def mModeData(	shotno,
 				tStart=_TSTART,
 				tStop=_TSTOP,
-				plot=False,
-				timeFWHMSmoothing=0.4e-3):
+				sensor='PA1',
+				modeNumbers=[0,2,3,4],
+				plot=True):
 	"""
-	SOL tile sensor data
-	
+	m mode analysis
+		
 	Parameters
 	----------
 	shotno : int
@@ -386,63 +824,130 @@ def solData(	shotno=98030,
 		default is 10 ms
 	plot : bool
 		plots all relevant plots if true
-		default is False
-	timeFWHMSmoothing : float
-		Time constant associated with the offset subtraction filter
-		
+		default is False	
+	mode numbers : list of ints
+		mode numbers to be analyzed
+		[0,2,3,4] are the m=0,2,3,and 4 modes
+	sensor : str
+		Sensor to perform the analysis
+		sensor should be in ['PA1','PA2']
+	
 	Returns
 	-------
-	dfRaw : pandas.core.frame.DataFrame
-		Raw magnetic data.  Time is index.
-	dfSmoothed : pandas.core.frame.DataFrame
-		Offset subtracted magnetic data.  Time is index.
-	dfMeta : pandas.core.frame.DataFrame
-		Meta data for the sensors
+	dfResults : pandas.core.frame.DataFrame
+		results of the m-mode analysis
 	
 	Examples
 	--------
 	::
 		
-		a,b,c=solData(98173)
-	
+		df=mModeData(100000,sensor='PA1')
+		df=mModeData(100000,sensor='PA2',modeNumbers=[3])
 	"""
-	
-	# subfunctions
-	@_backupDFs
-	def dfSOLRaw(shotno, tStart, tStop,	dfSOLMeta):
-		dfSOLRaw=mdsData(shotno,dfSOLMeta.addresses.to_list(), tStart, tStop,	columnNames=dfSOLMeta.index.to_list())
-		return dfSOLRaw
-	
-	# load meta data
-	sensor='SOL'
-	try:
-		directory=_path.dirname(_path.realpath(__file__))
-		dfMeta=_readOdsToDF('%s/listOfAllSensorsOnHBTEP.ods'%directory,sensor).set_index('names')
-	except:
-		dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods',sensor).set_index('names')
-	
-	# load raw data
-	dfRaw=dfSOLRaw(shotno,tStart,tStop,dfMeta)
-	dfRaw=_filterDFByTime(dfRaw,tStart,tStop)
-	
-	# filter data
-	dfSmoothed=_gaussianFilter_df(dfRaw,timeFWHM=timeFWHMSmoothing,filterType='high',plot=False)
-
-	# plot
-	if plot==True:
-		dfRaw.plot()
-		dfSmoothed.plot()
+	if sensor not in ['PA1','PA2']:
+		raise Exception('Bad sensor name')
 		
-	return dfRaw,dfSmoothed,dfMeta
+	_,df,dfMeta=magneticSensorData(shotno,
+									tStart=tStart,
+									tStop=tStop,
+									sensor=sensor,
+									forceDownload=False)
 
+	angles=dfMeta.theta.values
+	dfResults=_leastSquareModeAnalysis(	df*1e4,
+									angles,
+									modeNumbers=modeNumbers,
+									plot=plot,
+									title='m-mode analysis, %s, %d'%(sensor,shotno))
+	
+	return dfResults
 
 	
-def loopVoltageData(	shotno=96530,
-						tStart=_TSTART,
-						tStop=_TSTOP,
-						plot=False):
+def nModeData(	shotno,
+				tStart=_TSTART,
+				tStop=_TSTOP,
+				sensor='TA',
+				modeNumbers=[0,-1,-2],
+				plot=False):
 	"""
-	lopo voltage data
+	n mode analysis
+		
+	Parameters
+	----------
+	shotno : int
+		shot number of desired data
+	tStart : float
+		time (in seconds) to trim data before
+		default is 0 ms
+	tStop : float
+		time (in seconds) to trim data after
+		default is 10 ms
+	plot : bool
+		plots all relevant plots if true
+		default is False	
+	mode numbers : list of ints
+		mode numbers to be analyzed
+		[0,-1,-2] are the n=0, 1,and 2 modes.
+	sensor : str
+		Sensor to perform the analysis
+		sensor should be in ['TA','FBS1','FBS2','FBS3','FBS4']
+	
+	Returns
+	-------
+	dfResults : pandas.core.frame.DataFrame
+		results of the n-mode analysis
+	
+	Examples
+	--------
+	::
+		
+		df=nModeData(100000,sensor='TA')
+		df=nModeData(100000,sensor='FBS4')
+		df=nModeData(100000,sensor='FB_S1',modeNumbers=[-1])
+	"""
+	
+	if 'TA' in sensor:
+		_,df,dfMeta=magneticSensorData(shotno,
+										tStart=tStart,
+										tStop=tStop,
+										sensor='TA',
+										forceDownload=False)
+	elif 'FB' in sensor:
+		_,df,dfMeta=magneticSensorData(shotno,
+								tStart=tStart,
+								tStop=tStop,
+								sensor='FB',
+								forceDownload=False)
+		
+		from johnspythonlibrary2.Process.Misc import extractIntsFromStr
+		num=extractIntsFromStr(sensor)[0]
+		if num not in [1,2,3,4]:
+			raise Exception('Bad sensor name')
+		from johnspythonlibrary2.Process.Pandas import filterDFByColOrIndex
+		df=filterDFByColOrIndex(df,'S%dP'%num)
+		dfMeta=filterDFByColOrIndex(dfMeta,'S%dP'%num,col=False)
+	else:
+		raise Exception('Bad sensor name')
+
+	angles=dfMeta.phi.values
+	dfResults=_leastSquareModeAnalysis(	df*1e4,
+									angles,
+									modeNumbers=modeNumbers,
+									plot=plot,
+									title='n-mode analysis, %s, %d'%(sensor,shotno))
+	
+	return dfResults
+
+
+
+
+def plasmaRadiusData(	shotno=95782,
+							tStart=_TSTART,
+							tStop=_TSTOP, 
+							plot=False,
+							forceDownload=False):
+	"""
+	Calculate the major and minor radius.
 	
 	Parameters
 	----------
@@ -458,38 +963,145 @@ def loopVoltageData(	shotno=96530,
 		plots all relevant plots if true
 		default is False
 		
-	Returns
-	-------
-	dfData : pandas.core.frame.DataFrame
-		Loop voltage data.  Time is index.
-		
+	Notes
+	-----
+	The radius calculations below are pulled from Paul Hughes's 
+	pauls_MDSplus_toolbox.py code.  In that code, he attributes Niko Rath for 
+	its implementation.  I don't really understand it.
+	
 	Example
 	-------
 	::
 		
-		df=loopVoltageData(100000,plot=True)
+		df=plasmaRadiusData(95782,plot=True)
 	
 	"""
-
-	# get data
-	dfData=mdsData(shotno=shotno,
-						  dataAddress=['\HBTEP2::TOP.SENSORS.LOOP_VOlTAGE'],
-						  tStart=tStart, tStop=tStop)   
-
-	# optional plot
-	if plot==True:
-		fig,ax=_plt.subplots()
-		ax.plot(dfData.index*1e3,dfData)
-		_plot.finalizeSubplot(	ax,
-								xlabel='Time',
-								ylabel='V',
-								title='%d'%shotno,
-								ylim=[3,15],
-								legendOn=False)
-		
-	return dfData
-		
+	
+	@_backupDFs
+	def dfPlasmaRadius(shotno,
+						tStart,
+						tStop):
 			
+		# Determined by Daisuke during copper plasma calibration
+		a=.00643005
+		b=-1.10423
+		c=48.2567
+		
+		# Calculated by Jeff, but still has errors
+		vf_pickup = 0.0046315133 * -1e-3
+		oh_pickup = 7.0723416e-08
+		
+		# get vf and oh data
+		dfCapBank=capBankData(shotno,tStart=tStart,tStop=tStop)
+		vf=dfCapBank.VF_CURRENT.to_numpy()
+		oh=dfCapBank.OH_CURRENT.to_numpy()
+		time=dfCapBank.index.to_numpy()
+	
+		# get plasma current
+		dfIp=ipData(shotno,tStart=tStart,tStop=tStop)
+		ip=dfIp.IpRog.to_numpy()*1212.3*1e-9  # ip gain
+		
+		# get cos-1 raw data
+		dfCos1Rog=cos1RogowskiData(shotno,tStart=tStart,tStop=tStop) 
+	
+		# integrate cos-1 raw 
+		from scipy.integrate import cumtrapz
+		cos1=cumtrapz(dfCos1Rog.COS_1_RAW,dfCos1Rog.index)+dfCos1Rog.COS_1_RAW.iloc[:-1]*0.004571
+		cos1=_np.append(cos1,0)
+		
+		# r-major calculations
+		pickup = vf * vf_pickup + oh * oh_pickup
+		ratio = ip / (cos1 - pickup)
+		arg = b**2 - 4 * a * (c-ratio)
+		arg[arg < 0] = 0
+		r_major = (-b + _np.sqrt(arg)) / (2*a)
+		majorRadius  = r_major / 100 # Convert to meters
+		
+		dfData=_pd.DataFrame()
+		dfData['time']=time
+		dfData['majorRadius']=majorRadius
+		dfData=dfData.set_index('time')
+		
+		minorRadius=_np.ones(len(majorRadius))*0.15
+		minorRadius[majorRadius>0.92]=0.15-(majorRadius[majorRadius>0.92]-0.92)
+		minorRadius[majorRadius<0.9]=0.15-(0.9-majorRadius[majorRadius<0.9])
+		dfData['minorRadius']=minorRadius
+		
+		return dfData
+	
+	dfData=dfPlasmaRadius(shotno,
+					   tStart=tStart,
+					   tStop=tStop,
+					   forceDownload=forceDownload)
+	dfData=_filterDFByTime(dfData,tStart,tStop)
+	
+	if plot==True:
+		fig,ax=_plt.subplots(2,sharex=True)
+		ax[0].plot(dfData.majorRadius)
+		ax[1].plot(dfData.minorRadius)
+	
+	return dfData
+
+
+def qStarData(shotno=96496, tStart=_TSTART, tStop=_TSTOP, plot=False,forceDownload=False):
+	"""
+	Gets qstar data
+	
+	Parameters
+	----------
+	shotno : int
+		shot number of desired data
+	tStart : float
+		time (in seconds) to trim data before
+		default is 0 ms
+	tStop : float
+		time (in seconds) to trim data after
+		default is 10 ms
+	plot : bool
+		plots all relevant plots if true
+		default is False
+		
+		
+	Examples
+	--------
+	::
+		
+		qStarData(96496,plot=True)
+	"""
+	
+	
+	# get data
+	dfIp=ipData(shotno,tStart=tStart,tStop=tStop,forceDownload=forceDownload)
+	plasmaRadius=plasmaRadiusData(shotno,tStart=tStart,tStop=tStop,forceDownload=forceDownload)
+	dfTF=tfData(shotno,tStart,tStop,forceDownload=forceDownload)
+	
+	
+	tfProbeData=dfTF.TF.to_numpy()
+	tfProbeData=tfProbeData*1.23/plasmaRadius.majorRadius
+		
+	# calc q star
+	qStar= plasmaRadius.minorRadius**2 * tfProbeData / (2e-7 * dfIp.IpRog * plasmaRadius.majorRadius)
+	qStarCorrected=qStar*(1.15) # 15% correction factor.  jeff believes our qstar measurement might be about 15% to 20% too low.  
+	time=dfIp.index.to_numpy()
+	
+	def makePlot():
+		""" 
+		Plot all relevant plots 
+		"""
+		
+		fig,p1=_plt.subplots()
+		p1.plot(time*1e3,qStar,label=r'q$^*$')
+		p1.plot(time*1e3,qStarCorrected,label=r'q$^* * 1.15$')
+		_plot.finalizeSubplot(p1,xlabel='Time (ms)',ylabel=r'q$^*$',ylim=[1,5])
+		_plot.finalizeFigure(fig,title='%s'%shotno)
+		
+	if plot == True:
+		makePlot()
+		
+	dfData=_pd.DataFrame(qStar,index=time,columns=['qedge'])
+	return dfData
+
+
 
 def quartzJumperAndGroundingBusData(	shotno=96530,
 										tStart=_TSTART,
@@ -573,15 +1185,12 @@ def quartzJumperAndGroundingBusData(	shotno=96530,
 		
 
 
-def ipData(	shotno=96530,
-			tStart=_TSTART,
-			tStop=_TSTOP,
-			plot=False,
-			findDisruption=True,
-			verbose=False,
-			paIntegrate=True):
+def spectrometerData(	shotno=98030,
+						tStart=_TSTART,
+						tStop=_TSTOP,
+						plot=False):
 	"""
-	Gets plasma current (I_p) data
+	Spectrometer data
 	
 	Parameters
 	----------
@@ -596,218 +1205,108 @@ def ipData(	shotno=96530,
 	plot : bool
 		plots all relevant plots if true
 		default is False
-	findDisruption : bool
-		Optional.  Finds the time of disruption.
-	verbose : bool
-		Plots intermediate steps associated with the time of disruption calculation
-	paIntegrate : bool
-		Integrates the PA1 and PA2 sensors to provide an alternative Ip measurement
+		
+	Example
+	-------
+	::
+		
+		df=spectrometerData(98030,plot=True)
+	
+	"""
+	# get data
+	df=mdsData(	shotno,
+				dataAddress=['\HBTEP2::TOP.SENSORS.SPECTROMETER'],
+				tStart=tStart, 
+				tStop=tStop,
+				columnNames=['spectrometer'])
+	
+	if plot == True:
+		df.plot()
+		
+	return df
+
+	
+def solData(	shotno=98030,
+				tStart=_TSTART,
+				tStop=_TSTOP,
+				plot=False,
+				timeFWHMSmoothing=0.4e-3):
+	"""
+	SOL tile sensor data
+	
+	Parameters
+	----------
+	shotno : int
+		shot number of desired data
+	tStart : float
+		time (in seconds) to trim data before
+		default is 0 ms
+	tStop : float
+		time (in seconds) to trim data after
+		default is 10 ms
+	plot : bool
+		plots all relevant plots if true
+		default is False
+	timeFWHMSmoothing : float
+		Time constant associated with the offset subtraction filter
 		
 	Returns
 	-------
-	dfIp : pandas.core.frame.DataFrame
-		Ip current from the Ip Rogowski
-		(Optional) Ip current from the PA1 and PA2 sensors
-		(Optional) Time of disruption
+	dfRaw : pandas.core.frame.DataFrame
+		Raw magnetic data.  Time is index.
+	dfSmoothed : pandas.core.frame.DataFrame
+		Offset subtracted magnetic data.  Time is index.
+	dfMeta : pandas.core.frame.DataFrame
+		Meta data for the sensors
 	
-	Example:
+	Examples
 	--------
 	::
 		
-		ipData(96530,plot=True)
+		a,b,c=solData(98173)
 	
 	"""
 	
 	# subfunctions
 	@_backupDFs
-	def dfIpData(shotno, tStart, tStop):
-		dataAddress=['\HBTEP2::TOP.SENSORS.ROGOWSKIS:IP']
-		df=mdsData(shotno,dataAddress, tStart, tStop,	columnNames=['IpRog'])
-		return df
+	def dfSOLRaw(shotno, tStart, tStop,	dfSOLMeta):
+		dfSOLRaw=mdsData(shotno,dfSOLMeta.addresses.to_list(), tStart, tStop,	columnNames=dfSOLMeta.index.to_list())
+		return dfSOLRaw
 	
-	# download data form IPRogowski data
-	dfIp=dfIpData(	shotno,
-					tStart=tStart, 
-					tStop=tStop,
-					forceDownload=False)
-	dfIp=_filterDFByTime(dfIp,tStart,tStop)
+	# load meta data
+	sensor='SOL'
+	try:
+		directory=_path.dirname(_path.realpath(__file__))
+		dfMeta=_readOdsToDF('%s/listOfAllSensorsOnHBTEP.ods'%directory,sensor).set_index('names')
+	except:
+		dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods',sensor).set_index('names')
 	
-	# integrate PA1 sensor data to get IP
-	if paIntegrate==True:
-		# constants
-		mu0=4*_np.pi*1e-7
-		minorRadius=0.16
-		
-		for key in ['PA1','PA2']:
-			dfPA,_,_=magneticSensorData(shotno,tStart,tStop,sensor=key)
-			ipPAIntegration=_np.array(dfPA.sum(axis=1)*1.0/dfPA.shape[1]*2*_np.pi*minorRadius/mu0)
-			dfIp['ip%s'%key]=ipPAIntegration
-
-	# finds the time of disruption
-	if findDisruption==True:
-		
-		try:
-			dfTemp=_pd.DataFrame(dfIp.IpRog[dfIp.index>1.5e-3])
-			
-			# filter data 
-			dfTemp['HP']=_gaussianFilter_df(dfTemp,
-							  timeFWHM=0.5e-3,
-							  filterType='high',
-							  plot=False)
-			dfTemp['LP']=_gaussianFilter_df(_pd.DataFrame(dfTemp['HP']),
-							  timeFWHM=0.01e-3,
-							  filterType='low',
-							  plot=False)
-			
-			# find time derivative of smoothed ip
-			dfTemp['dip2dt']=_np.gradient(dfTemp.LP.to_numpy())				
-
-			# find the first large rise in d(ip2)/dt
-			threshold=11.0
-			index=_np.where(dfTemp.dip2dt>threshold)[0][0]
-			
-			# find the max value of ip immediately after the disrup. onset
-			while(dfTemp.IpRog.to_numpy()[index]<dfTemp.IpRog.to_numpy()[index+1]):
-				index+=1
-			tDisrupt=dfTemp.iloc[index].name
-			
-			if verbose:			
-				dfTemp['timeDisruption']=_np.zeros(dfTemp.shape[0])
-				dfTemp['timeDisruption'].at[tDisrupt]=dfTemp.IpRog.at[tDisrupt]
-				dfTemp.plot()
-
-			dfIp['timeDisruption']=_np.zeros(dfIp.shape[0])
-			dfIp['timeDisruption'].at[tDisrupt]=dfIp.IpRog.at[tDisrupt]
-
-			
-		except:
-			print("time of disruption could not be found")
+	# load raw data
+	dfRaw=dfSOLRaw(shotno,tStart,tStop,dfMeta)
+	dfRaw=_filterDFByTime(dfRaw,tStart,tStop)
 	
-	if plot == True:
-		fig, ax=_plt.subplots()
-		for i,(key,val) in enumerate(dfIp.iteritems()):
-			ax.plot(val.index*1e3,val,label=key)
-		_plot.finalizeSubplot(	ax,
-								xlabel='Time (ms)',
-								ylabel='Current (A)',
-								title='%d'%shotno)
-		
-	return dfIp
-		
+	# filter data
+	dfSmoothed=_gaussianFilter_df(dfRaw,timeFWHM=timeFWHMSmoothing,filterType='high',plot=False)
 
-def egunData(	shotno=96530,
-				tStart=_TSTART,
-				tStop=_TSTOP,
-				plot=False):
-	"""
-	Gets egun data
-	
-	Parameters
-	----------
-	shotno : int
-		shot number of desired data
-	tStart : float
-		time (in seconds) to trim data before
-		default is 0 ms
-	tStop : float
-		time (in seconds) to trim data after
-		default is 10 ms
-	plot : bool
-		plots all relevant plots if true
-		default is False
-		
-	Returns
-	-------
-	dfData : pandas.core.frame.DataFrame
-		e-gun data
-		
-	Example
-	-------
-	::
-		
-		df=egunData(100000,plot=True)
-	
-	"""
-	
-	# get data
-	dfData=mdsData(	shotno,
-					dataAddress=['\HBTEP2::TOP.OPER_DIAGS.E_GUN:I_EMIS', 
-								'\HBTEP2::TOP.OPER_DIAGS.E_GUN:I_HEAT',
-								'\HBTEP2::TOP.OPER_DIAGS.E_GUN:V_BIAS',],
-					tStart=tStart,
-					tStop=tStop,
-					columnNames=['I_EMIS','I_HEAT','V_BIAS'])
-
-	# calculate RMS heating current
-	dfData['I_HEAT_RMS']=_np.sqrt(_np.average((dfData.I_HEAT-_np.average(dfData.I_HEAT))**2));
-
-	# optional plot
+	# plot
 	if plot==True:
-		dfData.plot()
+		dfRaw.plot()
+		dfSmoothed.plot()
 		
-	return dfData
+	return dfRaw,dfSmoothed,dfMeta
 
 
-
-
-
-def cos1RogowskiData(	shotno=96530,
-						tStart=_TSTART,
-						tStop=_TSTOP,
-						plot=False):
-	"""
-	Gets cos 1 rogowski data
 	
-	Parameters
-	----------
-	shotno : int
-		shot number of desired data
-	tStart : float
-		time (in seconds) to trim data before
-		default is 0 ms
-	tStop : float
-		time (in seconds) to trim data after
-		default is 10 ms
-	plot : bool
-		plots all relevant plots if true
-		default is False
+
 		
-	Example
-	-------
-	::
-		
-		df=cos1RogowskiData(96530,plot=True)
-		
-	"""
-	# get data.  need early time data for offset subtraction
-	
-	@_backupDFs
-	def getCos1RogData(shotno,
-					tStart,
-					tStop):
-		dfData=mdsData(shotno=shotno,
-							  dataAddress=['\HBTEP2::TOP.SENSORS.ROGOWSKIS:COS_1',
-										   '\HBTEP2::TOP.SENSORS.ROGOWSKIS:COS_1:RAW'],
-							  tStart=-1e-3, 
-							  tStop=tStop,
-							  columnNames=['COS_1','COS_1_RAW'])
-		return dfData
-	
-	dfData=getCos1RogData(shotno,
-					   tStart=tStart,
-					   tStop=tStop)
+			
 
-	# remove offest
-	dfData['COS_1_RAW']-=dfData.COS_1_RAW[dfData.COS_1_RAW.index<0].mean()
-	
-	# trim time
-	dfData=dfData[(dfData.index>=tStart)&(dfData.index<=tStop)]
 
-	if plot==True:
-		dfData.plot()
-	
-	return dfData
 		
+
+
+
+
 
 
 def sxrData(	shotno=98170,
@@ -932,12 +1431,13 @@ def sxrData(	shotno=98170,
 			
 
 
-def spectrometerData(	shotno=98030,
+
+def sxrMidplaneData(	shotno=96530,
 						tStart=_TSTART,
 						tStop=_TSTOP,
 						plot=False):
 	"""
-	Spectrometer data
+	Gets Soft X-ray midplane sensor data at: devices.north_rack:cpci:input_74 
 	
 	Parameters
 	----------
@@ -957,27 +1457,28 @@ def spectrometerData(	shotno=98030,
 	-------
 	::
 		
-		df=spectrometerData(98030,plot=True)
-	
+		sxrMidplaneData(96530,plot=True)
 	"""
-	# get data
-	df=mdsData(	shotno,
-				dataAddress=['\HBTEP2::TOP.SENSORS.SPECTROMETER'],
-				tStart=tStart, 
-				tStop=tStop,
-				columnNames=['spectrometer'])
+	df=mdsData(shotno=shotno,
+			   dataAddress=['\HBTEP2::TOP.DEVICES.NORTH_RACK:CPCI:INPUT_74 '],
+			   tStart=tStart, tStop=tStop,
+			   columnNames=['SXR_Midplane'])
+	df.SXR_Midplane*=-1
 	
-	if plot == True:
+	if plot==True:
 		df.plot()
 		
 	return df
+
+
 		
 		
 def tfData(	shotno=96530,
 			tStart=_TSTART,
 			tStop=_TSTOP,
 			plot=False,
-			upSample=True):
+			upSample=True,
+			forceDownload=False):
 	"""
 	Toroidal field data  
 	
@@ -1033,7 +1534,8 @@ def tfData(	shotno=96530,
 	
 	df=dfTF(shotno,
 		 tStart=tStart,
-		 tStop=tStop)
+		 tStop=tStop,
+		 forceDownload=forceDownload)
 	df=_filterDFByTime(df,tStart,tStop)
 	
 
@@ -1043,492 +1545,14 @@ def tfData(	shotno=96530,
 	return df
 		
 		
-def capBankData(	shotno=96530,
-					tStart=_TSTART,
-					tStop=_TSTOP,
-					plot=False):
-	"""
-	Capacitor bank data.  Currents.  
-	
-	Parameters
-	----------
-	shotno : int
-		shot number of desired data
-	tStart : float
-		time (in seconds) to trim data before
-		default is 0 ms
-	tStop : float
-		time (in seconds) to trim data after
-		default is 10 ms
-	plot : bool
-		plots all relevant plots if true
-		default is False
-		
-	Example
-	-------
-	::
-		
-		capBankData(96530,plot=True)
-		
-	"""
-		
-	def plotData(df,dfTF):
-		""" Plot all relevant plots """
-		
-		_plt.figure()
-		ax1 = _plt.subplot2grid((3,2), (0,1), rowspan=3)  #tf
-		ax2 = _plt.subplot2grid((3,2), (0,0)) #vf
-		ax3 = _plt.subplot2grid((3,2), (1,0),sharex=ax2) #oh
-		ax4 = _plt.subplot2grid((3,2), (2, 0),sharex=ax2) #sh
-		fig=_plt.gcf()
-		fig.set_size_inches(10,5)
-				
-		ax1.plot(dfTF.index,dfTF.TF)
-		ax1.axvspan(df.index[0],df.index[-1],color='r',alpha=0.3)
-		_plot.finalizeSubplot(	ax1,
-								xlabel='Time (s)',
-#								xlim=[-150,450],
-								ylabel='TF Field (T)',
-								title='%d'%shotno)
-		
-		ax2.plot(df.index*1e3,df.VF_CURRENT*1e-3)
-		_plot.finalizeSubplot(	ax2,
-								ylabel='VF Current\n(kA)')
-		
-		ax3.plot(df.index*1e3,df.OH_CURRENT*1e-3)
-		_plot.finalizeSubplot(	ax3,
-								ylim=[-20,30],
-								ylabel='OH Current\n(kA)')
-		
-		ax4.plot(df.index*1e3,df.SH_CURRENT*1e-3)
-		_plot.finalizeSubplot(	ax4,
-								ylim=[tStart,tStop],
-								xlabel='Time (s)',
-								ylabel='SH Current\n(kA)')
-		
-	# get vf data
-	
-	@_backupDFs
-	def capBankData(shotno,
-					 tStart,
-					 tStop):
-		df=mdsData(	shotno=shotno,
-					  dataAddress=['\HBTEP2::TOP.SENSORS.VF_CURRENT',
-								  '\HBTEP2::TOP.SENSORS.OH_CURRENT',
-								  '\HBTEP2::TOP.SENSORS.SH_CURRENT'],
-					  tStart=tStart, 
-					  tStop=tStop,
-					  columnNames=['VF_CURRENT','OH_CURRENT','SH_CURRENT']) 
-		return df
-	
-	df=capBankData(shotno,tStart=tStart,tStop=tStop)
-	df=_filterDFByTime(df,tStart,tStop)
-
-	if plot == True:	
-		# get TF data
-		dfTF=tfData(shotno,
-				tStart=-0.25,
-				tStop=0.5)
-		
-		# plot
-		plotData(df,dfTF)
-		
-	return df
 		
 
 
-def plasmaRadiusData(	shotno=95782,
-							tStart=_TSTART,
-							tStop=_TSTOP, 
-							plot=False):
-	"""
-	Calculate the major and minor radius.
-	
-	Parameters
-	----------
-	shotno : int
-		shot number of desired data
-	tStart : float
-		time (in seconds) to trim data before
-		default is 0 ms
-	tStop : float
-		time (in seconds) to trim data after
-		default is 10 ms
-	plot : bool
-		plots all relevant plots if true
-		default is False
-		
-	Notes
-	-----
-	The radius calculations below are pulled from Paul Hughes's 
-	pauls_MDSplus_toolbox.py code.  In that code, he attributes Niko Rath for 
-	its implementation.  I don't really understand it.
-	
-	Example
-	-------
-	::
-		
-		df=plasmaRadiusData(95782,plot=True)
-	
-	"""
-	
-	@_backupDFs
-	def dfPlasmaRadius(shotno,
-						tStart,
-						tStop):
-			
-		# Determined by Daisuke during copper plasma calibration
-		a=.00643005
-		b=-1.10423
-		c=48.2567
-		
-		# Calculated by Jeff, but still has errors
-		vf_pickup = 0.0046315133 * -1e-3
-		oh_pickup = 7.0723416e-08
-		
-		# get vf and oh data
-		dfCapBank=capBankData(shotno,tStart=tStart,tStop=tStop)
-		vf=dfCapBank.VF_CURRENT.to_numpy()
-		oh=dfCapBank.OH_CURRENT.to_numpy()
-		time=dfCapBank.index.to_numpy()
-	
-		# get plasma current
-		dfIp=ipData(shotno,tStart=tStart,tStop=tStop)
-		ip=dfIp.IpRog.to_numpy()*1212.3*1e-9  # ip gain
-		
-		# get cos-1 raw data
-		dfCos1Rog=cos1RogowskiData(shotno,tStart=tStart,tStop=tStop) 
-	
-		# integrate cos-1 raw 
-		from scipy.integrate import cumtrapz
-		cos1=cumtrapz(dfCos1Rog.COS_1_RAW,dfCos1Rog.index)+dfCos1Rog.COS_1_RAW.iloc[:-1]*0.004571
-		cos1=_np.append(cos1,0)
-		
-		# r-major calculations
-		pickup = vf * vf_pickup + oh * oh_pickup
-		ratio = ip / (cos1 - pickup)
-		arg = b**2 - 4 * a * (c-ratio)
-		arg[arg < 0] = 0
-		r_major = (-b + _np.sqrt(arg)) / (2*a)
-		majorRadius  = r_major / 100 # Convert to meters
-		
-		dfData=_pd.DataFrame()
-		dfData['time']=time
-		dfData['majorRadius']=majorRadius
-		dfData=dfData.set_index('time')
-		
-		minorRadius=_np.ones(len(majorRadius))*0.15
-		minorRadius[majorRadius>0.92]=0.15-(majorRadius[majorRadius>0.92]-0.92)
-		minorRadius[majorRadius<0.9]=0.15-(0.9-majorRadius[majorRadius<0.9])
-		dfData['minorRadius']=minorRadius
-		
-		return dfData
-	
-	dfData=dfPlasmaRadius(shotno,
-					   tStart=tStart,
-					   tStop=tStop,
-					   forceDownload=False)
-	dfData=_filterDFByTime(dfData,tStart,tStop)
-	
-	if plot==True:
-		fig,ax=_plt.subplots(2,sharex=True)
-		ax[0].plot(dfData.majorRadius)
-		ax[1].plot(dfData.minorRadius)
-	
-	return dfData
-
-
-def qStarData(shotno=96496, tStart=_TSTART, tStop=_TSTOP, plot=False):
-	"""
-	Gets qstar data
-	
-	Parameters
-	----------
-	shotno : int
-		shot number of desired data
-	tStart : float
-		time (in seconds) to trim data before
-		default is 0 ms
-	tStop : float
-		time (in seconds) to trim data after
-		default is 10 ms
-	plot : bool
-		plots all relevant plots if true
-		default is False
-		
-		
-	Examples
-	--------
-	::
-		
-		qStarData(96496,plot=True)
-	"""
-	
-	
-	# get data
-	dfIp=ipData(shotno,tStart=tStart,tStop=tStop)
-	plasmaRadius=plasmaRadiusData(shotno,tStart=tStart,tStop=tStop)
-	dfTF=tfData(shotno,tStart,tStop)
-	
-	
-	tfProbeData=dfTF.TF.to_numpy()
-	tfProbeData=tfProbeData*1.23/plasmaRadius.majorRadius
-		
-	# calc q star
-	qStar= plasmaRadius.minorRadius**2 * tfProbeData / (2e-7 * dfIp.IpRog * plasmaRadius.majorRadius)
-	qStarCorrected=qStar*(1.15) # 15% correction factor.  jeff believes our qstar measurement might be about 15% to 20% too low.  
-	time=dfIp.index.to_numpy()
-	
-	def makePlot():
-		""" 
-		Plot all relevant plots 
-		"""
-		
-		fig,p1=_plt.subplots()
-		p1.plot(time*1e3,qStar,label=r'q$^*$')
-		p1.plot(time*1e3,qStarCorrected,label=r'q$^* * 1.15$')
-		_plot.finalizeSubplot(p1,xlabel='Time (ms)',ylabel=r'q$^*$',ylim=[1,5])
-		_plot.finalizeFigure(fig,title='%s'%shotno)
-		
-	if plot == True:
-		makePlot()
-		
-	dfData=_pd.DataFrame(qStar,index=time,columns=['qedge'])
-	return dfData
-
-
-def euvData(	shotno=101393,
-				tStart=_TSTART,
-				tStop=_TSTOP,
-				plot=False):
-	"""""
-	Get EUV fan array data
-	
-	Parameters
-	----------
-	shotno : int
-		shot number of desired data
-	tStart : float
-		time (in seconds) to trim data before
-		default is 0 ms
-	tStop : float
-		time (in seconds) to trim data after
-		default is 10 ms
-	plot : bool
-		default is False
-		True - plots far array of all 11 (of 16) channels
-		'all' - plots 
-		
-		
-	Example
-	-------
-	::
-		
-		df=euvData(101393,plot=True)
-	"""""
-	
-	
-	# subfunctions
-	@_backupDFs
-	def dfEUV(shotno, tStart, tStop,	dfEUVMeta):
-		dfEUV=mdsData(shotno,dfEUVMeta.addresses.to_list(), tStart, tStop,	columnNames=dfEUVMeta.index.to_list())
-		return dfEUV
-	
-	# load meta data
-	sensor='EUV'
-	try:
-		directory=_path.dirname(_path.realpath(__file__))
-		dfMeta=_readOdsToDF('%s/listOfAllSensorsOnHBTEP.ods'%directory,sensor).set_index('names')
-	except:
-		dfMeta=_readOdsToDF('listOfAllSensorsOnHBTEP.ods',sensor).set_index('names')
-	
-	# load raw data
-	df=dfEUV(shotno,tStart,tStop,dfMeta)
-	df=_filterDFByTime(df,tStart,tStop)
-	
-	if plot==True:
-		df.plot()
-		
-	return df
 
 
 
 
-def sxrMidplaneData(	shotno=96530,
-						tStart=_TSTART,
-						tStop=_TSTOP,
-						plot=False):
-	"""
-	Gets Soft X-ray midplane sensor data at: devices.north_rack:cpci:input_74 
-	
-	Parameters
-	----------
-	shotno : int
-		shot number of desired data
-	tStart : float
-		time (in seconds) to trim data before
-		default is 0 ms
-	tStop : float
-		time (in seconds) to trim data after
-		default is 10 ms
-	plot : bool
-		plots all relevant plots if true
-		default is False
-		
-	Example
-	-------
-	::
-		
-		sxrMidplaneData(96530,plot=True)
-	"""
-	df=mdsData(shotno=shotno,
-			   dataAddress=['\HBTEP2::TOP.DEVICES.NORTH_RACK:CPCI:INPUT_74 '],
-			   tStart=tStart, tStop=tStop,
-			   columnNames=['SXR_Midplane'])
-	df.SXR_Midplane*=-1
-	
-	if plot==True:
-		df.plot()
-		
-	return df
 
 
-
-def nModeData(	shotno,
-				tStart=_TSTART,
-				tStop=_TSTOP,
-				sensor='TA',
-				modeNumbers=[0,-1,-2],
-				plot=False):
-	"""
-	n mode analysis
-		
-	Parameters
-	----------
-	shotno : int
-		shot number of desired data
-	tStart : float
-		time (in seconds) to trim data before
-		default is 0 ms
-	tStop : float
-		time (in seconds) to trim data after
-		default is 10 ms
-	plot : bool
-		plots all relevant plots if true
-		default is False	
-	mode numbers : list of ints
-		mode numbers to be analyzed
-		[0,-1,-2] are the n=0, 1,and 2 modes.
-	sensor : str
-		Sensor to perform the analysis
-		sensor should be in ['TA','FBS1','FBS2','FBS3','FBS4']
-	
-	Returns
-	-------
-	dfResults : pandas.core.frame.DataFrame
-		results of the n-mode analysis
-	
-	Examples
-	--------
-	::
-		
-		df=nModeData(100000,sensor='TA')
-		df=nModeData(100000,sensor='FBS4')
-		df=nModeData(100000,sensor='FB_S1',modeNumbers=[-1])
-	"""
-	
-	if 'TA' in sensor:
-		_,df,dfMeta=magneticSensorData(shotno,
-										tStart=tStart,
-										tStop=tStop,
-										sensor='TA',
-										forceDownload=False)
-	elif 'FB' in sensor:
-		_,df,dfMeta=magneticSensorData(shotno,
-								tStart=tStart,
-								tStop=tStop,
-								sensor='FB',
-								forceDownload=False)
-		
-		from johnspythonlibrary2.Process.Misc import extractIntsFromStr
-		num=extractIntsFromStr(sensor)[0]
-		if num not in [1,2,3,4]:
-			raise Exception('Bad sensor name')
-		from johnspythonlibrary2.Process.Pandas import filterDFByColOrIndex
-		df=filterDFByColOrIndex(df,'S%dP'%num)
-		dfMeta=filterDFByColOrIndex(dfMeta,'S%dP'%num,col=False)
-	else:
-		raise Exception('Bad sensor name')
-
-	angles=dfMeta.phi.values
-	dfResults=_leastSquareModeAnalysis(	df*1e4,
-									angles,
-									modeNumbers=modeNumbers,
-									plot=plot,
-									title='n-mode analysis, %s, %d'%(sensor,shotno))
-	
-	return dfResults
-
-
-def mModeData(	shotno,
-				tStart=_TSTART,
-				tStop=_TSTOP,
-				sensor='PA1',
-				modeNumbers=[0,2,3,4],
-				plot=True):
-	"""
-	m mode analysis
-		
-	Parameters
-	----------
-	shotno : int
-		shot number of desired data
-	tStart : float
-		time (in seconds) to trim data before
-		default is 0 ms
-	tStop : float
-		time (in seconds) to trim data after
-		default is 10 ms
-	plot : bool
-		plots all relevant plots if true
-		default is False	
-	mode numbers : list of ints
-		mode numbers to be analyzed
-		[0,2,3,4] are the m=0,2,3,and 4 modes
-	sensor : str
-		Sensor to perform the analysis
-		sensor should be in ['PA1','PA2']
-	
-	Returns
-	-------
-	dfResults : pandas.core.frame.DataFrame
-		results of the m-mode analysis
-	
-	Examples
-	--------
-	::
-		
-		df=mModeData(100000,sensor='PA1')
-		df=mModeData(100000,sensor='PA2',modeNumbers=[3])
-	"""
-	if sensor not in ['PA1','PA2']:
-		raise Exception('Bad sensor name')
-		
-	_,df,dfMeta=magneticSensorData(shotno,
-									tStart=tStart,
-									tStop=tStop,
-									sensor=sensor,
-									forceDownload=False)
-
-	angles=dfMeta.theta.values
-	dfResults=_leastSquareModeAnalysis(	df*1e4,
-									angles,
-									modeNumbers=modeNumbers,
-									plot=plot,
-									title='m-mode analysis, %s, %d'%(sensor,shotno))
-	
-	return dfResults
-
-	
 
 
