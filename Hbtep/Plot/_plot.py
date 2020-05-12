@@ -109,8 +109,8 @@ def stripeyPlot(	df,
 		
 	# convert dependent axes to 2D
 	angle=_np.copy(df.columns.values)	# make a deep copy of the columns
-	if angle.max() < 10: 	# make sure angle is in units of degrees, not radians.
-		angle*=180/_np.pi
+# 	if angle.max() < 10: 	# make sure angle is in units of degrees, not radians.
+# 		angle*=180/_np.pi
 	t=df.index.values
 	ANGLE,T=_np.meshgrid(angle,t)
 	
@@ -330,7 +330,8 @@ def modeContourPlot(	dfData,
 								xlabel='Time (ms)',
 								zlabel=r'$ |\delta B_\theta |_m$ (G)',
 #								zlabel='Mode\namplitude (G)',
-								title=title
+								title=title,
+# 								yticks=_np.arange(_np.floor(modeNumbers[0]),modeNumbers[-1],0.5)
 								)
 	t=dfResults.index.values
 	for m in [1,2,3,4,5]:
