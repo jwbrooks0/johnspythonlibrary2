@@ -306,7 +306,9 @@ def modeContourPlot(	dfData,
 
 		return dfResults
 	
-
+	# units should be in radians, not degrees
+	if _np.abs(angles).max()>10:
+		angles*=_np.pi/180
 	
 	dfResults=_pd.DataFrame(index=dfData.index,columns=modeNumbers)
 	for i,m in enumerate(modeNumbers):
