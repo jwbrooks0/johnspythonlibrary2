@@ -899,8 +899,147 @@ def bicoherence(	sx,
 	* Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979). 
 
 	* D.Kong et al Nuclear Fusion 53, 113008 (2013).
+	
+	
+	Examples
+	--------
+	Example set 1::
+		
+		import matplotlib.pyplot as plt
+		import numpy as np
+		import pandas as pd
+		
+		plt.close('all')
+		### Example dataset.  Figure 4 in reference: Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979).
+		
+		### initialize examples
+		numberRecords=64
+		recordLength=128*2
+		N=recordLength
+		M=numberRecords
+		dt=5e-1
+		t=np.arange(0,N*M)*dt
+		fN=1
+		fb=0.220*fN
+		fc=0.375*fN
+		fd=fb+fc
+		fa=fc-fb
+		
+		def randomPhase(n=1):
+			return (np.random.rand(n)-0.5)*np.pi
+		
+		def sigGen(t,f,theta):
+			M=len(theta)
+			N=len(t)//M
+			T,Theta=np.meshgrid(t[0:N],theta)
+			return 1*np.cos(2*np.pi*T*f+Theta)
+		
+		def finalizeAndSaveFig(figName='',figSize=[6,4.5]):
+			fig=plt.gcf(); 
+			fig.axes[1].set_ylim([0,1.1]); 
+			fig.set_size_inches(figSize)
+			if figName!='':
+				fig.savefig(figName,dpi=150)
+				
+		def diagonalOverlay(f1,f0=[fa,fb,fc,fd],ax=None):
+			if type(ax)==type(None):
+				ax=plt.gcf().axes[0]
+			for f in f0:
+				x=f1
+				y=f-x
+				ax.plot(x,y,'r--',linewidth=0.5)
+			
+		thetab=randomPhase(M)
+		thetac=randomPhase(M)
+		noise=np.random.normal(0,0.1,(M,N))
+		baseSignal=sigGen(t,fb,thetab)+sigGen(t,fc,thetac)+noise
+	
+		
+		
+		### Figure 1
+		x2=(baseSignal).flatten()
+		dfBicoh,dfBispec=bicoherence(	pd.Series(x2,index=t),
+						windowLength=recordLength,
+						numberWindows=numberRecords,
+						windowFunc='Hann',
+						plot=True)
+		finalizeAndSaveFig('images/figure1.png')
+		
+		### Figure 3
+		x3=(baseSignal+0.5*sigGen(t,fd,thetab+thetac)).flatten()
+		dfBicoh,dfBispec=bicoherence(	pd.Series(x3,index=t),
+						windowLength=recordLength,
+						numberWindows=numberRecords,
+						windowFunc='Hann',
+						plot=True)
+		diagonalOverlay(dfBicoh.columns.values,f0=[fb,fc,fd])
+		finalizeAndSaveFig('images/figure3.png')
+		
+		
+		### Figure 2
+		thetad=randomPhase(M)
+		x2=(baseSignal+0.5*sigGen(t,fd,thetad)).flatten()
+		dfBicoh,dfBispec=bicoherence(	pd.Series(x2,index=t),
+						windowLength=recordLength,
+						numberWindows=numberRecords,
+						windowFunc='Hann',
+						plot=True)
+		finalizeAndSaveFig('images/figure2.png')
+		
+		
+		
+		### Figure 4
+		x4=(baseSignal+1*sigGen(t,fb,thetab)*sigGen(t,fc,thetac)).flatten()
+		dfBicoh,dfBispec=bicoherence(	pd.Series(x4,index=t),
+						windowLength=recordLength,
+						numberWindows=numberRecords,
+						windowFunc='Hann',
+						plot=True)
+		diagonalOverlay(dfBicoh.columns.values)
+		finalizeAndSaveFig('images/figure4.png')
+		
+		### Figure 5
+		x=(baseSignal+0.5*sigGen(t,fd,thetad)+1*sigGen(t,fb,thetab)*sigGen(t,fc,thetac)).flatten()
+		dfBicoh,dfBispec=bicoherence(	pd.Series(x,index=t),
+						windowLength=recordLength,
+						numberWindows=numberRecords,
+						windowFunc='Hann',
+						title='Figure 5',
+						plot=True)
+		diagonalOverlay(dfBicoh.columns.values)
+		finalizeAndSaveFig('images/figure5.png')
 
 
+	Example set 2::
+		
+		# work in progress
+		
+# 		plt.close('all')
+# 		
+# 		from scipy.signal import chirp
+# 		### initialize 
+# 		dt=2e-6
+# 		t=np.arange(0,10e-2,dt)
+# # 		y=chirp(t,1e3,t[-1],1e3,method='linear')
+# # 		plt.plot(t,y)
+# 		
+# 		def calcChirpPhase(t,phi,f_i,f_f):
+# 			c=(f_f-f_i)/(t[-1]-t[0])
+# 			phase=phi+2*np.pi*(c/2.0*t**2+f_i*t)
+# 			return phase
+# 			
+# 		phase_a=calcChirpPhase(t,0,1e3,50e3)
+# 		y_a=np.sin(phase_a)
+# # 		phase_b=calcChirpPhase(t,0,3e2,10e3)
+# # 		y_b=np.sin(phase_b)
+# # 		plt.plot(t,y_b)
+# 		y_b=np.sin(2*np.pi*t*2e3)
+# 		plt.plot(t,y_a*y_b)
+# 		
+# 		sx=pd.Series(y_a*y_b,index=t)
+# 		
+# 		bicoherence(sx, windowLength=1000, numberWindows=50,plot=True)
+		
 	"""
 	import numpy as np
 	import matplotlib.pyplot as plt
