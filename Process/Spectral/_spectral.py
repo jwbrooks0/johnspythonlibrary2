@@ -925,7 +925,8 @@ def bicoherence(	sx,
 		fd=fb+fc
 		fa=fc-fb
 		
-		def randomPhase(n=1):
+		def randomPhase(n=1,seed=0):
+			np.random.seed(seed)
 			return (np.random.rand(n)-0.5)*np.pi
 		
 		def sigGen(t,f,theta):
@@ -945,12 +946,12 @@ def bicoherence(	sx,
 			if type(ax)==type(None):
 				ax=plt.gcf().axes[0]
 			for f in f0:
-				x=f1
+				x=f1[f1>=f/2.]
 				y=f-x
 				ax.plot(x,y,'r--',linewidth=0.5)
 			
-		thetab=randomPhase(M)
-		thetac=randomPhase(M)
+		thetab=randomPhase(M,seed=1)
+		thetac=randomPhase(M,seed=2)
 		noise=np.random.normal(0,0.1,(M,N))
 		baseSignal=sigGen(t,fb,thetab)+sigGen(t,fc,thetac)+noise
 	
@@ -977,7 +978,7 @@ def bicoherence(	sx,
 		
 		
 		### Figure 2
-		thetad=randomPhase(M)
+		thetad=randomPhase(M,seed=3)
 		x2=(baseSignal+0.5*sigGen(t,fd,thetad)).flatten()
 		dfBicoh,dfBispec=bicoherence(	pd.Series(x2,index=t),
 						windowLength=recordLength,
@@ -1004,7 +1005,7 @@ def bicoherence(	sx,
 						windowLength=recordLength,
 						numberWindows=numberRecords,
 						windowFunc='Hann',
-						title='Figure 5',
+# 						title='Figure 5',
 						plot=True)
 		diagonalOverlay(dfBicoh.columns.values)
 		finalizeAndSaveFig('images/figure5.png')
@@ -1087,7 +1088,18 @@ def bicoherence(	sx,
 		ax.set_xlabel(r'$f_1$ (Hz)')
 		ax.set_ylabel(r'$f_2$ (Hz)')
 		ax.set_title(title)
-
+		
+		if True:
+			
+# 			fz=dfB.columns.values
+			zticks=np.arange(0,fx[-1]/1.9,(ax.get_xticks()[1]-ax.get_xticks()[0])/2.)
+# 			zticks=np.linspace(ax.get_xticks()[-1]/2./5,ax.get_xticks()[-1]/2.,5)
+			scalelength=(ax.get_xlim()[1]-ax.get_xlim()[0])*0.015
+			ax.plot([0,ax.get_xticks()[-1]/2.],[0,ax.get_xticks()[-1]/2.],'r',linestyle='-',linewidth=2)
+			for tick in zticks:
+				ax.plot([tick,tick-scalelength],[tick,tick+scalelength],'r',linestyle='-',linewidth=2)
+				ax.text(tick-scalelength,tick+scalelength,'%.2f'%(tick*2),color='r',horizontalalignment='right',verticalalignment='bottom',rotation=-45)
+			ax.text(fx[-1]/4.-10*scalelength,fx[-1]/4.+10*scalelength,r'$f_3$ (Hz)',rotation=45,color='r',horizontalalignment='center',verticalalignment='center')
 
 	### main code
 	
