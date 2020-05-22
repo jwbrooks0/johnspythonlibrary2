@@ -69,7 +69,10 @@ def playBeep(durationInS=0.1,freqInHz=440):
 	https://stackoverflow.com/questions/16573051/sound-alarm-when-code-finishes
 	"""
 	import os
-	os.system('play -nq -t alsa synth {} sine {}'.format(durationInS, freqInHz))
+	try:
+		os.system('play -nq -t alsa synth {} sine {}'.format(durationInS, freqInHz))
+	except:
+		print('This command only works on linux. \n If play not found error provided, you need to install play.  In ubuntu, type: sudo apt install sox')
 
 
 def checkAndCreateDir(directory):
