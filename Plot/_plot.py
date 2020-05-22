@@ -379,6 +379,11 @@ def subplotsWithColormaps(nrows=2,sharex=False):
 
 ###################################################################################
 ### shapes
+
+def circle(ax,xy=(0,0),r=1,color='r',alpha=1):
+	circle1 = _plt.Circle(xy, r, color=color,alpha=alpha)
+	ax.add_artist(circle1)
+
 def arrow(ax,xyTail=(0,0),xyHead=(1,1),color='r',width=3,headwidth=10,headlength=10,alpha=1.0):
 	"""
 	Draws an arrow
@@ -459,6 +464,34 @@ def rectangle(ax,x_bottomleft,y_bottomleft,width,height,color='r',alpha=0.5):
 
 ###################################################################################
 ### specialty plots
+
+def heatmap(dZ,vmin=None,vmax=None):
+	"""
+	I can't find a single good heatmap plotting library.
+	matplotlib has pcolormesh and imshow, but both have issues.
+	Seaborn has a heatmap() function (which is the best I've found), but the x
+								   and y axes still have to be hacked to work
+								   
+	Example
+	-------
+	Example 1 ::
+		
+		x=_np.arange(10,200)
+		y=_np.arange(-50,100)
+		dZ=_pd.DataFrame(_np.random.rand(len(y),len(x)),index=y,columns=x)
+		heatmap(dZ)
+	"""
+	# TODO work in in progress.  
+	
+# 	dZ=dZ.sort_index(ascending=False) # by default, the y axis is backwards
+	import seaborn as sb
+	fig,ax=_plt.subplots()
+	
+	sb.heatmap(dZ,vmin=vmin,vmax=vmax)
+	
+	ax.invert_yaxis()
+	
+	
 def contourPlot(	ax,
 					x,
 					y,
