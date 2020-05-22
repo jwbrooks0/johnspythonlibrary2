@@ -3,25 +3,25 @@ import numpy as _np
 import pandas as _pd
 import matplotlib.pyplot as _plt
 import time as _time
+from deprecated import deprecated
 from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot
 from johnspythonlibrary2.Plot import finalizeFigure as _finalizeFigure
 from johnspythonlibrary2.Plot import legendOutside as _legendOutside
-
+from johnspythonlibrary2.Plot import heatmap as _heatmap
 
 ###################################################################################
-### sub-functions
-def printTime(string,start):
-	""" print time since start """
-	if string!='':
-		print('%s'%(string))
-	print('%.3fs'%((_time.time()-start)))
+#%% signal generation
 
 
-def createSignal(N=1000,plot=False):
+def predatorPrey():
+	return 'work in progress'
+	# TODO add predator-prey model
+
+def createTentMap(N=1000,plot=False,x0=_np.sqrt(2)/2.0):
 	""" generate fake data using a tentmap """
 	t=_np.arange(0,N+1)
 	x=_np.zeros(t.shape,dtype=_np.float128)
-	x[0]=_np.sqrt(2)/2.0
+	x[0]=x0
 	def tentMap(x,mu=_np.float128(2-1e-15)):
 		for i in range(1,x.shape[0]):
 			if x[i-1]<0.5:
@@ -43,60 +43,68 @@ def createSignal(N=1000,plot=False):
 	return sxDelta
 
 
-
-def splitData(s):
-	""" split data into testing (sY) and training (sX) data sets """
-	if _np.mod(s.shape[0],2)==1:
-		s=s.iloc[:-1]
-	s.index=_np.arange(0,s.shape[0])
-	sX=s.iloc[0:s.shape[0]//2]
-	sY=s.iloc[s.shape[0]//2:]
-	return sX,sY,s
-
+def solveLorentz(N=2000,dt=0.05,IC=[-9.38131377, -8.42655716 , 29.30738524],addNoise=False,plot=False,seed=[0,1,2]):
+	"""
+	Solves the lorentz attractor nonlinear ODEs.
 	
-def convertToStateSpace(s,E,tau):
-	""" Convertst input to parameter space using the embedded dimension, E """
-	index=s.index.values[(E-1)*tau:]
-	columns=_np.arange(-(E-1)*tau,1,tau)
-	dfs=_pd.DataFrame(index=index,columns=columns)	
-	for key,val in dfs.iteritems():
-		if key==0:
-			dfs[key]=s.iloc[key-columns.min():s.shape[0]+key].values	
-		else:
-			dfs[key]=s.iloc[key-columns.min():s.shape[0]+key].values	
-	return dfs
-
-
-def weighting(radii,method='exponential'):
-	""" Weights to be applied nearest neighbors """
+	References
+	----------
+	 * https://en.wikipedia.org/wiki/Lorenz_system
+	"""
+	T=N*dt
 	
-	if method =='exponential':
-		weights=_np.exp(-radii/radii.min(axis=1)[:,_np.newaxis])
-		weights/=weights.sum(axis=1)[:,_np.newaxis] 	 
-	elif method =='uniform':
-		weights=_np.ones(radii.shape)/radii.shape[1]
+	from scipy.integrate import solve_ivp
+		
+	def ODEs(t,y,*args):
+		X,Y,Z = y
+		sigma,b,r=args
+		derivs=	[	sigma*(Y-X),
+					-X*Z+r*X-Y,
+					X*Y-b*Z]
+		return derivs
+
+	args=[10,8/3.,28] # sigma, b, r
 	
-	weights=_pd.DataFrame(weights,index=radii.index)
-	return weights
-
-
-
-def forecasting(sx,dfY,keysOfNearestNeighbors,weights,T):
-	""" The forecasting method.  Combines weights with correct indices (keys) to get the forecast """
-	dfTActual=_pd.DataFrame(index=dfY.index.values[:-T+1],dtype=float)
-	for key in range(1,1+T):
-		dfTActual['%d'%key]=dfY.iloc[key-1:dfY.shape[0]-T+key][0].values	
-	dfTGuess=_pd.DataFrame(index=dfTActual.index,columns=dfTActual.columns,dtype=float)
+	psoln = solve_ivp(	ODEs,
+						[0,T],
+						IC,  # initial conditions
+						args=args,
+						t_eval=_np.arange(0,T+dt,dt)
+						)
 	
-	for key,val in dfTGuess.iteritems():
-			shape=keysOfNearestNeighbors.shape
-			y=_pd.DataFrame(sx.loc[(keysOfNearestNeighbors+int(key)-1).values.reshape(-1)].values.reshape(shape),index=keysOfNearestNeighbors.index,columns=keysOfNearestNeighbors.columns)
-
-			dfTGuess.loc[:,key]=(weights*y).sum(axis=1)
+	x,y,z=psoln.y
+	if addNoise==True:
+		noiseAmp=5
+		_np.random.seed(seed[0])
+		x+=_np.random.rand(x.shape[0])*noiseAmp
+		_np.random.seed(seed[1])
+		y+=_np.random.rand(y.shape[0])*noiseAmp
+		_np.random.seed(seed[2])
+		z+=_np.random.rand(z.shape[0])*noiseAmp
 			
-	return dfTActual,dfTGuess
+		
+	if plot!=False:
+		fig,ax=_plt.subplots(3,sharex=True)
+		ax[0].plot(x,marker='.');ax[0].set_ylabel('x')
+		ax[0].set_title('Lorentz Attractor\n'+r'($\sigma$, b, r)='+'(%.3f, %.3f, %.3f)'%(args[0],args[1],args[2])+'\nIC = (%.3f, %.3f, %.3f)'%(IC[0],IC[1],IC[2]))
+		ax[1].plot(y,marker='.');ax[1].set_ylabel('y')
+		ax[2].plot(z,marker='.');ax[2].set_ylabel('z')
+		
+	if plot=='all':
+		_plt.figure();_plt.plot(x,y)
+		_plt.figure();_plt.plot(y,z)
+		_plt.figure();_plt.plot(z,x)
+	
+		from mpl_toolkits.mplot3d import Axes3D
+		fig = _plt.figure()
+		ax = fig.add_subplot(111, projection='3d')
+		ax.plot(x,y,zs=z)
+		
+	return x,y,z
 
 
+###################################################################################
+#%% plotting functions
 
 
 		
@@ -116,6 +124,7 @@ def plotRho(dfRho,ax=None,fig=None):
 									legendOn=True)
 	return fig,ax
 		
+
 def plotFitVsActual(sFit,sActual,ax=None):
 	""" plots fit data vs. actual data for a qualitative "goodness of fit" plot """
 	if ax==None:
@@ -133,55 +142,662 @@ def plotFitVsActual(sFit,sActual,ax=None):
 							numberLegendPoints=3
 							)
 	
+def correlationHeatmap(x,y,Z,xlabel='',ylabel='',showMax=True):
+	import numpy as _np
+	import seaborn as sb
+	from matplotlib.colors import LogNorm
+	fig,ax=_plt.subplots()
+	
+# 	sb.heatmap(	Z,
+# # 			vmin=0,
+# # 			vmax=1,
+# 			norm=LogNorm(vmin=0.01, vmax=1))
+	sb.heatmap(	Z,
+ 			vmin=0,
+ 			vmax=1,
+# 			norm=LogNorm(vmin=0.01, vmax=1),
+			)
+	
+	ax.invert_yaxis()
+	
+	ax=_plt.gca()
+	ax.set_xlabel(xlabel)
+	ax.set_ylabel(ylabel)
+	
+# 	xticks=ax.get_xticks()
 
-def correlationCoefficient(data,fit):
-	#TODO update to process a multi-column dataframe
+	if showMax==True:
+		
+		import matplotlib as _mpl
+		_mpl.rcParams['legend.numpoints'] = 1
+		
+		def coordinate_map(in_data,coordinate='x',):
+			""" 
+			Note that the ticks and ticklabels are in heatmap() do not have a 1 to 1 mapping.
+			this function determines the mapping for the x and y coordinates and applies it to whatever data is provided.
+			"""
+			if coordinate=='x':
+				index=0
+				ticklabels_obj=ax.get_xticklabels()
+			elif coordinate=='y':
+				index=1
+				ticklabels_obj=ax.get_yticklabels()
+				
+			ticks=_np.zeros(len(ticklabels_obj),dtype=float)
+			ticklabels=_np.zeros(len(ticklabels_obj),dtype=float)
+			
+			for i in range(len(ticklabels_obj)):
+				ticks[i]=ticklabels_obj[i].get_position()[index]
+				ticklabels[i]=float(ticklabels_obj[i].get_text())
+				
+			slope,intercept=_np.polyfit(ticklabels,ticks,deg=1)
+			out_data=in_data*slope+intercept
+			return out_data
+		
+		
+		ymax,xmax=_np.where(Z.max().max()==Z)
+		xmax=Z.columns[xmax].values
+		ymax=Z.index[ymax].values
+		xmax_map=coordinate_map(xmax,'x')
+		ymax_map=coordinate_map(ymax,'y')
+		print(xmax_map,ymax_map)
+		ax.plot(xmax_map,ymax_map,c='g',marker='*',label='E_max',linestyle='')
+# 		ax.plot(xmax,ymax,'go')
+		ax.set_title('Max: (%s, %s)=(%d,%d)'%(xlabel,ylabel,xmax,ymax))
+		
+# 		for i,(key,val) in enumerate(Z.iterrows()):
+# 			print(i,key)
+# 			val.ixd
+		temp=Z.idxmax()
+		y=temp.values
+		x=temp.index.values
+		
+		ax.plot(coordinate_map(x,'x'),coordinate_map(y,'y'),c='g',linestyle='-',label='E_max(tau)')
+		ax.legend()
+# 	ax.plot(ymax+y[0],xmax+x[0],'rx')
+	
+# 	return fig,ax
+# 	
+
+
+###################################################################################
+#%% sub-functions
+def printTime(string,start):
+	""" print time since start """
+	if string!='':
+		print('%s'%(string))
+	print('%.3fs'%((_time.time()-start)))
+	
+	
+@deprecated
+def forecast_old(sx,dfY,keysOfNearestNeighbors,weights,T,plot=False):
+	""" The forecasting method.  Combines weights with correct indices (keys) to get the forecast """
+	# TODO this file REQUIRES dfY as an input.  Make this optional
+	# TODO I believe that this function is the bottleneck for this algorithm.  Try to optomize
+	# TODO write a case for T=0
+	dfTActual=_pd.DataFrame(index=dfY.index.values[:-T+1],dtype=float)
+	for key in range(1,1+T):
+		dfTActual['%d'%key]=dfY.iloc[key-1:dfY.shape[0]-T+key][0].values	
+	dfTGuess=_pd.DataFrame(index=dfTActual.index,columns=dfTActual.columns,dtype=float)
+	
+	for key,val in dfTGuess.iteritems():
+			print(key)
+			shape=keysOfNearestNeighbors.shape
+			y=_pd.DataFrame(sx.loc[(keysOfNearestNeighbors+int(key)-1).values.reshape(-1)].values.reshape(shape),index=keysOfNearestNeighbors.index,columns=keysOfNearestNeighbors.columns)
+
+			dfTGuess.at[:,key]=(weights*y).sum(axis=1).values
+		
+	if plot==True:
+		fig,ax=_plt.subplots()
+		_plt.plot(dfTActual['1'],label='actual')
+		_plt.plot(dfTGuess['1'],label='guess')
+		_plt.legend()
+	return dfTActual,dfTGuess
+
+
+def forecast(sx,dfX,keysOfNearestNeighbors,weights,T,plot=False):
+	""" The forecasting method.  Combines weights with correct indices (keys) to get the forecast """
+	# TODO this file REQUIRES dfY as an input.  Make this optional
+	# TODO I believe that this function is the bottleneck for this algorithm.  Try to optomize
+	# TODO write a case for T=0
+	dfTActual=_pd.DataFrame(index=dfX.index.values[:-T+1],dtype=float)
+	for key in range(1,1+T):
+		dfTActual['%d'%key]=dfY.iloc[key-1:dfX.shape[0]-T+key][0].values	
+	dfTGuess=_pd.DataFrame(index=dfTActual.index,columns=dfTActual.columns,dtype=float)
+	
+	for key,val in dfTGuess.iteritems():
+			print(key)
+			shape=keysOfNearestNeighbors.shape
+			y=_pd.DataFrame(sx.loc[(keysOfNearestNeighbors+int(key)-1).values.reshape(-1)].values.reshape(shape),index=keysOfNearestNeighbors.index,columns=keysOfNearestNeighbors.columns)
+
+			dfTGuess.at[:,key]=(weights*y).sum(axis=1).values
+		
+	if plot==True:
+		fig,ax=_plt.subplots()
+		_plt.plot(dfTActual['1'],label='actual')
+		_plt.plot(dfTGuess['1'],label='guess')
+		_plt.legend()
+	return dfTActual,dfTGuess
+
+
+
+def reconstruct(sx,keys,weights):
+	"""
+	
+	Examples
+	--------
+	Example 1::
+		
+		N=100
+		s=createTentMap(N=N)
+		sx=s[:N//2]
+		sy=s[N//2:]
+		
+		E=3
+		knn=E+1
+		tau=1
+		
+		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
+		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
+		
+		keys,weights=createMap(Px,Py,knn=knn)
+		v=reconstruct(sx,keys,weights)
+		
+		index=55
+# 		E=keys.shape[1]
+		plt.figure()
+		plt.plot(sx,'k',label='Training data')
+		plt.plot(sy,'b',label='Test data')
+		i=np.arange(index-E+1,index+1)
+		plt.plot(i,sy.loc[i],'r',marker='',linewidth=2)
+		plt.plot(index,sy.loc[index],'r',marker='x',label='Point in question')
+		count=0
+		for j in keys.loc[index]:
+			print(j)
+			if count==0:
+				label='Nearest neighbors'
+			else:
+				label=''
+			
+			i=np.arange(j-E+1,j+1)
+			plt.plot(i,sx.loc[i],'g',marker='',linewidth=2)
+			plt.plot(j,sx.loc[j],'g',marker='.',label=label)
+			count+=1
+			
+			
+		i=np.arange(index-E+1,index+1)
+	# 	plt.plot(i,v.loc[i],'m',marker='',linewidth=2)
+		plt.plot(index,v.loc[index],'m',marker='o',mfc='none',
+				label='Reconstruction',linestyle='')
+	# 	plt.plot()
+	
+# 		plt.plot(v,'m',label='Reconstruction')
+		plt.legend()
+		plt.xlim(0,60)
+		plt.title('Reconstruction, single pt.\nN=%d, E=%d, tau=%d'%(N,E,tau))
+		plt.savefig('reconstruction_N_%d_E_%d_tau_%d.png'%(N,E,tau))
+		
+		
+		plt.figure()
+		plt.plot(sx,'k',label='Training data')
+		plt.plot(sy,'b',label='Test data')
+		plt.plot(v,'m',label='Reconstruction',linestyle='--')
+		plt.legend()
+		plt.title('Reconstruction, all\nN=%d, E=%d, tau=%d'%(N,E,tau))
+		plt.xlim(45,100)
+		plt.savefig('reconstruction2_N_%d_E_%d_tau_%d.png'%(N,E,tau))
+		
+	Example 2::
+		
+		
+		N=200
+		s=createTentMap(N=N)
+		sx=s[:N//2]
+		sy=s[N//2:]
+		
+		E=4
+		knn=E+1
+		tau=2
+		
+		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
+		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
+		
+		keys,weights=createMap(Px,Py,knn=knn)
+		v=reconstruct(sx,keys,weights)
+		
+		index=54*2
+		plt.figure()
+		plt.plot(sx,'k',label='Training data')
+		plt.plot(sy,'b',label='Test data')
+		i=np.arange(index-((E-1)*tau),index+1,tau)
+		plt.plot(i,sy.loc[i],'r',marker='',linewidth=2)
+		plt.plot(index,sy.loc[index],'r',marker='x',label='Point in question')
+		count=0
+		for j in keys.loc[index]:
+			print(j)
+			if count==0:
+				label='Nearest neighbors'
+			else:
+				label=''
+			
+			i=np.arange(j-((E-1)*tau),j+1,tau)
+			plt.plot(i,sx.loc[i],'g',marker='',linewidth=2)
+			plt.plot(j,sx.loc[j],'g',marker='.',label=label)
+			count+=1
+			
+			
+		i=np.arange(index-((E-1)*tau),index+1,tau)
+		plt.plot(index,v.loc[index],'m',marker='o',mfc='none',
+				label='Reconstruction',linestyle='')
+		plt.legend()
+		plt.xlim(0,110)
+		plt.title('Reconstruction, single pt.\nN=%d, E=%d, tau=%d'%(N,E,tau))
+		plt.savefig('reconstruction_N_%d_E_%d_tau_%d.png'%(N,E,tau))
+		
+		
+		plt.figure()
+		plt.plot(sx,'k',label='Training data')
+		plt.plot(sy,'b',label='Test data')
+		plt.plot(v,'m',label='Reconstruction',linestyle='--')
+		plt.legend()
+		plt.title('Reconstruction, all\nN=%d, E=%d, tau=%d'%(N,E,tau))
+		plt.xlim(90,200)
+		plt.savefig('reconstruction2_N_%d_E_%d_tau_%d.png'%(N,E,tau))
+		
+	"""
+	index=keys.index
+	shape=keys.shape
+	s=_pd.DataFrame(sx[keys.values.reshape(-1)].values.reshape(shape),
+				  index=index)
+	v=(s*weights).sum(axis=1)
+	
+	return v
+
+
+def createMap(PA1,PA2,knn,weightingMethod='exponential'):
+	"""
+	
+	Examples
+	--------
+	Example 1::
+			
+			
+			
+		import numpy as np
+		import matplotlib.pyplot as plt
+		import pandas as pd
+		
+		N=100
+		s=createTentMap(N=N)
+		sx=s[:N//2]
+		sy=s[N//2:]
+		
+		E=3
+		knn=E+1
+		tau=1
+		
+		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
+		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
+		
+		keys,weights=createMap(Px,Py,knn=knn)
+		
+		index=N//2+5
+		plt.figure()
+		plt.plot(sx,label='Training data',color='k')
+		plt.plot([sx.index[-1],sx.index[-1]+1],[sx.iloc[-1],sy.iloc[0]],color='k')
+		plt.plot(sy,label='Test data',color='blue')
+		plt.plot(Py.loc[index].index.values+index,Py.loc[index].values,'r',marker='x',label='Points in question',linewidth=2)
+		for j,i in enumerate(keys.loc[index]):
+			print(i)
+			if j==0:
+				label='nearest neighbors'
+			else:
+				label=''
+			plt.plot(Px.loc[i].index.values+i,Px.loc[i].values,'g',marker='.',label=label,linewidth=2)
+	
+# 		soln=[]
+# 		for i,ind in enumerate(keys.loc[index]):
+# 			print(ind)
+# 			soln.append(Px.loc[ind].values)
+# 		soln=np.array(soln)
+# 		w=weights.loc[index]
+# 		reconstruction=np.matmul(w,soln)
+# 		plt.plot(Py.loc[index].index.values+index,reconstruction,color='m',linestyle='--',marker='o',label='reconstruction',linewidth=3,mfc='none')
+	
+		plt.title('Nearest neighbors: N=%d, E=%d, tau=%d'%(N,E,tau))
+		plt.xlim(0,60)
+		plt.legend()
+		plt.savefig('createMap_N_%d_E_%d_tau_%d.png'%(N,E,tau))
+		
+# 		plt.plot(reconstruct(sx,keys,weights),color='orange')
+		
+		
+	Example 2 ::
+		
+		import numpy as np
+		import matplotlib.pyplot as plt
+		import pandas as pd
+		
+		N=200
+		s=createTentMap(N=N)
+		sx=s[:N//2]
+		sy=s[N//2:]
+		
+		E=4
+		knn=E+1
+		tau=2
+		
+		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
+		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
+		
+		keys,weights=createMap(Px,Py,knn=knn)
+		
+		index=54*2
+		plt.figure()
+		plt.plot(sx,label='Training data',color='k')
+		plt.plot([sx.index[-1],sx.index[-1]+1],[sx.iloc[-1],sy.iloc[0]],color='k')
+		plt.plot(sy,label='Test data',color='blue')
+		plt.plot(Py.loc[index].index.values+index,Py.loc[index].values,'r',marker='x',label='Points in question',linewidth=2)
+		for j,i in enumerate(keys.loc[index]):
+			print(i)
+			if j==0:
+				label='nearest neighbors'
+			else:
+				label=''
+			plt.plot(Px.loc[i].index.values+i,Px.loc[i].values,'g',marker='.',label=label,linewidth=2)
+	
+# 		soln=[]
+# 		for i,ind in enumerate(keys.loc[index]):
+# 			print(ind)
+# 			soln.append(Px.loc[ind].values)
+# 		soln=np.array(soln)
+# 		w=weights.loc[index]
+# 		reconstruction=np.matmul(w,soln)
+# 		plt.plot(Py.loc[index].index.values+index,reconstruction,color='m',linestyle='--',marker='o',label='reconstruction',linewidth=3,mfc='none')
+	
+		plt.title('Nearest neighbors: N=%d, E=%d, tau=%d'%(N,E,tau))
+		plt.xlim(0,110)
+		plt.legend()
+		plt.savefig('createMap_N_%d_E_%d_tau_%d.png'%(N,E,tau))
+	
+	
+	"""
+	
+	coordinates, indices, radii=findNearestNeighbors(PA1.values,PA2.values,knn)
+	keysOfNearestNeighbors=_pd.DataFrame(indices+PA1.index[0],index=PA2.index)
+	radii=_pd.DataFrame(radii,index=PA2.index)
+	
+	weights=calcWeights(radii,method=weightingMethod)
+	
+	return keysOfNearestNeighbors,weights
+	
+
+
+
+def splitData(s):
 	""" 
-	Correlation coefficient 
+	split data, s, in half 
+	
+	
+	Examples
+	--------
+	Example 1::
+		
+		s_in=pd.Series(np.arange(100))
+		sX,sY,s_out=splitData(s_in)
+		
+	Example 2::
+		
+		s_in=np.arange(101)
+		sX,sY,s_out=splitData(s_in)
+	"""
+	if type(s) == _np.ndarray:
+		s=_pd.Series(s)
+	elif type(s) == _pd.core.series.Series:
+		pass
+	else:
+		raise Exception('Improper data type of input')
+		
+	if _np.mod(s.shape[0],2)==1:
+		s=s.iloc[:-1]
+	s.index=_np.arange(0,s.shape[0])
+	sX=s.iloc[0:s.shape[0]//2]
+	sY=s.iloc[s.shape[0]//2:]
+	return sX,sY,s
+
+	
+def convertToStateSpace(s,E,tau):
+	""" 
+	Convert input to state space using the embedded dimension, E,
+	and time step, tau 
+	
+	Example
+	-------
+	Example 1::
+		
+		s=_pd.Series(_np.arange(0,100))
+		P=convertToStateSpace(s, E=5, tau=1)[0]
+		
+	Example 2::
+		
+		s1=_pd.Series(_np.arange(0,100))
+		s2=_pd.Series(_np.arange(1000,1100))
+		P1,P2=convertToStateSpace([s1,s2], E=5, tau=1)
+		
+	Example 3::
+		
+		s=_pd.Series(_np.arange(0,100))
+		P=convertToStateSpace(s, E=5, tau=5)[0]
+		
+	Example 4::
+		
+		
+		
+# 		#s=createTentMap(300,plot=False)
+
+		N=1000
+		x,y,z=solveLorentz(N=N,plot='all')
+		s=pd.Series(x)
+		
+		P=convertToStateSpace(s, E=2, tau=1)[0]
+		
+		fig,ax=plt.subplots()
+		ax.plot(s,marker='.')
+		
+		fig,ax=plt.subplots()
+		ax.plot(P.iloc[:,0],P.iloc[:,1],'.',markersize=2)
+		ax.set_xlabel('Dimension 1')
+		ax.set_ylabel('Dimension 2')
+		
+	"""
+	if type(s) != list:
+		s=[s]
+	out=[]
+	for si in s:
+		index=si.index.values[(E-1)*tau:]
+		columns=_np.arange(-(E-1)*tau,1,tau)
+		dfs=_pd.DataFrame(index=index,columns=columns)	
+		for key,val in dfs.iteritems():
+			if key==0:
+				dfs[key]=si.iloc[key-columns.min():si.shape[0]+key].values	
+			else:
+				dfs[key]=si.iloc[key-columns.min():si.shape[0]+key].values	
+		out.append(dfs)
+	return out
+
+
+def calcWeights(radii,method='exponential'):
+	""" 
+	Weights to be applied nearest neighbors 
+	
+	Example
+	-------
+	Example 1::
+		
+		# create data
+		x=_np.arange(0,10+1)
+		y=_np.arange(100,110+1)
+		X,Y=_np.meshgrid(x,y)
+		X=X.reshape((-1,1))
+		Y=Y.reshape((-1,1))
+		A=_np.concatenate((X,Y),axis=1)
+		
+		# points to investigate
+		B=[[5.1,105.1],[8.9,102.55],[3.501,107.501]]
+		
+		numberOfNearestPoints=5
+		points,indices,radii=findNearestNeighbors(A,B,numberOfNearestPoints=numberOfNearestPoints)
+		
+		weights=calcWeights(radii)
+		
+		for i in range(len(B)):
+			fig,ax=_plt.subplots()
+			ax.plot(X.reshape(-1),Y.reshape(-1),'.',label='original data')
+			ax.plot(B[i][0],B[i][1],'x',label='point of interest')
+			ax.plot(points[i][:,0],points[i][:,1],label='%d nearest neighbors\nwith weights shown'%numberOfNearestPoints,marker='o',linestyle='', markerfacecolor="None")
+			plt.legend()
+			
+			w=weights.iloc[0]
+			for j,v in weights.iloc[i].iteritems():
+				ax.text(points[i][j,0],points[i][j,1],'%.3f'%v)
+			
+	
+	"""
+	if type(radii) in [_np.ndarray]:
+		radii=_pd.DataFrame(radii)
+	
+	if method =='exponential':
+		weights=_np.exp(-radii/radii.min(axis=1)[:,_np.newaxis])
+		weights/=weights.sum(axis=1)[:,_np.newaxis] 	 
+	elif method =='uniform':
+		weights=_np.ones(radii.shape)/radii.shape[1]
+	else:
+		raise Exception('Incorrect weighting method provided')
+	
+	weights=_pd.DataFrame(weights,index=radii.index)
+	return weights
+
+
+
+
+
+def calcCorrelationCoefficient(data,fit,plot=False):
+	""" 
+	Pearson correlation coefficient 
 	
 	Reference
 	---------
 	https://mathworld.wolfram.com/CorrelationCoefficient.html
+	
+	Examples
+	--------
+	Example 1::
+		
+		f=2e3
+		t=np.arange(0,1e-3,2e-6)
+		y1=np.sin(2*np.pi*f*t)
+		y2=y1+(np.random.rand(len(t))-0.5)*0.1
+		calcCorrelationCoefficient(y1,y2,plot=True)
+		
+	Example 2::
+		
+		f=2e3
+		t=np.arange(0,1e-3,2e-6)
+		y1=np.sin(2*np.pi*f*t)
+		y2=y1+(np.random.rand(len(t))-0.5)*0.1
+		f=5.2e3
+		y3=np.sin(2*np.pi*f*t)
+		y4=y3+(np.random.rand(len(t))-0.5)*1
+		df1=pd.DataFrame()
+		df2=pd.DataFrame()
+		df1['y1']=y1
+		df2['y2']=y2
+		df1['y3']=y3
+		df2['y4']=y4
+		calcCorrelationCoefficient(df1,df2,plot=True)
 	"""
-	if type(data)==_pd.core.frame.DataFrame or type(data)==_pd.core.frame.Series:
-		y=data.values.reshape(-1)
-		f=fit.values.reshape(-1)
-	elif type(data)==_np.ndarray:
-		y=data.reshape(-1)
-		f=fit.reshape(-1)
-	SSxy=((f-f.mean())*(y-y.mean())).sum()
-	SSxx=((f-f.mean())**2).sum()
-	SSyy=((y-y.mean())**2).sum()
-	rho=SSxy**2/(SSxx*SSyy)
+	if type(data)==_pd.core.frame.Series or type(data)==_np.ndarray:
+		data=_pd.DataFrame(data)
+		fit=_pd.DataFrame(fit)
+	elif type(data)==_pd.core.frame.DataFrame:
+		pass
+	else:
+		raise Exception('Improper data type')
+		
+	rho=_np.zeros(data.shape[1])
+	for i,(key,val) in enumerate(data.iteritems()):
+		y=val.values
+		f=fit.iloc[:,i].values
+		
+		SSxy=((f-f.mean())*(y-y.mean())).sum()
+		SSxx=((f-f.mean())**2).sum()
+		SSyy=((y-y.mean())**2).sum()
+		rho[i]=SSxy**2/(SSxx*SSyy)
+	
+		if plot==True:
+			fig,ax=_plt.subplots()
+			ax.plot(y,label='Original data')
+			ax.plot(f,label='Reconstructed data')
+			ax.legend()
+			ax.set_title('%s, Rho = %.3f'%(key,rho[i]))
+			
 	return rho
 
+
+	
+# @deprecated
+# def correlationCoefficient(data,fit,plot=False):
+# 	#TODO retire this function
+# 	""" 
+# 	Correlation coefficient 
+# 	
+# 	Reference
+# 	---------
+# 	https://mathworld.wolfram.com/CorrelationCoefficient.html
+# 	"""
+# 	if type(data)==_pd.core.frame.DataFrame or type(data)==_pd.core.frame.Series:
+# 		y=data.values.reshape(-1)
+# 		f=fit.values.reshape(-1)
+# 	elif type(data)==_np.ndarray:
+# 		y=data.reshape(-1)
+# 		f=fit.reshape(-1)
+# 	SSxy=((f-f.mean())*(y-y.mean())).sum()
+# 	SSxx=((f-f.mean())**2).sum()
+# 	SSyy=((y-y.mean())**2).sum()
+# 	rho=SSxy**2/(SSxx*SSyy)
+# 	
+# 	if plot==True:
+# 		fig,ax=_plt.subplots()
+# 		ax.plot(data,label='Original data')
+# 		ax.plot(fit,label='Reconstructed data')
+# 		ax.legend()
+# 		ax.set_title('Rho = %.3f'%rho)
+# 	return rho
 
 
 	
 
-def calcRho(dfTActual,dfTFit,E,T,plot=True):
-	""" calculates correlation coefficient between Fit and Actual data """
-	dfRho=_pd.DataFrame(index=range(1,T+1))
-	for t in range(1,T+1):
-		if plot=='all':
-			plotFitVsActual(dfTFit[str(t)],dfTActual[str(t)])
-		dfRho.at[t,E]=correlationCoefficient(dfTActual[str(t)],dfTFit[str(t)])
-		
-	if plot==True or plot=='all':
-		plotRho(dfRho)
-	return dfRho
+# def calcRho(dfTActual,dfTFit,E,T,plot=True):
+# 	""" calculates correlation coefficient between Fit and Actual data """
+# 	dfRho=_pd.DataFrame(index=range(1,T+1))
+# 	for t in range(1,T+1):
+# 		if plot=='all':
+# 			plotFitVsActual(dfTFit[str(t)],dfTActual[str(t)])
+# 		dfRho.at[t,E]=correlationCoefficient(dfTActual[str(t)],dfTFit[str(t)])
+# 		
+# 	if plot==True or plot=='all':
+# 		plotRho(dfRho)
+# 	return dfRho
 
 
 def findNearestNeighbors(X,Y,numberOfNearestPoints=1):
 	"""
 	Find the nearest neighbors in X to each point in Y
 	
-	Example
-	-------
-	::
+	Examples
+	--------
+	Example 1::
 		
-		from johnspythonlibraries2.Plot import finalizeSubplot as _finalizeSubplot
-
 		# create data
 		x=_np.arange(0,10+1)
 		y=_np.arange(100,110+1)
@@ -193,14 +809,15 @@ def findNearestNeighbors(X,Y,numberOfNearestPoints=1):
 		# points to investigate
 		B=[[5.1,105.1],[8.9,102.55]]
 		
-		points,indices,radii=findNearestNeighbors(A,B,numberOfNearestPoints=5)
+		numberOfNearestPoints=5
+		points,indices,radii=findNearestNeighbors(A,B,numberOfNearestPoints=numberOfNearestPoints)
 		
 		for i in range(len(B)):
 			fig,ax=_plt.subplots()
-			ax.plot(X,Y,'.',label='original data')
+			ax.plot(X.reshape(-1),Y.reshape(-1),'.',label='original data')
 			ax.plot(B[i][0],B[i][1],'x',label='point of interest')
-			ax.plot(points[i][:,0],points[i][:,1],label='nearest neighbors',marker='o',linestyle='', markerfacecolor="None")
-			_finalizeSubplot(ax)
+			ax.plot(points[i][:,0],points[i][:,1],label='%d nearest neighbors'%numberOfNearestPoints,marker='o',linestyle='', markerfacecolor="None")
+			plt.legend()
 			
 	"""
 	
@@ -215,30 +832,11 @@ def findNearestNeighbors(X,Y,numberOfNearestPoints=1):
 
 
 ###################################################################################
-### Main function
+#%% Main function
 
 def main(sx,E,T,sy=None,tau=1,method='simplex',plot=False,weightingFunction='default',showTime=False):
 	
-#	if __name__=="__main__":
-#		if False:
-#			sy=None
-#			tau=1
-#			method='simplex'
-#			plot=False
-#			weightingFunction='default'
-#			showTime=False
-#			sx=_pd.Series(createSignal(1000,plot=False))
-#		else:
-#			tau=1
-#			method='simplex'
-#			plot=False
-#			weightingFunction='default'
-#			showTime=False
-#			t=_np.arange(0,1000)
-#			sx=_pd.Series(_np.sin(2*_np.pi*1e-1*t))
-#			sy=_pd.Series(_np.sin(2*_np.pi*1e-1*t)+_np.random.uniform(-1,1,t.shape)*0.1)
-#			
-#		
+
 	N=sx.shape[0]
 	if method == 'simplex':
 		knn=E+1
@@ -260,21 +858,18 @@ def main(sx,E,T,sy=None,tau=1,method='simplex',plot=False,weightingFunction='def
 	dfX=convertToStateSpace(sX,E,tau)
 	dfY=convertToStateSpace(sY,E,tau)
 		
-	if showTime: printTime('Step 3 - Find nearest neighbors',start)
-	coordinates, indices, radii=findNearestNeighbors(dfX.values,dfY.values,knn)
-	keysOfNearestNeighbors=_pd.DataFrame(indices+dfX.index[0],index=dfY.index)
-	radii=_pd.DataFrame(radii,index=dfY.index)
+# 	if showTime: printTime('Step 3 - Find nearest neighbors',start)
+# 	coordinates, indices, radii=findNearestNeighbors(dfX.values,dfY.values,knn)
+# 	keysOfNearestNeighbors=_pd.DataFrame(indices+dfX.index[0],index=dfY.index)
+# 	radii=_pd.DataFrame(radii,index=dfY.index)
 		
-	if showTime: printTime('step 4 - Weighting',start)
+	if showTime: printTime('step 3&4 - Create map and weights',start)
 	if weightingFunction=='default':
-		if method == 'smap':
-			weightingFunction='exponential'
-		elif method == 'simplex':
-			weightingFunction='uniform'
-	weights=weighting(radii,method=weightingFunction)
+		weightingFunction='exponential'
+	keys,weights=createMap(dfX,dfY,knn)
 		
 	if showTime: printTime('step 5 - Forecasting',start)
-	dfTActual,dfTGuess=forecasting(sx,dfY,keysOfNearestNeighbors,weights,T=T)
+	dfTActual,dfTGuess=forecast(sx,dfY,keys,weights,T=T)
 				
 	if showTime: printTime('step 6 - Calculate correlation coefficient, rho',start)
 	dfRho=calcRho(dfTActual,dfTGuess,E=E,T=T,plot=plot)
@@ -286,15 +881,235 @@ def main(sx,E,T,sy=None,tau=1,method='simplex',plot=False,weightingFunction='def
 				'dfRho':dfRho,
 				'dfTGuess':dfTGuess,
 				'dfTActual':dfTActual,
-				'keysOfNearestNeighbors':keysOfNearestNeighbors,
-				'radii':radii,
+				'keys':keys,
+# 				'radii':radii,
 				'weights':weights})
 		
 	return dic
 
 
+
+def SMIReconstruction(sA1,sA2,sB1,E,tau,knn=None,sB2=None,plot=True):
+	"""
+	Examples
+	--------
+	Example 1::
+		
+		N=1000
+		x,y,z=solveLorentz(N=N)
+		sA1=pd.Series(x)
+		sB1=pd.Series(z)
+		
+		x,y,z=solveLorentz(N=N,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3])
+		sA2=pd.Series(x)
+		sB2=pd.Series(z)
+		
+		
+		
+		E=4
+		knn=E+1
+		tau=1
+		
+		sB2_recon,rho=SMIReconstruction(sA1, sA2, sB1, E, tau,sB2=sB2,plot=True)
+		
+	"""
+	if type(knn)==type(None):
+		knn=E+1	# simplex method
+		
+	## remove offset
+	sA1=sA1.copy()-sA1.mean()
+	sA2=sA2.copy()-sA2.mean()
+	sB1=sB1.copy()-sB1.mean()
+	if type(sB2)!=type(None):
+		sB2=sB2.copy()-sB2.mean()
+		
+	## convert to state space
+	PA1,PA2,PB2=convertToStateSpace([sA1,sA2,sB1],E=E,tau=tau)
+	if type(sB2)!=type(None):
+		PB2=convertToStateSpace(sB2,E=E,tau=tau)[0]
+
+	## Create map from sA1 to sA2
+	keys,weights=createMap(PA1,PA2,knn)
+	
+	## sanity check map by reconstructing sA2 from sA1
+	if plot==True:
+		sA2_recon=reconstruct(sA1,keys,weights)
+		
+		rho=calcCorrelationCoefficient(sA2[(E-1)*tau:],sA2_recon)
+		_plt.figure()
+		_plt.plot(sA2,label='sA2 original')
+		_plt.plot(sA2_recon,label='sA2 reconstructed')
+		_plt.legend()
+		_plt.title('sanity check map, rho=%.3f'%rho)
+		
+	## apply map to sB1 to get reconstructed sB2
+	sB2_recon=reconstruct(sB1,keys,weights)
+	
+	## calc rho
+	rho=calcCorrelationCoefficient(sB2[(E-1)*tau:],sB2_recon)
+	
+	if plot==True and type(sB2)!=type(None):
+		_plt.figure()
+		_plt.plot(sB2,label='sB2 original')
+		_plt.plot(sB2_recon,label='sB2 reconstructed')
+		_plt.legend()
+		_plt.title('final reconstruction, rho=%.3f'%rho)
+	
+	
+	## plot
+	
+# 	ax=_plt.gca()
+# 	ax.set_title('results of applied map\nrho = %.3f\n%s'%(rho,ax.get_title()))
+		
+	return sB2_recon,rho
+	
 ###################################################################################
-### functions that call main()
+#%% exterior functions - functions that call main()
+
+
+def SMIParameterScan(sA1,sA2,sB1,ERange,tauRange,sB2=None,plot=False):
+	print('work in progress')
+	
+	"""
+	
+	Examples
+	--------
+	Example 1 ::
+		
+		import pandas as pd
+		import numpy as np
+		
+		N=2000
+		dt=0.05
+		x,y,z=solveLorentz(N=N,dt=dt)
+		sA1=pd.Series(x)
+		sB1=pd.Series(z)
+		
+		x,y,z=solveLorentz(N=N,dt=dt,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3])
+		sA2=pd.Series(x)
+		sB2=pd.Series(z)
+		
+		ERange=np.arange(2,12+1,1)
+		tauRange=np.arange(1,41+1)
+		df=SMIParameterScan(sA1,sA2,sB1,ERange,tauRange,sB2=sB2,plot=True)
+		
+		ymax,xmax=_np.where(df.max().max()==df)
+		tau_max=int(df.columns[xmax].values)
+		E_max=int(df.index[ymax].values)
+		
+		SMIReconstruction(sA1, sA2, sB1, E_max, tau_max,sB2=sB2,plot=True)
+		
+	"""
+	
+	
+	
+	dfResults=_pd.DataFrame()
+	for i,E in enumerate(ERange):
+		for j,tau in enumerate(tauRange):
+			print(E,tau)
+	
+			sB2_recon,rho=SMIReconstruction(sA1, sA2, sB1, E, tau,sB2=sB2,plot=False)
+			dfResults.at[E,tau]=rho
+			
+	dfResults.index=ERange
+	dfResults.columns=tauRange
+	
+	if plot==True:
+		correlationHeatmap(tauRange,ERange,dfResults,xlabel='tau',ylabel='E')
+		
+	return dfResults
+
+
+def SMIParameterScan2(sA1,sA2,sB1,ERange,tauRange,sB2=None,plot=False):
+	print('work in progress')
+	
+	"""
+	
+	Examples
+	--------
+	Example 1 ::
+		
+		### note that this example cannot be run with "F9" in spyder.  Put it a script (if __name__=='__main__': etc) and run it with "F5" instead.
+		
+		import pandas as pdd
+		import numpy as np
+		
+		N=2000
+		dt=0.05
+		
+		# solve Lorentz equations with one set of ICs
+		x,y,z=solveLorentz(N=N,dt=dt)
+		sA1=pd.Series(x)
+		sB1=pd.Series(z)
+		
+		# solve Lorentz equations with a second set of ICs
+		x,y,z=solveLorentz(N=N,dt=dt,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3])
+		sA2=pd.Series(x)
+		sB2=pd.Series(z)
+		
+		# perform reconstruction with a parameter scan of E and tau 
+		ERange=np.arange(2,12+1,1)
+		tauRange=np.arange(1,40+1)
+		df=SMIParameterScan2(sA1,sA2,sB1,ERange,tauRange,sB2=sB2,plot=True)
+		
+		# plot best result
+		ymax,xmax=_np.where(df.max().max()==df)
+		tau_max=int(df.columns[xmax].values)
+		E_max=int(df.index[ymax].values)
+		SMIReconstruction(sA1, sA2, sB1, E_max, tau_max,sB2=sB2,plot=True)
+		
+	"""
+	from pathos.multiprocessing import ProcessingPool as Pool
+	from pathos.multiprocessing import cpu_count
+# 	from multiprocessing import Pool,cpu_count
+
+	# initialize pool and data storage
+# 	result_objs = []
+	pool = Pool(processes=cpu_count()) 
+	pool.restart()
+	# wrapper function for multiprocessing
+	def getResults(E,tau):
+		print("E,tau = %d, %d"%(E,tau))
+		_,rho=SMIReconstruction(sA1,sA2,sB1,E=E,tau=tau,knn=None,sB2=sB2,plot=False)
+		return E, tau, rho
+		
+	# init dataframe to store the date for each process
+# 	dfResults=_pd.DataFrame()
+	
+# 	# launch each process in the pool
+# 	for i,E in enumerate(ERange):
+# 		for j,tau in enumerate(tauRange):
+# 			# print(E,tau)
+# # 			a=pool.apply_async(getResults,args=(sA1,sA2,sB1,E,tau,None,sB2,False))
+# 			
+# 			result_objs.append(a)
+	
+	# launch pool
+	X,Y=_np.meshgrid(ERange,tauRange)
+	results=pool.amap(getResults,X.reshape(-1),Y.reshape(-1))
+# 	results=pool.map_async(getResults,(X.reshape(-1),Y.reshape(-1)))
+			
+	pool.close() # Indicate that no more data will be put on this queue by the current process. The background thread will quit once it has flushed all buffered data to the pipe
+	pool.join() # wait until every process has finished
+		
+	# get results from pool
+	results=results.get()
+# 	results = [result.get() for result in result_objs]
+	
+	# assign results to a dataframe
+	dfResults=_pd.DataFrame()
+	for result in results:
+		E,tau,rho=result
+# 		print(E,tau,rho)
+		dfResults.at[E,tau]=rho
+		
+	if plot==True:
+		correlationHeatmap(tauRange,ERange,dfResults,xlabel='tau',ylabel='E')
+		
+	return dfResults
+
+
+	
 def determineDimensionality(sx,T,tau=1,Elist=_np.arange(1,10+1),method="simplex",weightingFunction='exponential'):
 #	Elist=E
 	
@@ -320,7 +1135,8 @@ def determineDimensionality(sx,T,tau=1,Elist=_np.arange(1,10+1),method="simplex"
 
 
 ###################################################################################
-### Examples
+#%% Examples
+# TODO this section needs to be overhauled
 	
 
 def example5():
@@ -368,7 +1184,7 @@ def example5():
 				
 				dfY=convertToStateSpace(sxB,E=E,tau=tau)
 				
-				dfTActual,dfTGuess=forecasting(sxB,dfY,dic['keysOfNearestNeighbors'],dic['weights'],T=1)
+				dfTActual,dfTGuess=forecast(sxB,dfY,dic['keysOfNearestNeighbors'],dic['weights'],T=1)
 				if plot:
 					fig,ax=_plt.subplots()
 					ax.plot(sxB)
@@ -381,6 +1197,89 @@ def example5():
 									dfTGuess.values.reshape(-1))
 	
 				da.loc[E,T,tau]=rho
+	
+	
+def example6():
+# if True:
+	""" frequency sweep with noise """
+	# clean up.  maybe more work in the future
+	
+	import numpy as np
+# 	from scipy.signal import chirp
+	t=np.arange(0,10000)
+ 	
+	def genSig(t,f0,f1,phi=0,seed=1,tStep=1000):
+		
+		def chirp(t,fi,ff,phi):
+			print(t[0],t[-1],fi,ff,phi)
+			c=(ff-fi)/(t[-1]-t[0])
+			phase=phi+2*np.pi*(c/2.0*(t-t[0])**2+fi*(t-t[0]))
+			return np.sin(phase),phase[-1]
+		
+		y=np.zeros(t.shape)
+		for i in range(len(t)//tStep):
+			ti=t[i*tStep:(i+1)*tStep]
+			if np.mod(i,2)==0:
+				print(i)
+				f_a=f0*1.0
+				f_b=f1*1.0
+			else:
+				f_b=f0*1.0
+				f_a=f1*1.0
+# 			yi=chirp(ti-ti[0],f_b,ti[-1]-ti[0],f_a,method='linear',phi=phi)
+			yi,phi=chirp(ti,f_b,f_a,phi=phi)
+			y[i*tStep:(i+1)*tStep]=yi
+		np.random.seed(seed)
+		noise=np.random.uniform(-1,1,len(t))*0.2
+		return noise+y
+# 		return y
+	
+	y1=genSig(t,0.6e-2,0.1e-2,phi=0,seed=0)
+# 	plt.figure()
+# 	plt.plot(y1)
+	
+
+	y2=genSig(t,0.6e-2,0.1e-2,phi=90,seed=1)
+# 	y2=genSig(t,0.2e-1,0.2e-2,phi=90,seed=2)
+# 	y2=np.concatenate((y2,genSig(t,0.2e-1,0.2e-2,phi=90,seed=3)),axis=0)
+	
+# 	t=np.arange(0,(t[-1]+1)*2)
+# 	np.random.seed(1)
+# 	noise=np.random.uniform(-1,1,len(t))*0.2
+# 	y2=noise+chirp(t,0.2e-1,t[-1],0.2e-2,method='linear',phi=90)
+# 	plt.plot(y)
+		
+# 	y=noise
+# 	freqs=np.array([1.0/20,1.0/217])
+#	freqs=np.array([1.0/20])
+# 	for f in freqs:
+# 		y+=genSig(t,1,f)
+#	np.sin(2*np.pi*0.1*t)+np.sin(2*np.pi*0.007121*t)+noise
+	sx1=_pd.Series(y1,index=t)
+	sx2=_pd.Series(y2,index=t)
+	
+	_plt.close('all')
+	fig,ax=_plt.subplots()
+	_plt.plot(sx1)
+	_plt.plot(sx2)
+	
+#	determineDimensionality(sx,T=200,tau=1,Elist=np.arange(1,10+1))
+	
+	tau=1
+	E=100
+	T=1
+	dic1=main(sx1,E=E,T=T,tau=tau)
+	keysOfNearestNeighbors=dic1['keysOfNearestNeighbors']
+	weights=dic1['weights']
+	
+	# forecasting	if showTime: printTime('Step 1 - Test and training data sets',start)
+
+	sX2,sY2,sx2=splitData(sx2)
+	
+	dfY2=convertToStateSpace(sY2,E=E,tau=tau)
+	dfTActual,dfTGuess=forecast(sx2,dfY2,keysOfNearestNeighbors,weights,T=T,plot=True)
+			
+	
 	
 	
 def example3():
@@ -504,6 +1403,37 @@ def example4():
 	
 	
 
+def example7(E=10,tau=1,knn='default',addNoise=False):
+	""" 
+	lorentz attractor SMI
+	"""
+	if knn=='default':
+		knn=E+1 # simplex method
+	#TODO work in progress
+	#TODO the peaks in this final plot appear to be shifting to the left with increasing E and tau.  As best I can tell, pyEDM has the same issue.  What does this mean?
+	
+	_plt.close('all')
+	
+	
+	x,y,z=solveLorentz([-9.38131377, -8.42655716 , 29.30738524],plot=True,addNoise=addNoise)
+	x2,y2,z2=solveLorentz([-1, -8.42655716/2 , 29.30738524/2],plot=True,addNoise=addNoise)
+	
+	sx=_pd.Series(x-x.mean(),_np.arange(0,len(x)))
+	sy=_pd.Series(y-y.mean(),_np.arange(0,len(x)))
+	sz=_pd.Series(z-z.mean(),_np.arange(0,len(x)))
+	
+	sx2=_pd.Series(x2-x2.mean(),_np.arange(0,len(x2)))
+	sy2=_pd.Series(y2-y2.mean(),_np.arange(0,len(x2)))
+	sz2=_pd.Series(z2-z2.mean(),_np.arange(0,len(x2)))
+	
+	sA1=_pd.Series(x)
+	sA2=_pd.Series(x2)
+	sB1=_pd.Series(z)
+	sB2=_pd.Series(z2)
+	
+			
+	SMIReconstruction(sA1,sA2,sB1,E,tau,knn,sB2=sB2,plot=True)
+
 	
 
 def example2():
@@ -514,7 +1444,7 @@ def example2():
 	"""
 	_plt.close('all')
 	
-	sx=createSignal(100,plot=False)
+	sx=createTentMap(100,plot=False)
 	T=4
 	E=3
 	method="simplex"
@@ -585,7 +1515,7 @@ def example1():
 	
 	## initialize
 	_plt.close('all')
-	sx=createSignal(1000,plot=False)
+	sx=createTentMap(1000,plot=False)
 	start = _time.time()
 	printTime('Starting',start)
 	
