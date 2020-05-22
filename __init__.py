@@ -16,3 +16,4 @@ from . import Image
 from . import Networking
 from . import OS
 from . import PythonMisc
+from . import OptomizeCode
