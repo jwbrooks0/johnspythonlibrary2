@@ -274,8 +274,8 @@ def calcTF(dfInput,dfOutput,singleFreqs=False,plot=False):
 	
 		
 	if singleFreqs==False:
-		Xin=fft_df(dfInput,trimNegFreqs=True)
-		Xout=fft_df(dfOutput,trimNegFreqs=True)
+		Xin=fft_df(dfInput,trimNegFreqs=False)
+		Xout=fft_df(dfOutput,trimNegFreqs=False)
 		
 		dfTF=_pd.DataFrame(Xout.iloc[:,0]/Xin.iloc[:,0],columns=Xout.columns)
 		
