@@ -1059,53 +1059,41 @@ def SMIParameterScan2(sA1,sA2,sB1,ERange,tauRange,sB2=None,plot=False):
 		SMIReconstruction(sA1, sA2, sB1, E_max, tau_max,sB2=sB2,plot=True)
 		
 	"""
+	# the pathos Pool function seems to be more compatible with "F5" operation than multiprocessing.Pool.  Neither can do "F9" operation.
 	from pathos.multiprocessing import ProcessingPool as Pool
 	from pathos.multiprocessing import cpu_count
 # 	from multiprocessing import Pool,cpu_count
 
-	# initialize pool and data storage
-# 	result_objs = []
+	# initialize pool
 	pool = Pool(processes=cpu_count()) 
-	pool.restart()
+	pool.restart() # I don't know why I have to restart() the pool, but it often won't work without this command
+	
 	# wrapper function for multiprocessing
 	def getResults(E,tau):
-		print("E,tau = %d, %d"%(E,tau))
+		print("E, tau =\t%d, \t%d"%(E,tau))
 		_,rho=SMIReconstruction(sA1,sA2,sB1,E=E,tau=tau,knn=None,sB2=sB2,plot=False)
 		return E, tau, rho
 		
-	# init dataframe to store the date for each process
-# 	dfResults=_pd.DataFrame()
-	
-# 	# launch each process in the pool
-# 	for i,E in enumerate(ERange):
-# 		for j,tau in enumerate(tauRange):
-# 			# print(E,tau)
-# # 			a=pool.apply_async(getResults,args=(sA1,sA2,sB1,E,tau,None,sB2,False))
-# 			
-# 			result_objs.append(a)
 	
 	# launch pool
-	X,Y=_np.meshgrid(ERange,tauRange)
+	X,Y=_np.meshgrid(ERange,tauRange) # generate each unique combination of E and tau
 	results=pool.amap(getResults,X.reshape(-1),Y.reshape(-1))
-# 	results=pool.map_async(getResults,(X.reshape(-1),Y.reshape(-1)))
-			
 	pool.close() # Indicate that no more data will be put on this queue by the current process. The background thread will quit once it has flushed all buffered data to the pipe
 	pool.join() # wait until every process has finished
 		
 	# get results from pool
 	results=results.get()
-# 	results = [result.get() for result in result_objs]
-	
 	# assign results to a dataframe
 	dfResults=_pd.DataFrame()
 	for result in results:
 		E,tau,rho=result
-# 		print(E,tau,rho)
 		dfResults.at[E,tau]=rho
 		
 	if plot==True:
+		print('Plotting results')
 		correlationHeatmap(tauRange,ERange,dfResults,xlabel='tau',ylabel='E')
 		
+	print('Done!')
 	return dfResults
 
 
