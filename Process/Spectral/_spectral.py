@@ -552,7 +552,9 @@ def ifft(	dfFFT,
 		t=_np.arange(0,N)*dt
 		
 	# IFFT function
-	dfIFFT=dfFFT.apply(_fftpack.ifft,axis=0).set_index(t)
+	from numpy.fft import ifft
+# 	from scipy.fftpack.ifft
+	dfIFFT=dfFFT.apply(ifft,axis=0).set_index(t)
 	
 	# option
 	if returnRealOnly==True:
