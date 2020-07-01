@@ -184,6 +184,83 @@ def stripeyPlot(	df,
 	return fig,ax,cax
 
 
+def PAPolarPlot(	dfData,
+					theta,
+					time=3e-3,
+					amplitude=0.1,
+					rticklabelangle=-45):
+	"""
+	
+
+	Parameters
+	----------
+	dfData : TYPE
+		DESCRIPTION.
+	angles : TYPE
+		DESCRIPTION.
+	amplitude : TYPE, optional
+		DESCRIPTION. The default is 0.1.
+
+	Returns
+	-------
+	fig : TYPE
+		DESCRIPTION.
+	ax : TYPE
+		DESCRIPTION.
+		
+	Examples
+	--------
+	import johnspythonlibrary2 as jpl2
+	shotno=104772
+	sensor='PA2'
+	dfPARaw,dfPA,dfPAMeta=jpl2.Hbtep.Get.magneticSensorData(shotno,sensor=sensor)
+
+	dfData=dfPA.copy()*1e4
+	theta=dfPAMeta.theta.values
+	
+	_plt.close('all')
+# 	for time in np.linspace(3.5e-3,5.5e-3,51):
+# 		print(time)
+# 		fig,ax=PAPolarPlot(dfData.copy(),theta,time=time)
+# 		ax.set_title('%d, %s, t=%.3f ms'%(shotno,sensor,time*1e3))
+
+	time=4.06e-3
+	fig,ax=PAPolarPlot(dfData.copy(),theta,time=time)
+	ax.set_title('%d, %s, t=%.3f ms'%(shotno,sensor,time*1e3))
+	jpl2.Plot.finalizeFigure(fig,figSize=[3,3])
+	
+	"""
+	import numpy as np
+	
+	
+ 	# fig,ax=_plt.subplots()
+	_plt.figure()
+	ax = _plt.subplot(111, projection='polar')
+	
+	theta_complete=_np.linspace(-_np.pi,_np.pi,1000)
+	r=np.zeros(theta_complete.shape)
+	
+	i=(dfData.index.get_loc(time, method='nearest'))
+	r_pert=dfData.iloc[i].values
+# 	rmax=np.abs(r_pert).max()
+ 	
+	_plt.polar(theta_complete,r,linestyle='--',color='k',linewidth=2)
+	_plt.polar(np.append(theta,theta[0]),np.append(r_pert,r_pert[0]),linestyle='-',color='r',linewidth=2)
+	
+	
+	rticks=ax.get_yticks()
+	rticklabels=['%.2f G'%i for i in rticks]
+	ax.set_yticklabels(rticklabels)
+# 	ax.set_xlabel('r')
+	ax.set_rlabel_position(rticklabelangle)
+	
+# 	ax.set_rmax(rmax*1.5)
+# 	ax.set_rmin(-rmax*1.5)
+	
+	fig=_plt.gcf()
+	return fig,ax
+
+
 
 
 def modeContourPlot(	dfData,
