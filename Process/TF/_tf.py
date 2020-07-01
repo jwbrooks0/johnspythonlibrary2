@@ -11,26 +11,105 @@ from johnspythonlibrary2.Process.Spectral import fft_df, ifft
 #from johnspythonlibrary2.Process.Misc import findNearest
 
 
-def fftSignalReconstruct(s,tf):
+
+def fftSignalReconstruct(s1A,s2A,s1B,s2B=None,numModes=None,plot=False):
+	"""
+	Creates a transfer function between an input and output signal (i.e. tf=H(s)=FFT(s1B)/FFT(s1A)) and applies it to s2A to reconstruct s2B.  
+
+	Parameters
+	----------
+	s1A : pandas.core.series.Series
+		Input signal used to create the transfer fuction.  Time series.
+	s2A : pandas.core.series.Series.  Time series.
+		Input signal that is used to reconstruct s2B with tf
+	s1B : pandas.core.series.Series.  Time series.
+		Output signal used to create the transfer fuction
+	s2B : pandas.core.series.Series.  Time series.
+		The actual s2B signal.  If provied, it will be plotted alongside the reconstructed s2B for comparison
+	numModes : int
+		The first N number of frequencies to use with the reconstruction.
+		If None, the code uses all frequencies.
+	plot : bool
+		True - Provides an optional plot of the results
+
+	Returns
+	-------
+	s2B_recon : pandas.core.series.Series
+		The reconstructed s2B signal.  Time series.
+
+	"""
+	
+	# calculate TF from the first half of signals 1 and 2 (i.e. s1A and s2A)
+	tf=calcTF(s1A,s2A,plot=True)
+
+	# check TF by reconstructing s2A from s1A and comparing it with the actual s2A
+	if plot==True:
+		fftSignalReconstructFromTF(s1A,tf,plot=plot,s2=s2A)
+
+	def trimFreqs(df,numF=50):
+		fmax=1/df.shape[0]*numF
+		df=df.copy()
+		df[(df.index>=fmax) | (df.index<-fmax)]=0
+		return df
+ 
+	# trim tf based on the number of modes (unique frequencies) to maintain.
+	if type(numModes)!=type(None):
+		tf_trimmed=trimFreqs(tf,numModes)
+	
+	# use tf and s2A to reconstruct s2B.  
+	s2B_recon=fftSignalReconstructFromTF(s1B,tf_trimmed,plot=True,s2=s2B)
+
+	# (Optional) Plot
+	if plot==True:
+		fig,ax=_plt.subplots()
+		if type(s2B)!=type(None):
+			ax.plot(s2B,linewidth=0.75,label=s2A.name+" Original")
+		ax.plot(s2B_recon,linewidth=1,color='limegreen',label=s2A.name+' Reconstruction')
+		_finalizeSubplot(ax )
+		
+	return s2B_recon
+
+
+def fftSignalReconstructFromTF(s1,tf,s2=None,plot=False,positiveFreqsOnly=True):
 	""" 
-	Reconstructs a time-base signal (s_recon) from an input signal (s) and a transfer function (tf) 
+	Reconstructs a time-base signal (s2_recon) from an input signal (s1) and a transfer function (tf) 
 	
 	Parameters
 	----------
-	s : pandas.core.series.Series
+	s1 : pandas.core.series.Series
 		Input signal.  Index is time with units in seconds
 	tf : pandas.core.series.Series
 		Transfer function.  Index is frequency with units in Hz.
+	s2 : pandas.core.series.Series
+		(Optional) Original output signal.  Include it if you want it plotted alongside the reconstructed s2 for comparison
+	plot : bool
+		(Optional) Plot of results
 		
 	Returns
 	-------
-	s_recon : pandas.core.series.Series
+	s2_recon : pandas.core.series.Series
 		Output signal.  Index is time with units in seconds
 	"""
 	
-	X=fft_df(s)
-	s_recon=ifft(_pd.DataFrame(tf.iloc[:,0].values*X.iloc[:,0].values,index=tf.index))
-	return s_recon
+	# take fft of s1
+	X=fft_df(s1)
+	
+	# take ifft of tf multiplied by X (i.e. the reconstruction)
+	s2_recon=ifft(_pd.DataFrame(tf.iloc[:,0].values*X.iloc[:,0].values,index=tf.index))
+	s2_recon.index=s1.index # make sure s1 and s2_recon have the same time basis
+	
+	if plot==True:
+		fig,ax=_plt.subplots(2,sharex=True)
+		ax[0].plot(s1,label='s1')
+		if type(s2)!=type(None):
+			ax[1].plot(s2,label='s2')
+			print((s2.values-s2_recon.values).sum())
+		ax[1].plot(s2_recon,label='s2_reconstruction')
+		_finalizeSubplot(ax[0],title='signal reconstruction')
+		_finalizeSubplot(ax[1])
+		_finalizeFigure(fig)
+		
+	return s2_recon
 
 
 def _dB(y,yRef=1.0):
@@ -313,7 +392,9 @@ def calcTF(dfInput,dfOutput,singleFreqs=False,plot=False):
 		# optional plot
 		if plot==True:
 			fig,ax=_plt.subplots(2,sharex=True)
-			bodePlotFromTF(dfTF,fig,ax)
+			fig,ax=bodePlotFromTF(dfTF,fig,ax)
+			ax[0].set_title('Bode plot of H(s)=dfOutput/dfInput')
+			_finalizeFigure(fig)
 		
 		return dfTF
 		
