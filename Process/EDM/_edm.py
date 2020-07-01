@@ -202,7 +202,8 @@ def correlationHeatmap(x,y,Z,xlabel='',ylabel='',showMax=True):
 		xmax_map=coordinate_map(xmax,'x')
 		ymax_map=coordinate_map(ymax,'y')
 		print(xmax_map,ymax_map)
-		ax.plot(xmax_map,ymax_map,c='g',marker='*',label='E_max',linestyle='')
+		ax.plot(xmax_map,ymax_map,c='g',marker='*',label='%s_max'%ylabel,linestyle='')
+# 		ax.plot(xmax_map,ymax_map,c='g',marker='*',label='E_max',linestyle='')
 # 		ax.plot(xmax,ymax,'go')
 		ax.set_title('Max: (%s, %s)=(%d,%d)'%(xlabel,ylabel,xmax,ymax))
 		
@@ -213,7 +214,8 @@ def correlationHeatmap(x,y,Z,xlabel='',ylabel='',showMax=True):
 		y=temp.values
 		x=temp.index.values
 		
-		ax.plot(coordinate_map(x,'x'),coordinate_map(y,'y'),c='g',linestyle='-',label='E_max(tau)')
+		ax.plot(coordinate_map(x,'x'),coordinate_map(y,'y'),c='g',linestyle='-',label='%s_max(%s)'%(ylabel,xlabel))
+# 		ax.plot(coordinate_map(x,'x'),coordinate_map(y,'y'),c='g',linestyle='-',label='E_max(tau)')
 		ax.legend()
 # 	ax.plot(ymax+y[0],xmax+x[0],'rx')
 	
@@ -1180,7 +1182,7 @@ def SMIReconstruction(sA1,sA2,sB1,E,tau,knn=None,sB2=None,plot=True):
 	if plot==True and type(sB2)!=type(None):
 		_plt.figure()
 		_plt.plot(sB2,label='sB2 original')
-		_plt.plot(sB2_recon,label='sB2 reconstructed')
+		_plt.plot(sB2_recon,label='sB2 reconstructed',marker='.',linestyle='',markersize=1)
 		_plt.legend()
 		_plt.title('final reconstruction, rho=%.3f'%rho)
 	
