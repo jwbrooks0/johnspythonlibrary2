@@ -81,10 +81,13 @@ def leastSquareModeAnalysis(	df,
 			dfResults['%sX'%mode]=1j*dfResults['%sSin'%mode]+dfResults['%dCos'%mode]
 			dfResults['%sAmp'%mode]=_np.sqrt(dfResults['%dSin'%mode]**2+dfResults['%dCos'%mode]**2)
 			dfResults['%sPhase'%mode]=_np.arctan2(dfResults['%dSin'%mode],dfResults['%dCos'%mode])
-			dfResults['%sPhaseFilt'%mode]=_gaussianFilter_df(	_pd.DataFrame(_unwrapPhase(dfResults['%dPhase'%mode]),index=df.index),
-																timeFWHM=timeFWHM_phaseFilter,
-																plot=False,
-																filterType='low')
+			if type(timeFWHM_phaseFilter) != type(None):
+				dfResults['%sPhaseFilt'%mode]=_gaussianFilter_df(	_pd.DataFrame(_unwrapPhase(dfResults['%dPhase'%mode]),index=df.index),
+																	timeFWHM=timeFWHM_phaseFilter,
+																	plot=False,
+																	filterType='low')
+			else:
+				dfResults['%sPhaseFilt'%mode]=_unwrapPhase(dfResults['%dPhase'%mode])
 			dfResults['%sFreq'%mode]=_np.gradient(dfResults['%sPhaseFilt'%mode])/_np.gradient(df.index.to_numpy())/(_np.pi*2)
 			i+=2
 			
@@ -102,7 +105,7 @@ def leastSquareModeAnalysis(	df,
 			modeNum=extractIntsFromStr(key)[0]
 			ax[0].plot(val.index*1e3,val,label=modeNum)
 		_plot.finalizeSubplot(ax[0],
-								ylabel='G',
+								ylabel='',
 								subtitle='amp.',
 								title='%s'%title)
 		
