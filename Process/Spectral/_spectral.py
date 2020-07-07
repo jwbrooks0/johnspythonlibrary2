@@ -511,6 +511,7 @@ def ifft(	dfFFT,
 		import pandas as pd
 		import numpy as np
 		import johnspythonlibrary2 as jpl2
+		import matplotlib.pyplot as plt
 		
 		# input signal
 		dt=2e-6
@@ -524,7 +525,7 @@ def ifft(	dfFFT,
 		df2=pd.DataFrame(y2,index=t)
 		
 		# filter type 2 : IFFT reconstructed Butterworth filter
-		tf=jpl2.Process.TF.calcTFFromSingleTimeSeriesSpanningMultipleFrequencies(df1,df2,plot=False)
+		tf=jpl2.Process.TF.calcTF(df1,df2,plot=False)
 		dfFFT=fft_df(df1,plot=False,normalizeAmplitude=False)
 		df3=ifft(pd.DataFrame(tf['lowpassFiltered']*dfFFT[0]))
 		
