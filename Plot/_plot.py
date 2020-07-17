@@ -380,8 +380,8 @@ def subplotsWithColormaps(nrows=2,sharex=False):
 ###################################################################################
 ### shapes
 
-def circle(ax,xy=(0,0),r=1,color='r',alpha=1,fill=True):
-	circle1 = _plt.Circle(xy, r, color=color,alpha=alpha,fill=fill)
+def circle(ax,xy=(0,0),r=1,color='r',linestyle='-',alpha=1,fill=True):
+	circle1 = _plt.Circle(xy, r, color=color,alpha=alpha,fill=fill,linestyle=linestyle)
 	ax.add_artist(circle1)
 
 def arrow(ax,xyTail=(0,0),xyHead=(1,1),color='r',width=3,headwidth=10,headlength=10,alpha=1.0):
