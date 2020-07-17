@@ -584,6 +584,34 @@ def phase(df):
 							  columns=df.columns)
 	
 
+def fft_max_freq(df_fft,positiveOnly=True):
+	"""
+	Calculates the maximum frequency associted with the fft results
+	
+	Example
+	-------
+	::
+		
+		import numpy as np
+		
+		dt=2e-6
+		f=1e3
+		t=np.arange(0,10e-3,dt)
+		y=np.sin(2*np.pi*t*f)
+		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
+							index=t,
+							columns=['a','b','c'])
+		df_fft=fft_df(df,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
+		max_freq=fft_max_freq(df_fft)
+		
+	"""
+	df_fft=_np.abs(df_fft.copy())
+	
+	if positiveOnly==True:
+		df_fft=df_fft[df_fft.index>0]
+	
+	return df_fft.idxmax(axis=0)
+	
 	
 def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
 	"""
@@ -614,6 +642,8 @@ def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
 	-------
 	::
 		
+		import numpy as np
+		
 		dt=2e-6
 		f=1e3
 		t=np.arange(0,10e-3,dt)
@@ -621,7 +651,8 @@ def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
 		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
 							index=t,
 							columns=['a','b','c'])
-		dfFFT=fft_df(df,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
+		df_fft=fft_df(df,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
+		
 	"""
 	
 	if type(df)!=_pd.core.frame.DataFrame:
