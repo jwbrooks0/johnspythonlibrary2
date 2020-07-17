@@ -25,7 +25,7 @@ def fftSignalReconstruct(s1A,s2A,s1B,s2B=None,numModes=None,plot=False):
 	s1B : pandas.core.series.Series.  Time series.
 		Output signal used to create the transfer fuction
 	s2B : pandas.core.series.Series.  Time series.
-		The actual s2B signal.  If provied, it will be plotted alongside the reconstructed s2B for comparison
+		(Optional) The actual s2B signal.  If provied, it will be plotted alongside the reconstructed s2B for comparison. The anaylsis does not use it otherwise. 
 	numModes : int
 		The first N number of frequencies to use with the reconstruction.
 		If None, the code uses all frequencies.
@@ -36,6 +36,12 @@ def fftSignalReconstruct(s1A,s2A,s1B,s2B=None,numModes=None,plot=False):
 	-------
 	s2B_recon : pandas.core.series.Series
 		The reconstructed s2B signal.  Time series.
+		
+	Examples
+	--------
+	::
+		
+		# TODO write a few examples
 
 	"""
 	
@@ -57,7 +63,7 @@ def fftSignalReconstruct(s1A,s2A,s1B,s2B=None,numModes=None,plot=False):
 		tf_trimmed=trimFreqs(tf,numModes)
 	
 	# use tf and s2A to reconstruct s2B.  
-	s2B_recon=fftSignalReconstructFromTF(s1B,tf_trimmed,plot=True,s2=s2B)
+	s2B_recon=fftSignalReconstructFromTF(s1B,tf_trimmed,plot=plot,s2=s2B)
 
 	# (Optional) Plot
 	if plot==True:
