@@ -57,3 +57,46 @@ def loadSequentialImages(partialFileName):
 	return da
 
 
+
+def readTiffStack(filename, fps=1):
+	
+	"""
+	Reads a tiff stack and returns a xarray dataarray
+	
+	Note, this uses a less-than-ideal data loading method because it is more robust.  For example, I have needed to load int12 tiffs in the past, and other image loading functions have no idea what to do with int12. 
+	
+	References
+	----------
+	https://stackoverflow.com/questions/37722139/load-a-tiff-stack-in-a-numpy-array-with-python
+	
+	"""
+	
+	from PIL import Image
+	import xarray as xr
+	import numpy as np
+	
+	data=Image.open(filename)
+	
+	image=np.zeros(	(data.n_frames,
+					 np.shape(data)[0],
+					 np.shape(data)[1]),
+					dtype=np.array(data).dtype)	
+	
+	for i in range(data.n_frames):
+		data.seek(i)
+		image[i,:,:]=np.array(data)
+		
+	import numpy as _np
+	
+	time=np.arange(0,image.shape[0])/fps
+		
+	image = xr.DataArray(image, 
+						  dims=['time','y', 'x',],
+		                  coords={'x': _np.arange(0,image.shape[2],dtype=np.int16),
+						   'y': _np.arange(0,image.shape[1],dtype=np.int16),
+						   'time': time},
+						   )
+	
+	return image
+
+
