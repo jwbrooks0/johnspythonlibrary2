@@ -229,8 +229,8 @@ def correlationHeatmap(x,y,Z,xlabel='',ylabel='',showMax=True,cbarMinMax=None):
 	
 	
 	if type(cbarMinMax) != type(None):
-		vmin=0
-		vmax=1
+		vmin=cbarMinMax[0]
+		vmax=cbarMinMax[1]
 	else:
 		vmin=_np.nanmin(Z)
 		vmax=_np.nanmax(Z)
