@@ -7,8 +7,8 @@ import matplotlib.pyplot as _plt
 import matplotlib as _mpl
 
 
-import johnspythonlibrary2.Plot._plot as _plotMain
-import johnspythonlibrary2.Hbtep.Get._get as _get
+from johnspythonlibrary2.Plot import _plot as _plotMain
+from johnspythonlibrary2.Hbtep.Get import _get as _get
 
 	
 def stripeyPlot(	df,
