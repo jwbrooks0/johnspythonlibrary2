@@ -10,8 +10,8 @@ from johnspythonlibrary2.Hbtep.Process import leastSquareModeAnalysis as _leastS
 from johnspythonlibrary2.ReadWrite import readOdsToDF as _readOdsToDF
 from johnspythonlibrary2.ReadWrite import backupDFs as _backupDFs
 from johnspythonlibrary2.Process.Filters import gaussianFilter_df as _gaussianFilter_df
-import johnspythonlibrary2.Plot._plot as _plot
-import johnspythonlibrary2.Hbtep.Plot._plot as _plotHbt
+from johnspythonlibrary2.Plot import _plot as _plot
+from johnspythonlibrary2.Hbtep.Plot import _plot as _plotHbt
 from johnspythonlibrary2.Process.Pandas import filterDFByTime as _filterDFByTime
 from johnspythonlibrary2.Process.Pandas import filterDFByColOrIndex as _filterDFByColOrIndex
 
