@@ -868,7 +868,8 @@ def nModeData(	shotno,
 				tStop=_TSTOP,
 				sensor='TA',
 				modeNumbers=[0,-1,-2],
-				plot=False):
+				plot=False,
+				forceDownload=False):
 	"""
 	n mode analysis
 		
@@ -911,13 +912,13 @@ def nModeData(	shotno,
 										tStart=tStart,
 										tStop=tStop,
 										sensor='TA',
-										forceDownload=False)
+										forceDownload=forceDownload)
 	elif 'FB' in sensor:
 		_,df,dfMeta=magneticSensorData(shotno,
 								tStart=tStart,
 								tStop=tStop,
 								sensor='FB',
-								forceDownload=False)
+								forceDownload=forceDownload)
 		
 		from johnspythonlibrary2.Process.Misc import extractIntsFromStr
 		num=extractIntsFromStr(sensor)[0]
