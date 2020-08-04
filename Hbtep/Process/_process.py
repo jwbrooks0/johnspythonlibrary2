@@ -171,8 +171,12 @@ def removeMagneticOffsetWithCurrentReference(	dfArrayRaw,
 	
 	"""
 	
-	def filterSignalsWithProbePhasing(dfProbe,dfSignal,plot=False,title='',
-														timeFWHM=timeFWHM,shotno=0):
+	def filterSignalsWithProbePhasing(	dfProbe,
+										dfSignal,
+										plot=False,
+										title='',
+										timeFWHM=timeFWHM,
+										shotno=0):
 		
 		dfSignalOld=dfSignal
 		dfSignal=dfSignal.copy()
@@ -226,13 +230,16 @@ def removeMagneticOffsetWithCurrentReference(	dfArrayRaw,
 		
 		return dfResult
 
+	# clip data between 1.6e-3 and 10e-3
 	dfArrayRaw=_filterDFByTime(dfArrayRaw.copy(),1.6e-3,10e-3)
 	dfCurrent=_filterDFByTime(dfCurrent.copy(),1.6e-3,10e-3)
 	
+	# not used.  ignore
 	if spatialFilter==True:
 		for i,(key,val) in enumerate(dfArrayRaw.iterrows()):
 			dfArrayRaw.loc[key,:]=val-val.mean()
 	
+	# perform filter on each signal
 	dfFiltered=_pd.DataFrame(index=dfArrayRaw.index)
 	for i,(key,val) in enumerate(dfArrayRaw.iteritems()):
 		dfFiltered[key]=filterSignalsWithProbePhasing(dfCurrent,
