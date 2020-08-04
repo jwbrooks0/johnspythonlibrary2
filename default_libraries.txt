@@ -18,6 +18,8 @@ Pillow			# image handling
 glob3			# unix-like filenames.  includes using wildcards *
 sh				# shell scripting library
 deprecated		# has a decorator for flagging deprecated functions
+pathos			# multiprocessing sublibrary
+seaborn			# additional plotting functions
 
 ### I've also included a few of my favorite settings for my spyder environment.
 ### spyder settings
