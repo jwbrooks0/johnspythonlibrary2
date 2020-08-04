@@ -19,7 +19,52 @@ from johnspythonlibrary2.Plot import subTitle as _subtitle
 
 ###################################################################################
 #%% signal generation
-# various generated signals to test the following code
+# various generated signals to test code in this library
+
+
+def twoSpeciesWithBidirectionalCausality(N,tau_d=0,IC=[0.2,0.4],plot=False):
+	"""
+	Coupled two equation system with bi-directional causality.  
+	
+	Eq. 1 in Ye 2015
+
+	Reference
+	---------
+	Eq. 1 in https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4592974/
+	
+	
+	Examples
+	--------
+	
+	::
+	
+		N=3000
+		twoSpeciesWithBidirectionalCausality(N,plot=True)
+		twoSpeciesWithBidirectionalCausality(N,tau_d=2,plot=True)
+
+	"""
+	
+	N+=tau_d
+	
+	x=_np.zeros(N,dtype=float)
+	y=_np.zeros(N,dtype=float)
+	x[0:tau_d+1]=IC[0]
+	y[0:tau_d+1]=IC[1]
+	
+	for i in range(1+tau_d,N):
+		x[i]=x[i-1]*(3.78-3.78*x[i-1]-0.07*y[i-1])
+		y[i]=y[i-1]*(3.77-3.77*y[i-1]-0.08*x[i-1-tau_d])
+		
+	x=x[tau_d:]
+	y=y[tau_d:]
+		
+	if plot==True:
+		fig,ax=_plt.subplots()
+		ax.plot(x)
+		ax.plot(y)
+		
+	return _pd.Series(x),_pd.Series(y)
+
 
 
 def predatorPrey():
@@ -80,11 +125,14 @@ def solveLorentz(	N=2000,
 
 	args=[10,8/3.,28] # sigma, b, r
 	
+# 	print(T)
+	t_eval=_np.arange(0,T+dt,dt)
+# 	print(t_eval)
 	psoln = solve_ivp(	ODEs,
 						[0,T],
 						IC,  # initial conditions
 						args=args,
-						t_eval=_np.arange(0,T+dt,dt)
+						t_eval=t_eval
 						)
 	
 	x,y,z=psoln.y
@@ -100,10 +148,12 @@ def solveLorentz(	N=2000,
 		
 	if plot!=False:
 		fig,ax=_plt.subplots(3,sharex=True)
-		ax[0].plot(x,marker='.');ax[0].set_ylabel('x')
+		markersize=2
+		ax[0].plot(x,marker='.',markersize=markersize);ax[0].set_ylabel('x')
 		ax[0].set_title('Lorentz Attractor\n'+r'($\sigma$, b, r)='+'(%.3f, %.3f, %.3f)'%(args[0],args[1],args[2])+'\nIC = (%.3f, %.3f, %.3f)'%(IC[0],IC[1],IC[2]))
-		ax[1].plot(y,marker='.');ax[1].set_ylabel('y')
-		ax[2].plot(z,marker='.');ax[2].set_ylabel('z')
+		ax[1].plot(y,marker='.',markersize=markersize);ax[1].set_ylabel('y')
+		ax[2].plot(z,marker='.',markersize=markersize);ax[2].set_ylabel('z')
+		ax[2].set_xlabel('Time')
 		
 	if plot=='all':
 		_plt.figure();_plt.plot(x,y)
@@ -114,6 +164,11 @@ def solveLorentz(	N=2000,
 		fig = _plt.figure()
 		ax = fig.add_subplot(111, projection='3d')
 		ax.plot(x,y,zs=z)
+		ax.set_xlabel('x')
+		ax.set_ylabel('y')
+		ax.set_zlabel('z')		
+		ax.set_title('Lorentz Attractor\n'+r'($\sigma$, b, r)='+'(%.3f, %.3f, %.3f)'%(args[0],args[1],args[2])+'\nIC = (%.3f, %.3f, %.3f)'%(IC[0],IC[1],IC[2]))
+		
 		
 	return x,y,z
 
@@ -456,9 +511,11 @@ def applyForecast(s,dfY,keys,weights,T,plot=False):
 		dfTActual, dfTGuess=applyForecast(s,Py,keys,weights,T=10,plot=True)
 	
 	"""
+	# TODO update so that T starts at 0 instead of 1
+	
 	index=dfY.index.values[:-T]
 	dfTActual=_pd.DataFrame(index=index,dtype=float)
-	for key in range(1,1+T):
+	for key in range(0,1+T):
 		dfTActual[key]=s.loc[index+key].values	
 	dfTGuess=_pd.DataFrame(index=dfTActual.index,columns=dfTActual.columns,dtype=float)
 	
@@ -1176,12 +1233,15 @@ def calcCorrelationCoefficient(data,fit,plot=False):
 	
 	Reference
 	---------
-	https://mathworld.wolfram.com/CorrelationCoefficient.html
+	Eq. 22 in https://mathworld.wolfram.com/CorrelationCoefficient.html
 	
 	Examples
 	--------
 	Example 1::
 		
+		## Test for positive correlation.  Simple.
+		
+		import numpy as np
 		f=2e3
 		t=np.arange(0,1e-3,2e-6)
 		y1=np.sin(2*np.pi*f*t)
@@ -1189,6 +1249,8 @@ def calcCorrelationCoefficient(data,fit,plot=False):
 		calcCorrelationCoefficient(y1,y2,plot=True)
 		
 	Example 2::
+		
+		## Test for two cases at once.  
 		
 		f=2e3
 		t=np.arange(0,1e-3,2e-6)
@@ -1204,6 +1266,17 @@ def calcCorrelationCoefficient(data,fit,plot=False):
 		df1['y3']=y3
 		df2['y4']=y4
 		calcCorrelationCoefficient(df1,df2,plot=True)
+		
+	Example 3::
+		
+		## Test for negative correlation.  Opposite of Example 1.
+		
+		import numpy as np
+		f=2e3
+		t=np.arange(0,1e-3,2e-6)
+		y1=np.sin(2*np.pi*f*t)
+		y2=-y1+(np.random.rand(len(t))-0.5)*0.1
+		calcCorrelationCoefficient(y1,y2,plot=True)
 	"""
 	if type(data)==_pd.core.frame.Series or type(data)==_np.ndarray:
 		data=_pd.DataFrame(data)
@@ -1221,7 +1294,10 @@ def calcCorrelationCoefficient(data,fit,plot=False):
 		SSxy=((f-f.mean())*(y-y.mean())).sum()
 		SSxx=((f-f.mean())**2).sum()
 		SSyy=((y-y.mean())**2).sum()
-		rho[i]=SSxy**2/(SSxx*SSyy)
+		rho[i]=SSxy/_np.sqrt(SSxx*SSyy) # r-squared value
+# 		rho[i]=SSxy**2/(SSxx*SSyy) # r-squared value
+		
+# 		rho[i]=_np.sqrt(rho[i]) # pearson correlation is sqrt(r^2)=r
 	
 		if plot==True:
 			fig,ax=_plt.subplots()
@@ -1341,6 +1417,7 @@ def forecast(s,E,T,tau=1,knn=None,plot=False,weightingMethod=None,showTime=False
 		
 		forecast(s,E,T,tau,knn,True)
 	"""
+	#TODO start at T=0 instead of T=1
 
 	N=s.shape[0]
 	
@@ -1839,8 +1916,181 @@ def SMIReconstruction(	s1A,
 	return s2B_recon,rho
 	
 
+
+def ccm(	s1A,
+			s1B,
+			s2A,
+			s2B,
+			E,
+			tau,
+			knn=None,
+			plot=True,
+			removeOffset=False):
+	
+	"""
+	
+	Examples
+	--------
+	
+	Example1::
+		
+		# lorentz equations
+		N=1000
+		x,y,z=solveLorentz(N=N-1,plot=False)
+		
+		# add noise
+		x+=_np.random.normal(0,x.std()/1,x.shape[0])
+		
+		# prep data
+		A=x[0:N//2]
+		B=x[N//2:N]
+		s1A=_pd.Series(A)
+		s1B=_pd.Series(B)
+		
+		# call function
+		rho=ccm(s1A,s1B,E=3,tau=1,plot=True)
+		
+			
+	"""
+	
+	
+	# make sure data is in pandas series format
+	if type(s1A) != _pd.core.series.Series:
+		raise Exception('s1A should be in Pandas series format')
+	if type(s1B) != _pd.core.series.Series:
+		raise Exception('s1B should be in Pandas series format')
+	if type(s2A) != _pd.core.series.Series:
+		raise Exception('s2A should be in Pandas series format')
+	if type(s2B) != _pd.core.series.Series:
+		raise Exception('s2B should be in Pandas series format')
+	
+	# define number of nearest neighbors if not previously defined
+	if type(knn)==type(None):
+		knn=E+1	# simplex method
+		
+	# reset the index to integers (this ensures all indices are the same and prevents issues with combining Series with possibly different indices in the future)
+	s1A.index=_np.arange(0,s1A.shape[0],dtype=int)
+	s1B.index=_np.arange(0,s1B.shape[0],dtype=int)
+	s2A.index=_np.arange(0,s2A.shape[0],dtype=int)
+	s2B.index=_np.arange(0,s2B.shape[0],dtype=int)
+		
+	# remove offset
+	if removeOffset==True:
+		s1A=s1A.copy()-s1A.mean()
+		s1B=s1B.copy()-s1B.mean()
+		s2A=s2A.copy()-s2A.mean()
+		s2B=s2B.copy()-s2B.mean()
+		
+	# convert to time-lagged space
+	P1A=convertToTimeLaggedSpace(s1A, E, tau)
+	P1B=convertToTimeLaggedSpace(s1B, E, tau)	
+	P2A=convertToTimeLaggedSpace(s2A, E, tau)
+	P2B=convertToTimeLaggedSpace(s2B, E, tau)	
+		
+	## A to B
+	keys,weights=createMap(P1A.copy(),P1B.copy(),knn)
+	s2B_recon=reconstruct(s2A.copy(),keys,weights)
+	rho_2B=calcCorrelationCoefficient(s2B[(E-1)*tau:],s2B_recon)	
+	
+	## B to A
+	keys,weights=createMap(P2A.copy(),P2B.copy(),knn)
+	s1B_recon=reconstruct(s1A.copy(),keys,weights)
+	rho_1B=calcCorrelationCoefficient(s1B[(E-1)*tau:],s1B_recon)	
+	
+	if plot==True:
+		fig,ax=_plt.subplots(1,2,sharex=True,sharey=True)
+		ax[0].plot(s1B[(E-1)*tau:],s1B_recon,linestyle='',marker='.')
+		ax[1].plot(s2B[(E-1)*tau:],s2B_recon,linestyle='',marker='.')
+		ax[0].set_aspect('equal')
+		ax[1].set_aspect('equal')
+		ax[0].plot([0,1],[0,1])
+		ax[1].plot([0,1],[0,1])
+		
+	return rho_1B, rho_2B
+
 ###################################################################################
 #%% exterior functions - functions that call the main functions
+
+
+def eccm(s1,s2,E,tau,tau_d=0,lagRange=_np.arange(-8,6.1,2)):
+	
+	N=3000
+# 	tau_d=0
+	lagRange=(_np.arange(-8,6.1,1)).astype(int)
+	E=2
+	tau=1
+	
+	results=_pd.DataFrame()
+	tau_d=10
+	for lag in lagRange:
+		
+		s1,s2=twoSpeciesWithBidirectionalCausality(N=N+_np.abs(lag),tau_d=tau_d,plot=False)
+		s1=s1[2000:]
+		s2=s2[2000:]
+		
+		
+		if lag>0:
+			s1=s1[lag:].reset_index(drop=True)
+			s2=s2[:-lag]
+		elif lag<0:
+			s1=s1[:lag]
+			s2=s2[-lag:].reset_index(drop=True)
+			
+		s1=s1
+		rho_12=ccm(s1,s2,E=E,tau=tau,plot=False)
+		results.at[lag,'12']=rho_12
+		rho_21=ccm(s2,s1,E=E,tau=tau,plot=False)
+		results.at[lag,'21']=rho_21
+		
+	fig,ax=_plt.subplots()
+	ax.plot(results['12'])
+	ax.plot(results['21'])
+	
+	
+
+def ccmScan(s,E,tau,Nrange,plot=False):
+	"""
+
+	Examples
+	--------
+	
+	Example1::
+		
+		# Lorentz data
+		Nmax=100000
+		Narray=(10**_np.arange(2,_np.log10(Nmax)+1e-4,0.05)).astype(int)
+		x,y,z=solveLorentz(N=Nmax,plot=False)
+		
+		# add noise to Lorentz data
+		x+=_np.random.normal(0,x.std()/1,x.shape[0])
+		
+		# call function
+		ccmScan(_pd.Series(x),E=3,tau=2,Nrange=Narray,plot=True)
+
+	"""
+	
+	results=_pd.DataFrame()
+	for N in Nrange:
+		
+		A=s[0:N//2]
+		B=s[N//2:N]
+		
+		s1A=_pd.Series(A)
+		s1B=_pd.Series(B)
+		
+		rho=ccm(s1A,s1B,E=E,tau=tau,plot=False)
+		results.at[N,'rho']=rho
+		print(N,rho)
+		
+	if plot==True:
+		fig,ax=_plt.subplots()
+		ax.semilogx(results)
+		ax.semilogx(Nrange,_np.ones(Nrange.shape),linestyle='--',color='grey')
+		ax.set_xlabel('N')
+		ax.set_ylabel('Pearson correlation')
+
+	return results
+
 
 
 # def SMIParameterScan(sA1,sA2,sB1,ERange,tauRange,sB2=None,plot=False):
@@ -2035,442 +2285,601 @@ def determineDimensionality(s,T,tau=1,Elist=_np.arange(1,10+1),method="simplex",
 
 ###################################################################################
 #%% Examples
-# TODO this section needs to be overhauled
+
+def example_sugihara1990():
+	"""
+	Forecasting example from Sugihara's 1990 paper.
+	This function runs through a few cases and shows many of the intermediate
+	steps in order to help better understand how the forecasting actually works.
+
+
+	"""
+	#TODO add a tau>1 case
+	
+	import matplotlib.pyplot as plt
+	import johnspythonlibrary2 as jpl2
+	import numpy as np
+
+	N=100
+	s=createTentMap(N=N)
+	sx=s[:N//2]
+	sy=s[N//2:]
+
+	
+	if True:
+		# input signal data
+		fig,ax=plt.subplots()
+		ax.plot(sx,label='A',marker='x',markersize=4)
+		ax.plot(sy,label='B',marker='+',markersize=4)
+		jpl2.Plot.finalizeSubplot(	ax,
+									xlabel='Time',
+									ylabel=r'$\Delta$x',
+									title='Input signal, split in half (A and B)')
+		fig.savefig('sugihara1990_figure1_inputdata.png')
+		
+	if True:
+		# E=2 state space
+		E=2
+		tau=1
+		
+		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
+		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
+		
+		fig,ax=plt.subplots()
+		ax.plot(Px[0],Px[-1],linestyle='',marker='x',label='A')
+		ax.plot(Py[0],Py[-1],linestyle='',marker='+',markerfacecolor='none',label='B')
+	
+		jpl2.Plot.finalizeSubplot(	ax,
+							xlabel='x(t)',
+							ylabel='x(t-1)',
+							title='E=2, time-lagged space')
+		fig.savefig('sugihara1990_figure2_E2_timelagspace.png')
+		
+		
+	if True:
+		
+		E=3
+		tau=1
+		
+		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
+		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
+		
+		from mpl_toolkits.mplot3d import Axes3D
+		
+		fig = plt.figure()
+		ax = fig.add_subplot(111, projection='3d')
+		ax.scatter(xs=Px[0].values.astype(np.float32),ys=Px[-1].values.astype(np.float32),zs=Px[-2].values.astype(np.float32),marker='x',label='A',linewidths=1.5)
+		ax.scatter(xs=Py[0].values.astype(np.float32),ys=Py[-1].values.astype(np.float32),zs=Py[-2].values.astype(np.float32),marker='+',edgecolor='tab:blue',label='B',linewidths=2)
+		ax.set_xlabel('x(t)')
+		ax.set_ylabel('x(t-1)')
+		ax.set_zlabel('x(t-2)')
+		ax.view_init(elev=27., azim=18.)
+		ax.legend()
+		ax.set_title('E=3, time-lagged space')
+		fig.savefig('sugihara1990_figure2_E3_timelagspace.png')
+		
+		
+	E=2
+	knn=E+1
+	tau=1
+	
+	Px=convertToStateSpace(sx,E=E,tau=tau)[0]
+	Py=convertToStateSpace(sy,E=E,tau=tau)[0]
+	keys,weights=createMap(Px,Py,knn=knn)
+	
+	if True:
+		
+		fig,ax=plt.subplots()
+		ax.plot(Px[0],Px[-1],linestyle='',marker='x',label='A')
+		ax.plot(Py[0],Py[-1],linestyle='',marker='+',markerfacecolor='none',label='B')
+		
+		key=70 #55 52
+		ax.plot(Py.loc[key][0],Py.loc[key][-1],'tab:red',marker='o',markersize=10,markeredgewidth=3,linewidth=2,label='Point in question',linestyle='',markerfacecolor='none')
+		for i in range(knn):
+			k=keys.loc[key,i]
+			label=''
+			if i==0:
+				label='E+1 neareast neighbors'
+			ax.plot(Px.loc[k][0],Px.loc[k][-1],'tab:orange',marker='s',markersize=7,markeredgewidth=2,linewidth=2,label=label,markerfacecolor='none',linestyle='')
+			
+# 			Px[]
+		jpl2.Plot.finalizeSubplot(	ax,
+							xlabel='x(t)',
+							ylabel='x(t-1)',
+							title='E=2, time-lagged space.  Point in question with E+1 nearest neighbors.')
+		fig.savefig('sugihara1990_figure3_nearestneighbors_timelagspace.png')
+		
+	
+	if True:
+		
+		fig,ax=plt.subplots()
+		ax.plot(sx,linestyle='-',marker='s',label='A',markersize=3)
+		ax.plot(sy,linestyle='-',marker='o',label='B',markersize=3)
+		
+		key=70 #112 115
+		ax.plot([key-1,key],[sy.loc[key-1],sy.loc[key]],'tab:red',marker='o',markersize=5,markeredgewidth=1.5,linewidth=1.5,label='Point in question',linestyle='-',markerfacecolor='none')
+		for i in range(knn):
+			k=keys.loc[key,i]
+			label=''
+			if i==0:
+				label='E+1 neareast neighbors'
+			ax.plot([k-1,k],[sx.loc[k-1],sx.loc[k]],'tab:orange',marker='s',markersize=5,markeredgewidth=1.5,linewidth=1.5,label=label,markerfacecolor='none',linestyle='-')
+
+		jpl2.Plot.finalizeSubplot(	ax,
+									xlabel='Time',
+									ylabel=r'$\Delta$x',
+									title='E=2, time-domain. Point in question with E+1 nearest neighbors.',
+									xlim=[0,80])
+									
+		fig.savefig('sugihara1990_figure3_nearestneighbors_time_z.png')
+		
+	if True:
+		dic_recon=forecast(s,E=E,T=10,plot=True)
+		fig=plt.gcf()		
+		fig.savefig('sugihara1990_figure4_forecast_analysis.png')
+		
+		
+		
+		fig,ax=plt.subplots()
+		ax.plot(sx,linestyle='-',marker='s',label='A',markersize=3)
+		ax.plot(sy,linestyle='-',marker='o',label='B',markersize=3)
+		
+		key=70 #112 115
+		ax.plot([key-1,key],[sy.loc[key-1],sy.loc[key]],'tab:red',marker='o',markersize=5,markeredgewidth=1.5,linewidth=1.5,label='Point in question',linestyle='-',markerfacecolor='none')
+
+		for i in range(knn):
+			k=keys.loc[key,i]
+			label=''
+			label2=''
+			if i==0:
+				label='E+1 neareast neighbors'
+				label2='Data for forecast'
+			ax.plot([k-1,k],[sx.loc[k-1],sx.loc[k]],'tab:orange',marker='s',markersize=5,markeredgewidth=1.5,linewidth=1.5,label=label,markerfacecolor='none',linestyle='-')
+			ax.plot([k+1],[s.loc[k+1]],'tab:green',marker='s',markersize=5,markeredgewidth=2,linewidth=1.5,label=label2,markerfacecolor='none',linestyle='')
+
+		dfFutureForecast=dic_recon['dfFutureActual']
+		
+		for i in [1]:#dfFutureForecast.columns.values:
+			ax.plot(key+i,dfFutureForecast.at[key,i],linestyle='',marker='o',color='lime',markerfacecolor='none',markeredgewidth=2,markersize=5)
+
+		jpl2.Plot.finalizeSubplot(	ax,
+									xlabel='Time',
+									ylabel=r'$\Delta$x',
+									title='Forecast 1 step.',
+									xlim=[0,80])
+									
+		fig.savefig('sugihara1990_figure4_forecast_1.png')
+		
+		fig,ax=plt.subplots()
+		ax.plot(sx,linestyle='-',marker='s',label='A',markersize=3)
+		ax.plot(sy,linestyle='-',marker='o',label='B',markersize=3)
+		
+		key=70 #112 115
+		ax.plot([key-1,key],[sy.loc[key-1],sy.loc[key]],'tab:red',marker='o',markersize=5,markeredgewidth=1.5,linewidth=1.5,label='Point in question',linestyle='-',markerfacecolor='none')
+
+		for i in range(knn):
+			k=keys.loc[key,i]
+			label=''
+			label2=''
+			if i==0:
+				label='E+1 neareast neighbors'
+				label2='Data for forecast'
+			ax.plot([k-1,k],[sx.loc[k-1],sx.loc[k]],'tab:orange',marker='s',markersize=5,markeredgewidth=1.5,linewidth=1.5,label=label,markerfacecolor='none',linestyle='-')
+# 			ax.plot([k+1],[s.loc[k+1]],'tab:green',marker='s',markersize=5,markeredgewidth=2,linewidth=1.5,label=label2,markerfacecolor='none',linestyle='')
+
+		dfFutureForecast=dic_recon['dfFutureActual']
+		
+		for i in dfFutureForecast.columns.values:
+			c='lime'
+			label=''
+			if i==0:
+				c='tab:purple'
+				label='Reconstruction'
+			elif i==1:
+				label='Forecast'
+			ax.plot(key+i,dfFutureForecast.at[key,i],linestyle='',marker='o',color=c,markerfacecolor='none',markeredgewidth=2,markersize=5,label=label)
+		
+		jpl2.Plot.finalizeSubplot(	ax,
+									xlabel='Time',
+									ylabel=r'$\Delta$x',
+									title='Forecast 10 steps.',
+									xlim=[0,80])
+									
+		fig.savefig('sugihara1990_figure4_forecast_10.png')
+		
+		
+		
+	if True:
+		
+		E=4
+		knn=E+1
+		tau=1
+		
+		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
+		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
+		keys,weights=createMap(Px,Py,knn=knn)
+		
+		dic_recon=forecast(s,E=E,T=10,plot=True)
+		
+		fig,ax=plt.subplots()
+		ax.plot(sx,linestyle='-',marker='s',label='A',markersize=3)
+		ax.plot(sy,linestyle='-',marker='o',label='B',markersize=3)
+		
+		key=70 #112 115
+		ax.plot(np.arange(key-E+1,key+1),sy.loc[key-E+1:key],'tab:red',marker='o',markersize=5,markeredgewidth=1.5,linewidth=1.5,label='Point in question',linestyle='-',markerfacecolor='none')
+
+		for i in range(knn):
+			k=keys.loc[key,i]
+			label=''
+			label2=''
+			if i==0:
+				label='E+1 neareast neighbors'
+				label2='Data for forecast'
+			ax.plot(np.arange(k-E+1,k+1),sx.loc[k-E+1:k],'tab:orange',marker='s',markersize=5,markeredgewidth=1.5,linewidth=1.5,label=label,markerfacecolor='none',linestyle='-')
+			ax.plot([k+1],[s.loc[k+1]],'tab:green',marker='s',markersize=5,markeredgewidth=2,linewidth=1.5,label=label2,markerfacecolor='none',linestyle='')
+
+		dfFutureForecast=dic_recon['dfFutureActual']
+		
+		for i in [1]:#dfFutureForecast.columns.values:
+			ax.plot(key+i,dfFutureForecast.at[key,i],linestyle='',marker='o',color='lime',markerfacecolor='none',markeredgewidth=2,markersize=5)
+
+		jpl2.Plot.finalizeSubplot(	ax,
+									xlabel='Time',
+									ylabel=r'$\Delta$x',
+									title='E=4.  Forecast 1 step.',
+									xlim=[0,80])
+									
+		fig.savefig('sugihara1990_figure5_forecast_1_E4.png')
+		
+		
+	if True:
+		
+		
+		N=1000
+		s=createTentMap(N=N)
+		sx=s[:N//2]
+		sy=s[N//2:]
+
+		fig,ax=plt.subplots()
+		
+		ERange=np.arange(2,10)
+			
+		for E in ERange:
+			knn=E+1
+			tau=1
+			
+			Px=convertToStateSpace(sx,E=E,tau=tau)[0]
+			Py=convertToStateSpace(sy,E=E,tau=tau)[0]
+			keys,weights=createMap(Px,Py,knn=knn)
+			
+			dic_recon=forecast(s,E=E,T=10,plot=False)
+			
+			ax.plot(dic_recon['dfRho'],label='E=%d'%E,marker='.')
+		
+		jpl2.Plot.finalizeSubplot(ax,	
+									xlabel='T (Forecast steps into the future)',
+									ylabel='Correlation',
+									title='Scan of E and forecast steps (T). \nN=%d, knn=%s, tau=%d'%(N,'E+1',tau))
+	
+		fig.savefig('sugihara1990_figure6_forecast_E_and_T_scan.png')
+
+
+
+	if True:
+		
+		import matplotlib.pyplot as plt
+			
+		N=100
+		s=createTentMap(N=N)
+		sx=s[:N//2]
+		sy=s[N//2:]
+		
+			
+		E=3
+		knn=E+1
+		tau=2
+		
+		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
+		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
+		keys,weights=createMap(Px,Py,knn=knn)
+		
+
+		dic_recon=forecast(s,E=E,T=10,plot=False)
+		fig=plt.gcf()		
+# 		fig.savefig('sugihara1990_figure4_forecast_analysis.png')
+		
+		
+		dfFutureForecast=dic_recon['dfFutureActual']
+		
+		fig,ax=plt.subplots()
+		ax.plot(sx,linestyle='-',marker='s',label='A',markersize=3)
+		ax.plot(sy,linestyle='-',marker='o',label='B',markersize=3)
+		
+		key=70 #112 115
+		ax.plot([key-4,key-2,key],[sy.loc[key-4],sy.loc[key-2],sy.loc[key]],'tab:red',marker='o',markersize=5,markeredgewidth=1.5,linewidth=1.5,label='Point in question',linestyle='-',markerfacecolor='none')
+
+		for i in range(knn):
+			k=keys.loc[key,i]
+			label=''
+			label2=''
+			if i==0:
+				label='E+1 neareast neighbors'
+				label2='Data for forecast'
+			ax.plot([k-4,k-2,k],[sx.loc[k-4],sx.loc[k-2],sx.loc[k]],'tab:orange',marker='s',markersize=5,markeredgewidth=1.5,linewidth=1.5,label=label,markerfacecolor='none',linestyle='-')
+			ax.plot([k+1],[s.loc[k+1]],'tab:green',marker='s',markersize=5,markeredgewidth=2,linewidth=1.5,label=label2,markerfacecolor='none',linestyle='')
+
+		dfFutureForecast=dic_recon['dfFutureActual']
+		
+		for i in [1]:#dfFutureForecast.columns.values:
+			ax.plot(key+i,dfFutureForecast.at[key,i],linestyle='',marker='o',color='lime',markerfacecolor='none',markeredgewidth=2,markersize=5)
+
+		jpl2.Plot.finalizeSubplot(	ax,
+									xlabel='Time',
+									ylabel=r'$\Delta$x',
+									title='E=3. Tau=2. Forecast 1 step.',
+									xlim=[0,80])
+									
+		fig.savefig('sugihara1990_figure7_forecast_1_E3_tau2.png')
+		
+		
+		
+def example_lorentzAttractor_reconstruction():
 	
 
-# def example5():
-# 	""" work in progress """
-# 	import xarray as xr
-# 	import numpy as np
-# 	Earray=np.arange(2,20)
-# 	Tarray=np.arange(1,100)
-# 	Tauarray=np.arange(1,2)
-# 	da = xr.DataArray(
-# 					  dims=['E', 'T','tau'],
-# 	                  coords={'E': Earray,
-# 					   'T': Tarray,
-# 					   'tau': Tauarray,}
-# 					   )
-# 	def sigGen(t,phase=0):
-# 		return _pd.Series(_np.sin(2*_np.pi*0.13e-1*t+phase))
-# 	
-# 	
-# 	plot=False
-# 	t=_np.arange(0,1001)
-# 	syA=sigGen(t)
-# 	sxA=syA*0.5+_np.random.uniform(-1,1,t.shape)*0.1
-# #	sxA=sx[:sx.shape[0]//2]
-# #	syA=sy[:sy.shape[0]//2]
-# 	
-# 	for i,E in enumerate(Earray):
-# 		for j,T in enumerate(Tarray):
-# 			for k,tau in enumerate(Tauarray):
-# 				
-# #	E=5
-# #	T=10
-# #	tau=1
-# 				dic=main(sxA,E=E,T=T,sy=syA,tau=tau,method='simplex',plot=False,weightingFunction='default')
-# 				dfTActual=dic['dfTActual']
-# 				dfTGuess=dic['dfTGuess']
-# 				if plot:
-# 					fig,ax=_plt.subplots()
-# 					ax.plot(sxA)
-# 					ax.plot(dfTGuess['1'])
-# 					
-# 			
-# 				syB=sigGen(t,_np.pi/2)
-# 				sxB=syB*0.5+_np.random.uniform(-1,1,t.shape)*0.1
-# 				
-# 				dfY=convertToStateSpace(sxB,E=E,tau=tau)
-# 				
-# 				dfTActual,dfTGuess=forecast(sxB,dfY,dic['keysOfNearestNeighbors'],dic['weights'],T=1)
-# 				if plot:
-# 					fig,ax=_plt.subplots()
-# 					ax.plot(sxB)
-# 					ax.plot(dfTGuess)
-# 				
-# 				dfTGuess=dfTGuess.dropna()
-# 				dfTActual=dfTActual.loc[dfTGuess.index]
-# 				
-# 				rho=correlationCoefficient(	dfTActual.values.reshape(-1),
-# 									dfTGuess.values.reshape(-1))
-# 	
-# 				da.loc[E,T,tau]=rho
-# 	
-# 	
-# def example6():
-# # if True:
-# 	""" frequency sweep with noise """
-# 	# clean up.  maybe more work in the future
-# 	
-# 	import numpy as np
-# # 	from scipy.signal import chirp
-# 	t=np.arange(0,10000)
- 	
-# 	def genSig(t,f0,f1,phi=0,seed=1,tStep=1000):
-# 		
-# 		def chirp(t,fi,ff,phi):
-# 			print(t[0],t[-1],fi,ff,phi)
-# 			c=(ff-fi)/(t[-1]-t[0])
-# 			phase=phi+2*np.pi*(c/2.0*(t-t[0])**2+fi*(t-t[0]))
-# 			return np.sin(phase),phase[-1]
-# 		
-# 		y=np.zeros(t.shape)
-# 		for i in range(len(t)//tStep):
-# 			ti=t[i*tStep:(i+1)*tStep]
-# 			if np.mod(i,2)==0:
-# 				print(i)
-# 				f_a=f0*1.0
-# 				f_b=f1*1.0
-# 			else:
-# 				f_b=f0*1.0
-# 				f_a=f1*1.0
-# # 			yi=chirp(ti-ti[0],f_b,ti[-1]-ti[0],f_a,method='linear',phi=phi)
-# 			yi,phi=chirp(ti,f_b,f_a,phi=phi)
-# 			y[i*tStep:(i+1)*tStep]=yi
-# 		np.random.seed(seed)
-# 		noise=np.random.uniform(-1,1,len(t))*0.2
-# 		return noise+y
-# # 		return y
-# 	
-# 	y1=genSig(t,0.6e-2,0.1e-2,phi=0,seed=0)
-# # 	plt.figure()
-# # 	plt.plot(y1)
+	import matplotlib.pyplot as plt
+	import numpy as np
+	import johnspythonlibrary2 as jpl2
+	
+	N=2000-1
+	x,y,z=solveLorentz(N=N,plot=True)
+	
+	N+=1
+	x=x[N//2:]
+	y=y[N//2:]
+	z=z[N//2:]
+	if True:
+		fig=plt.gcf()
+		fig.get_axes()[0].set_xlim(N//2,N)
+		fig.savefig('lorentzReconstruction_figure1_time.png')
+	
+	if True:
+		_,_,_=solveLorentz(N=N,plot='all')
+		fig=plt.gcf()
+		fig.savefig('lorentzReconstruction_figure1_statespace.png')
+
+	N=N//2
+	s1A=_pd.Series(x[:N//2])
+	s1B=_pd.Series(x[N//2:])
+	s2A=_pd.Series(z[:N//2])
+	s2B=_pd.Series(z[N//2:])
+	
+	if True:
+		fig,ax=plt.subplots(2,2)
+		ax[0,0].plot(np.arange(0,N//2),s1A,label='Original')
+		ax[0,1].plot(np.arange(N//2,N),s1B,label='Original')#,color='tab:blue')
+		ax[1,0].plot(np.arange(0,N//2),s2A,label='Original')
+		ax[1,1].plot(np.arange(N//2,N),s2B,label='Original')#,color='tab:blue')
+		
+		jpl2.Plot.finalizeSubplot(	ax[0,0],
+									subtitle='x A (first half)',
+									legendOn=False,
+									xlim=[0,N//2-1],
+									ylabel='x',
+									title='A')
+		jpl2.Plot.finalizeSubplot(	ax[0,1],
+									subtitle='x B (second half)',
+									legendOn=False,
+									xlim=[N//2,N],
+									title='B')
+		jpl2.Plot.finalizeSubplot(	ax[1,0],
+									subtitle='z A (first half)',
+									legendOn=False,
+									xlabel='Time',
+									xlim=[0,N//2-1],
+									ylabel='z',)
+		jpl2.Plot.finalizeSubplot(	ax[1,1],
+									subtitle='z B (second half)',
+									legendOn=False,
+									xlabel='Time',
+									xlim=[N//2,N])
+		ax[0,1].set_yticklabels([''])
+		ax[1,1].set_yticklabels([''])
+		ax[0,0].set_xticklabels([''])
+		ax[0,1].set_xticklabels([''])
+		fig.subplots_adjust(wspace=0.05,hspace=0.05)
+		fig.suptitle('Take x and z signals and split in half (A and B)')
+	
+		fig.savefig('lorentzReconstruction_figure2_breakupData.png')
+		
+	E=3
+	tau=1
+	
+	P1A=convertToTimeLaggedSpace(s1A, E=E, tau=tau)
+	P1B=convertToTimeLaggedSpace(s1B, E=E, tau=tau)
+	
+	keys,weights = createMap(P1A,P1B,knn=E+1)
+	
+	s1B_recon=reconstruct(s1A,keys,weights)
+	s1B_recon_rho=calcCorrelationCoefficient(s1B[E-1:],s1B_recon)
+	if True:
+		ax[0,1].plot(np.arange(N//2+E-1,N),s1B_recon,color='tab:blue',label='Reconstruction')
+		jpl2.Plot.finalizeSubplot(	ax[0,1],
+									subtitle='x B (second half). rho=%.3f'%s1B_recon_rho,
+									legendOn=True,
+									xlim=[N//2,N],
+									title='B',
+									legendLoc='lower right')
+		fig.suptitle('For each point in x_B, use x_A to predict (reconstruct) x_B.\nThis provides a map from x_A to x_B with a near perfect reconstruction.\nE=%d, tau=%d, N=%d'%(E,tau,N//2))
+		fig.savefig('lorentzReconstruction_figure3_createMap.png')
+		
+		
+		
+	
+	s2B_recon=reconstruct(s2A,keys,weights)
+	s2B_recon_rho=calcCorrelationCoefficient(s2B[E-1:],s2B_recon)
+	if True:
+		ax[1,1].plot(np.arange(N//2+E-1,N),s2B_recon,color='tab:blue',label='Reconstruction')
+		jpl2.Plot.finalizeSubplot(	ax[1,1],
+									subtitle='z B (second half). rho=%.3f'%s2B_recon_rho,
+									legendOn=True,
+									xlim=[N//2,N],
+									xlabel='Time',
+									legendLoc='lower right')
+		fig.suptitle('Apply this same map to z_A to predict (reconstruct) z_B.\n The correlation for z_B_recon is almost as good as x_B_recon.\nE=%d, tau=%d, N=%d'%(E,tau,N//2))
+		fig.savefig('lorentzReconstruction_figure4_applyMap2.png')
+		
+		
+	if True:
+		
+		import pandas as pd
+		import numpy as np
+		
+		N=3000
+		dt=0.025
+		
+		# solve Lorentz equations with one set of ICs
+		x,y,z=solveLorentz(N=N,dt=dt)
+		s1A=pd.Series(x)
+		s2A=pd.Series(z)
+		
+		# solve Lorentz equations with a second set of ICs
+		x,y,z=solveLorentz(N=N,dt=dt,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3])
+		s1B=pd.Series(x)
+		s2B=pd.Series(z)
+		
+		# perform reconstruction with a parameter scan of E and tau 
+		ERange=np.arange(2,13+1,1)
+		tauRange=np.arange(1,100+1)
+		df=SMIParameterScan2(s1A=s1A,s2A=s2A,s1B=s1B, s2B=s2B,ERange=ERange,tauRange=tauRange,plot=True)
+		fig=plt.gcf()
+		ax=fig.get_axes()
+		ax[0].set_title('Scan E and tau for an optimal solution.\nN=%d'%(N))
+		fig.savefig('lorentzReconstruction_figure5_EAndTauScan.png')
+		
+		return df
+		
+	
+	
+def example_sugihara2012():
+	
+	"""
+	Reconstruction of the figure's in Sugihara's 2012 paper on CCM
+	"""
+	
+	print('work in progress')
+	
+	import numpy as np
+	import pandas as pd
+	import matplotlib.pyplot as plt
+	
+		
+		
+	def function(N,rx=3.8,ry=3.5,Bxy=0.02,Byx=0.1, IC=[0.2,0.4],plot=False):
+		x=np.zeros(N,dtype=float)
+		y=np.zeros(N,dtype=float)
+		x[0]=IC[0]
+		y[0]=IC[1]
+		
+		for i in range(0,N-1):
+			x[i+1]=x[i]*(rx-rx*x[i]-Bxy*y[i])
+			y[i+1]=y[i]*(ry-ry*y[i]-Byx*x[i])
+			
+		if plot==True:
+			fig,ax=plt.subplots()
+			ax.plot(x)
+			ax.plot(y)
+		
+		return x,y
+	
+	
+	## Figure 3A
+	if True:
+		results=pd.DataFrame()
+		for N in np.arange(20,3501,20).astype(int):
+			
+			x,y=function(N,rx=3.8,ry=3.5,Bxy=0.02,Byx=0.1,IC=[0.2,0.4],plot=False)
+			
+			s1A=pd.Series(x[:N//2])
+			s1B=pd.Series(x[N//2:])
+			s2A=pd.Series(y[:N//2])
+			s2B=pd.Series(y[N//2:])
+			
+			E=2
+			tau=1
+			if N==1000:
+				plot=False
+			else:
+				plot=False
+			
+			rho_1B, rho_2B = ccm(s1A,s1B,s2A,s2B,E=E,tau=tau,plot=plot)
+		
+			results.at[N,'rho_2B']=rho_2B
+			results.at[N,'rho_1B']=rho_1B
+			
+			
+		fig,ax=plt.subplots()
+		ax.plot(results.rho_2B)
+		ax.plot(results.rho_1B)
+		
+	## Figure 3C and 3D
+	if True:
+		N=1000
+		
+		x,y=function(N,rx=3.7,ry=3.7,Bxy=0.0,Byx=0.32,IC=[0.2,0.4],plot=False)
+		
+		s1A=pd.Series(x[:N//2])
+		s1B=pd.Series(x[N//2:])
+		s2A=pd.Series(y[:N//2])
+		s2B=pd.Series(y[N//2:])
+		
+		E=2
+		tau=1
+		
+		rho_1B, rho_2B = ccm(s1A,s1B,s2A,s2B,E=E,tau=tau,plot=True)
+	
+	
+	#TODO Add Figures 3B and 3E
+	#TODO Add titles to the 3C and 3D case
+	#TODO add labels to the 3A case
+	
+	
+	
+if __name__=='__main__':
+	example_sugihara2012()
+	
 # 	
 
-# 	y2=genSig(t,0.6e-2,0.1e-2,phi=90,seed=1)
-# # 	y2=genSig(t,0.2e-1,0.2e-2,phi=90,seed=2)
-# # 	y2=np.concatenate((y2,genSig(t,0.2e-1,0.2e-2,phi=90,seed=3)),axis=0)
-# 	
-# # 	t=np.arange(0,(t[-1]+1)*2)
-# # 	np.random.seed(1)
-# # 	noise=np.random.uniform(-1,1,len(t))*0.2
-# # 	y2=noise+chirp(t,0.2e-1,t[-1],0.2e-2,method='linear',phi=90)
-# # 	plt.plot(y)
-# 		
-# # 	y=noise
-# # 	freqs=np.array([1.0/20,1.0/217])
-# #	freqs=np.array([1.0/20])
-# # 	for f in freqs:
-# # 		y+=genSig(t,1,f)
-# #	np.sin(2*np.pi*0.1*t)+np.sin(2*np.pi*0.007121*t)+noise
-# 	sx1=_pd.Series(y1,index=t)
-# 	sx2=_pd.Series(y2,index=t)
-# 	
-# 	_plt.close('all')
-# 	fig,ax=_plt.subplots()
-# 	_plt.plot(sx1)
-# 	_plt.plot(sx2)
-# 	
-# #	determineDimensionality(sx,T=200,tau=1,Elist=np.arange(1,10+1))
-# 	
-# 	tau=1
-# 	E=100
-# 	T=1
-# 	dic1=main(sx1,E=E,T=T,tau=tau)
-# 	keysOfNearestNeighbors=dic1['keysOfNearestNeighbors']
-# 	weights=dic1['weights']
-# 	
-# 	# forecasting	if showTime: printTime('Step 1 - Test and training data sets',start)
-
-# 	sX2,sY2,sx2=splitData(sx2)
-# 	
-# 	dfY2=convertToStateSpace(sY2,E=E,tau=tau)
-# 	dfTActual,dfTGuess=forecast(sx2,dfY2,keysOfNearestNeighbors,weights,T=T,plot=True)
-# 			
-# 	
-# 	
-# 	
-# def example3():
-# 	""" several sine waves with noise """
-# 	# TODO work in progress
-# 	
+# if False:
+# 	import matplotlib.pyplot as plt
 # 	import numpy as np
-# 	np.random.seed(0)
-# 	t=np.arange(0,1001)
-# 	if True:
-# 		noise=np.random.uniform(-1,1,len(t))*0.2
-# 	else:
-# 		noise=np.zeros(t.shape)
+# 	import johnspythonlibrary2 as jpl2
 # 	
-# 	def genSig(t,a,f,phi=0):
-# 		return(a*np.sin(2*np.pi*f*t+phi))
-# 		
-# 	y=noise
-# 	freqs=np.array([1.0/20,1.0/217])
-# #	freqs=np.array([1.0/20])
-# 	for f in freqs:
-# 		y+=genSig(t,1,f)
-# #	np.sin(2*np.pi*0.1*t)+np.sin(2*np.pi*0.007121*t)+noise
-# 	sx=_pd.Series(y,index=t)
-# 	
-# 	_plt.close('all')
-# 	fig,ax=_plt.subplots()
-# 	_plt.plot(sx)
-# 	
-# #	determineDimensionality(sx,T=200,tau=1,Elist=np.arange(1,10+1))
-# 	
-# 	tau=1
-# 	dic1=main(sx,E=1,T=200,tau=tau)
-# 	dic3=main(sx,E=3,T=200,tau=tau)
-# 	dic5=main(sx,E=5,T=200,tau=tau)
-# 	dic10=main(sx,E=10,T=200,tau=tau)
-# 	_plt.figure()
-# 	_plt.plot(dic1['dfRho'])
-# 	_plt.plot(dic3['dfRho'])
-# 	_plt.plot(dic5['dfRho'])
-# 	
-# 	dfx=_pd.DataFrame()
-# 	dfx['Time']=np.arange(1,sx.shape[0]+1)
-# 	dfx['x']=sx
-# 	import pyEDM
-# #	pyEDM.EmbedDimension(	dataFrame=dfx,
-# #							lib="0 500",
-# #							pred="501 1000",
-# #							Tp=200,
-# #							maxE=100,
-# #							columns='x',
-# #							target='x')
-# 	pyEDM.PredictInterval(	dataFrame=dfx,
-# 							lib="0 500",
-# 							pred="501 1000",
-# 							E=10,
-# 							maxTp=200,
-# 							columns='x',
-# 							target='x')
-# 	fig=_plt.gcf()
-# 	ax=fig.axes[0]
-# 	ax.plot(dic10['dfRho'])
-# 	
+# 	N=2000-1
+# 	x,y,z=solveLorentz(N=N,plot=True)
 
-# 	
-# def example4():
-# 	""" 
-# 	lorentz attractor
-# 	"""
-# 	#TODO work in progress
-# 	#TODO the peaks in this final plot appear to be shifting to the left with increasing E and tau.  As best I can tell, pyEDM has the same issue.  What does this mean?
-# 	
-# 	def ODEs(t,y,*args):
-# 		X,Y,Z = y
-# 		sigma,b,r=args
-# 		derivs=	[	sigma*(Y-X),
-# 					-X*Z+r*X-Y,
-# 					X*Y-b*Z]
-# 		return derivs
-# 	
-# 	## solve
-# 	from scipy.integrate import solve_ivp
-# 	args=[10,8/3.,28] # sigma, b, r
-# 	T=100
-# 	dt=0.05 #0.05 max
-# 	psoln = solve_ivp(	ODEs,
-# 						[0,T],
-# 						[-9.38131377, -8.42655716 , 29.30738524],
-# #						[1,1,1],
-# 						args=args,
-# 						t_eval=_np.arange(0,T+dt,dt)
-# 						)
-# 	
-# #	_plt.close('all')
-# 	fig,ax=_plt.subplots(3,sharex=True)
-# #	t=psoln.t
-# 	x,y,z=psoln.y
-# 	ax[0].plot(x,label='x')
-# 	ax[1].plot(y,label='y')
-# 	ax[2].plot(z,label='z')
-# 	
-# 	_plt.figure();_plt.plot(x,y)
-# 	_plt.figure();_plt.plot(y,z)
-# 	_plt.figure();_plt.plot(z,x)
-# 	
-# 	from mpl_toolkits.mplot3d import Axes3D
+
+
+
+# 	def plot3D(x,y,z,xlabel='',ylabel='',zlabel=''):
+# 		
+# 		from mpl_toolkits.mplot3d import Axes3D
+# 		
+# 		fig = _plt.figure()
+# 		ax = fig.add_subplot(111, projection='3d')
+# 		ax.plot(x,y,z)
+# 		ax.set_xlabel(xlabel)
+# 		ax.set_ylabel(ylabel)
+# 		ax.set_zlabel(zlabel)
+
+# 	plot3D(z[2:],z[1:-1],z[:-2],'z(t)','z(t-1)','z(t-2)')	
+
+# 	plot3D(x[2:],x[1:-1],x[:-2],'x(t)','x(t-1)','x(t-2)')	
+
+# 	plot3D(y[2:],y[1:-1],y[:-2],'y(t)','y(t-1)','y(t-2)')	
+
+# 	plot3D(x,y,z,'x(t)','y(t)','z(t)')	
+
+
 # 	fig = _plt.figure()
 # 	ax = fig.add_subplot(111, projection='3d')
-# 	ax.plot(x,y,zs=z)
-# 	
-# 	sx=_pd.Series(x,_np.arange(0,len(x)))
-# 	sy=_pd.Series(y,_np.arange(0,len(x)))
-# 	sz=_pd.Series(z,_np.arange(0,len(x)))
-# 	
-# 	T=500
-# 	tau=5	
-# 	N=sx.shape[0]
-# 	dicAll=determineDimensionality(sx,T=T,tau=tau,Elist=_np.arange(1,10+1))
-# 	fig=_plt.gcf()
-# 	fig.savefig('N_%d_T_%d_tau_%d.png'%(N,T,tau))
-# 	
-# 	
-
-# def example7(E=10,tau=1,knn='default',addNoise=False):
-# 	""" 
-# 	lorentz attractor SMI
-# 	"""
-# 	if knn=='default':
-# 		knn=E+1 # simplex method
-# 	#TODO work in progress
-# 	#TODO the peaks in this final plot appear to be shifting to the left with increasing E and tau.  As best I can tell, pyEDM has the same issue.  What does this mean?
-# 	
-# 	_plt.close('all')
-# 	
-# 	
-# 	x,y,z=solveLorentz([-9.38131377, -8.42655716 , 29.30738524],plot=True,addNoise=addNoise)
-# 	x2,y2,z2=solveLorentz([-1, -8.42655716/2 , 29.30738524/2],plot=True,addNoise=addNoise)
-# 	
-# 	sx=_pd.Series(x-x.mean(),_np.arange(0,len(x)))
-# 	sy=_pd.Series(y-y.mean(),_np.arange(0,len(x)))
-# 	sz=_pd.Series(z-z.mean(),_np.arange(0,len(x)))
-# 	
-# 	sx2=_pd.Series(x2-x2.mean(),_np.arange(0,len(x2)))
-# 	sy2=_pd.Series(y2-y2.mean(),_np.arange(0,len(x2)))
-# 	sz2=_pd.Series(z2-z2.mean(),_np.arange(0,len(x2)))
-# 	
-# 	sA1=_pd.Series(x)
-# 	sA2=_pd.Series(x2)
-# 	sB1=_pd.Series(z)
-# 	sB2=_pd.Series(z2)
-# 	
-# 			
-# 	SMIReconstruction(sA1,sA2,sB1,E,tau,knn,sB2=sB2,plot=True)
-
-# 	
-
-# def example2():
-# 	
-# 	""" 
-# 	Based loosely on Sugihara 1990 paper.
-# 	This is intended to show some exmaples of how forecasting work.
-# 	"""
-# 	_plt.close('all')
-# 	
-# 	sx=createTentMap(100,plot=False)
-# 	T=4
-# 	E=3
-# 	method="simplex"
-# 	weightingFunction='exponential'
-# 	dic=main(sx,E,T,method=method,weightingFunction=weightingFunction)
-# 	dfY=dic['dfY']
-# 	dfX=dic['dfX']
-# 	weights=dic['weights']
-# 	keysOfNearestNeighbors=dic['keysOfNearestNeighbors']
-# 	fig,axAll=_plt.subplots(T,sharex=True)
-# 	index=59
-# 	for k,ax in enumerate(axAll):
-# 		ax.plot(dfY.loc[index].index.values+index,dfY.loc[index],label='pattern to forecast',linewidth=5,color='tab:blue')
-# 		for i,key in enumerate(keysOfNearestNeighbors.loc[index]):
-# 			label1=''
-# 			label2=''
-# 			if i==0:
-# 				label1='nearest neighbors'
-# 				label2='Past similar points'
-# 			ax.plot(dfX.loc[key].index.values+key,dfX.loc[key],color='tab:orange',label=label1,linewidth=5)
-# 			ax.scatter(key+1+k,sx.loc[key+1+k],marker='o',color='orange',facecolor='none',label=label2,linewidths=2,s=50)
-# 		
-# 		ax.plot(sx.loc[:index],label='orig. data',color='k',marker='.',markersize=4)
-# 		
-# 		ypredict=[]
-# 		x=[]
-# 		for t in range(1,k+2):
-# 		#	y=_pd.DataFrame(sx.loc[(keysOfNearestNeighbors.loc[index]+int(key)-1).values.reshape(-1)].values.reshape(shape),index=keysOfNearestNeighbors.index,columns=keysOfNearestNeighbors.columns)
-# 		
-# 			y=sx.loc[keysOfNearestNeighbors.loc[index].values+t].values
-# 			w=weights.loc[index].values
-# 			ypredict.append((y*w).sum())
-# 			x.append(index+t)
-# 			
-# 		ax.scatter([index+t],[sx.loc[index+t]],marker='o',color='b',facecolor='none',label='next point to predict',s=50)
-# 		ax.scatter(x[-1],ypredict[-1],marker='x',color='green',label='next predicted value')
-# 	
-# 		ax.plot(	_np.concatenate(([index],x)),
-# 					_np.concatenate(([sx.loc[index]],ypredict)),
-# 					linestyle='--',
-# 					color='green',
-# 					label='predicted',
-# #						marker='x',
-# 					ms=3
-# 					)
-# 		
-# 		
-# 			
-# 		_finalizeSubplot(ax,
-# 						  xlim=[0,index+5],
-# 						  subtitle='T=%d'%(k+1),
-# 						  legendOn=False)
-# 		if k==0:
-# 			_legendOutside(ax)
-# 	axAll[0].set_title('E=%d, %s method, %s weighting'%(E,method,weightingFunction))
-# 	ax.set_xlabel('Time')
-# 	for i in range(2):
-# 		_finalizeFigure(fig,h_pad=0.5,)
-
-
-# def example1():
-# 	""" 
-# 	Sugihara 1990 paper.
-# 	Effectively reproduces one of the figures in this paper and provides
-# 	several supplementary plots
-# 	"""
-# 	
-# 	
-# 	## initialize
-# 	_plt.close('all')
-# 	sx=createTentMap(1000,plot=False)
-# 	start = _time.time()
-# 	printTime('Starting',start)
-# 	
-# 	# parameters		
-# 	T=10						# steps into time to predict
-# 	tau =1		
-# 	Elist=_np.arange(1,10+1) 	# embedded dimension
-# 	method="simplex"
-# 	weightingFunction='exponential'
-# 	
-# 	# interate through each E
-# 	for i,E in enumerate(Elist):
-# 		
-# 		# perform analysis and save rho
-# 		dic=main(sx,E,T,tau,method=method,weightingFunction=weightingFunction)
-# 		dfRho1=dic['dfRho']
-# 		dfTGuess=dic['dfTGuess']
-# 		dfTActual=dic['dfTActual']
-# 		if i==0:
-# 			dfRho=dfRho1
-# 		else:
-# 			dfRho=_pd.concat((dfRho,dfRho1),axis=1)
-# 			
-# 		# optional plots
-# 		if E==3:
-# 			fig,ax=_plt.subplots(2,2)
-# 			ax[0][0].plot(sx,linewidth=0.4)
-# 			_finalizeSubplot(ax[0][0],
-# 									xlabel='Time (t)',
-# 									ylabel=r'$\Delta x(t)$',
-# 									legendOn=False)
-# 			plotFitVsActual(dfTGuess['2'],dfTActual['2'],ax[0][1])
-# 			plotFitVsActual(dfTGuess['5'],dfTActual['5'],ax[1][0])
-# 			plotRho(_pd.DataFrame(dfRho[E]),ax[1][1])
-# 			_finalizeFigure(fig,h_pad=3,w_pad=3,pad=1)
-# #			fig.savefig('images/E3_figure.png')
-# 			
-# 			fig,ax=_plt.subplots()
-# 			index=700
-# 			ax.plot(sx,linewidth=5,color='grey',alpha=0.4,label='Original Data')
-# 			ax.plot(dfTGuess.columns.values.astype(int)+index,
-# 				   dfTGuess.loc[index+1],
-# 				   color='tab:orange',
-# 				   label='Forecast, t=%d'%index)
-# 			_finalizeSubplot(ax,
-# 							   xlabel='Time (t)',
-# 							   ylabel=r'$\Delta x(t)$',
-# 							   xlim=[index-4,index+4+10],
-# 							   ylim=[-1,0.5],
-# 							   title='Example forecast, E=%d'%E)
-# #			fig.savefig('images/example_forecast.png')
-# 		
-# 		printTime('',start)
-# 	
-# 	# plot rho for each E
-# 	fig,_=plotRho(dfRho,fig=fig)
-# #	fig.savefig('images/results_summary.png')
-# 	
-# 	printTime('Done!',start)
+# 	ax.plot(x,y,z)
