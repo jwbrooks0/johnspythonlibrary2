@@ -3,6 +3,52 @@
 # import pandas as _pd
 # import matplotlib.pyplot as _plt
 
+import os as _os
+
+
+def processFileName(filename):
+	"""
+	Extracts teh base name, directory name, file extension, and file root from
+	a filename.
+
+	Parameters
+	----------
+	filename : str
+		filename with directory information.
+
+	Returns
+	-------
+	baseName : str
+		The basename of the file (filename without directory)
+	dirName : str
+		Directory name where the file is located
+	fileExt : str
+		File extension
+	fileRoot : str
+		Filename without the extension
+
+	Examples
+	--------
+	Example 1::
+		
+		filename='/media/john/T7-Blue/asdf/awesome_data.csv'
+		out=processFileName(filename)
+		print(out)
+		baseName,dirName,fileExt,fileRoot=out
+		
+	Example 2::
+		
+		print(processFileName('asdf.123'))
+		
+	Example 3::
+		
+		print(processFileName('asdf/123'))
+	"""
+	fileRoot,fileExt=_os.path.splitext(filename)
+	baseName=_os.path.basename(filename)
+	dirName=_os.path.dirname(filename)
+	
+	return baseName,dirName,fileExt,fileRoot
 
 
 def setPwd(password,system,username):
