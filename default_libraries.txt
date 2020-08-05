@@ -20,6 +20,7 @@ sh				# shell scripting library
 deprecated		# has a decorator for flagging deprecated functions
 pathos			# multiprocessing sublibrary
 seaborn			# additional plotting functions
+h5py			# loading matlab data
 
 ### I've also included a few of my favorite settings for my spyder environment.
 ### spyder settings
