@@ -22,7 +22,7 @@ from johnspythonlibrary2.Plot import subTitle as _subtitle
 # various generated signals to test code in this library
 
 
-def twoSpeciesWithBidirectionalCausality(N,tau_d=0,IC=[0.2,0.4],plot=False):
+def twoSpeciesWithBidirectionalCausality(N,tau_d=0,IC=[0.2,0.4],plot=False,params={'Ax':3.78,'Ay':3.77,'Bxy':0.07,'Byx':0.08}):
 	"""
 	Coupled two equation system with bi-directional causality.  
 	
@@ -44,16 +44,18 @@ def twoSpeciesWithBidirectionalCausality(N,tau_d=0,IC=[0.2,0.4],plot=False):
 
 	"""
 	
-	N+=tau_d
+# 	N+=tau_d
 	
-	x=_np.zeros(N,dtype=float)
-	y=_np.zeros(N,dtype=float)
-	x[0:tau_d+1]=IC[0]
-	y[0:tau_d+1]=IC[1]
+	x=_np.ones(N+tau_d,dtype=float)*IC[0]
+	y=_np.ones(N+tau_d,dtype=float)*IC[1]
 	
-	for i in range(1+tau_d,N):
-		x[i]=x[i-1]*(3.78-3.78*x[i-1]-0.07*y[i-1])
-		y[i]=y[i-1]*(3.77-3.77*y[i-1]-0.08*x[i-1-tau_d])
+# 	for i in range(tau_d,N+tau_d-1):
+# 		x[i+1]=x[i]*(3.78-3.78*x[i]-0.07*y[i])
+# 		y[i+1]=y[i]*(3.77-3.77*y[i]-0.08*x[i-tau_d])
+		
+	for i in range(tau_d,N+tau_d-1):
+		x[i+1]=x[i]*(params['Ax']-params['Ax']*x[i]-params['Bxy']*y[i])
+		y[i+1]=y[i]*(params['Ay']-params['Ay']*y[i]-params['Byx']*x[i-tau_d])
 		
 	x=x[tau_d:]
 	y=y[tau_d:]
@@ -1924,7 +1926,7 @@ def ccm(	s1A,
 			E,
 			tau,
 			knn=None,
-			plot=True,
+			plot=False,
 			removeOffset=False):
 	
 	"""
@@ -1986,69 +1988,126 @@ def ccm(	s1A,
 	P1B=convertToTimeLaggedSpace(s1B, E, tau)	
 	P2A=convertToTimeLaggedSpace(s2A, E, tau)
 	P2B=convertToTimeLaggedSpace(s2B, E, tau)	
+	
+# 	fig,ax=plt.subplots(1,2,sharex=True,sharey=True)
 		
 	## A to B
 	keys,weights=createMap(P1A.copy(),P1B.copy(),knn)
 	s2B_recon=reconstruct(s2A.copy(),keys,weights)
-	rho_2B=calcCorrelationCoefficient(s2B[(E-1)*tau:],s2B_recon)	
+	rho_1to2=calcCorrelationCoefficient(s2B[(E-1)*tau:],s2B_recon,plot=False)	
 	
-	## B to A
+ 	## B to A
 	keys,weights=createMap(P2A.copy(),P2B.copy(),knn)
 	s1B_recon=reconstruct(s1A.copy(),keys,weights)
-	rho_1B=calcCorrelationCoefficient(s1B[(E-1)*tau:],s1B_recon)	
+	rho_2to1=calcCorrelationCoefficient(s1B[(E-1)*tau:],s1B_recon,plot=False)	
+	
 	
 	if plot==True:
 		fig,ax=_plt.subplots(1,2,sharex=True,sharey=True)
-		ax[0].plot(s1B[(E-1)*tau:],s1B_recon,linestyle='',marker='.')
-		ax[1].plot(s2B[(E-1)*tau:],s2B_recon,linestyle='',marker='.')
+		ax[1].plot(s1B[(E-1)*tau:],s1B_recon,linestyle='',marker='.')
+		ax[0].plot(s2B[(E-1)*tau:],s2B_recon,linestyle='',marker='.')
 		ax[0].set_aspect('equal')
 		ax[1].set_aspect('equal')
-		ax[0].plot([0,1],[0,1])
-		ax[1].plot([0,1],[0,1])
+		ax[0].plot([0,1],[0,1])  # TODO.  make this plot from min to max instead of 0 to 1
+		ax[1].plot([0,1],[0,1])  # TODO.  make this plot from min to max instead of 0 to 1
+		ax[0].set_title('s1 to s2 CCM')
+		ax[1].set_title('s2 to s1 CCM')
 		
-	return rho_1B, rho_2B
+	return rho_1to2, rho_2to1
 
 ###################################################################################
 #%% exterior functions - functions that call the main functions
 
 
-def eccm(s1,s2,E,tau,tau_d=0,lagRange=_np.arange(-8,6.1,2)):
+def eccm(s1,s2,E,tau,lagRange=_np.arange(-8,6.1,2),plot=False,s1Name='s1',s2Name='s2',title=''):
 	
-	N=3000
+	print('work in progress.  not correct yet')
+	N=s1.shape[0]
+	
+	results=_pd.DataFrame(index=lagRange)
 # 	tau_d=0
-	lagRange=(_np.arange(-8,6.1,1)).astype(int)
-	E=2
-	tau=1
-	
-	results=_pd.DataFrame()
-	tau_d=10
 	for lag in lagRange:
-		
-		s1,s2=twoSpeciesWithBidirectionalCausality(N=N+_np.abs(lag),tau_d=tau_d,plot=False)
-		s1=s1[2000:]
-		s2=s2[2000:]
-		
+		print(lag)
+# 		lag=-1
 		
 		if lag>0:
-			s1=s1[lag:].reset_index(drop=True)
-			s2=s2[:-lag]
+			s1_temp=s1[lag:].reset_index(drop=True)
+			s2_temp=s2[:N-lag].reset_index(drop=True)
 		elif lag<0:
-			s1=s1[:lag]
-			s2=s2[-lag:].reset_index(drop=True)
+ 			s1_temp=s1[:lag]
+ 			s2_temp=s2[-lag:].reset_index(drop=True)
+		else:
+			s1_temp=s1.copy()
+			s2_temp=s2.copy()
+				 
+
+		if False:
+			fig,ax=_plt.subplots()
+			ax.plot(s1)
+			ax.plot(s2)
+			ax.set_xlim([330,350])
+			ax.set_title(lag)
 			
-		s1=s1
-		rho_12=ccm(s1,s2,E=E,tau=tau,plot=False)
-		results.at[lag,'12']=rho_12
-		rho_21=ccm(s2,s1,E=E,tau=tau,plot=False)
-		results.at[lag,'21']=rho_21
+		M=s1_temp.shape[0]
+		s1A=s1_temp[:M//2].copy()
+		s1B=s1_temp[M//2:].copy()
+		s2A=s2_temp[:M//2].copy()
+		s2B=s2_temp[M//2:].copy()
 		
-	fig,ax=_plt.subplots()
-	ax.plot(results['12'])
-	ax.plot(results['21'])
+		if s1A.shape[0]>s1B.shape[0]:
+			s1A=s1A[:-1]
+			s2A=s2A[:-1]
+		elif s1A.shape[0]<s1B.shape[0]:
+			s1B=s1B[:-1]
+			s2B=s2B[:-1]
+		
+			
+# 		print(s1A.shape,s1B.shape,s2A.shape,s2B.shape)
+		
+		rho1,rho2=ccm(s1A,s1B,s2A,s2B,E,tau,plot=False)
+# 		s1=s1
+# 		rho_12=ccm(s1,s2,E=E,tau=tau,plot=False)
+		results.at[-lag,'12']=rho1
+# 		rho_21=ccm(s2,s1,E=E,tau=tau,plot=False)
+		results.at[lag,'21']=rho2
+		
+	if plot==True:
+		fig,ax=_plt.subplots()
+		ax.plot(results['12'],label='%s to %s'%(s1Name,s2Name))
+	# 	ax.plot(results.index.values*-1,results['12'])
+		ax.plot(results['21'],label='%s to %s'%(s2Name,s1Name))
+		ax.legend()
+		ax.set_title(title)
+		ax.set_ylabel('Pearson correlation')
+		ax.set_xlabel('lag')
+		
+	return results
 	
+	
+def example_Ye2015():
+	
+	import numpy as _np
+	
+	N=10000
+# 	tau_d=0
+	lagRange=(_np.arange(-8,8.1,1)).astype(int)
+	E=2
+	tau=1
+# 	tau_d=0
+		
+	for tau_d in [0,2,4]:
+		print(tau_d)
+		
+		s1,s2=twoSpeciesWithBidirectionalCausality(N=N,tau_d=tau_d,plot=False,params={'Ax':3.78,'Ay':3.77,'Bxy':0.07-0.00,'Byx':0.08-0.00})
+	
+		s1=s1[2000:3000].reset_index(drop=True)
+		s2=s2[2000:3000].reset_index(drop=True)
+		
+		results=eccm(s1=s1,s2=s2,E=E,tau=tau,lagRange=lagRange,plot=True,title='tau_d = %d'%tau_d, s1Name='x',s2Name='y')
 	
 
-def ccmScan(s,E,tau,Nrange,plot=False):
+def ccmScan(s1,s2,E,tau,Nrange,plot=False,s1Name='s1',s2Name='s2'):
+	print('work in progress.  needs an overhaul')
 	"""
 
 	Examples
@@ -2056,38 +2115,47 @@ def ccmScan(s,E,tau,Nrange,plot=False):
 	
 	Example1::
 		
+# 		import matplotlib.pyplot as plt;plt.close('all')
 		# Lorentz data
-		Nmax=100000
-		Narray=(10**_np.arange(2,_np.log10(Nmax)+1e-4,0.05)).astype(int)
-		x,y,z=solveLorentz(N=Nmax,plot=False)
+		Nmax=101000
+		Narray=(10**_np.arange(1.8,_np.log10(Nmax-1000)+1e-4,0.025)).astype(int)
+		x,y,z=solveLorentz(N=Nmax,plot=True,dt=0.05)#,IC=[-6.861764848645989/2, -0.5145288200456304 , 32.21788628404141])
+		x=x[1000:]
+		y=y[1000:]
+		z=z[1000:]
 		
-		# add noise to Lorentz data
-		x+=_np.random.normal(0,x.std()/1,x.shape[0])
+# 		# add noise to Lorentz data
+# 		x+=_np.random.normal(0,x.std()/15,x.shape[0])
+# 		z+=_np.random.normal(0,z.std()/15,z.shape[0])
 		
 		# call function
-		ccmScan(_pd.Series(x),E=3,tau=2,Nrange=Narray,plot=True)
+		ccmScan(_pd.Series(x),_pd.Series(z),E=3,tau=2,Nrange=Narray,plot=True,s1Name='x',s2Name='z')
 
 	"""
 	
 	results=_pd.DataFrame()
 	for N in Nrange:
+		print(N)
 		
-		A=s[0:N//2]
-		B=s[N//2:N]
+		s1A=_pd.Series(s1[0:N//2])
+		s1B=_pd.Series(s1[N//2:N])
+		s2A=_pd.Series(s2[0:N//2])
+		s2B=_pd.Series(s2[N//2:N])
 		
-		s1A=_pd.Series(A)
-		s1B=_pd.Series(B)
 		
-		rho=ccm(s1A,s1B,E=E,tau=tau,plot=False)
-		results.at[N,'rho']=rho
-		print(N,rho)
+		rho_1to2,rho_2to1=ccm(s1A,s1B,s2A,s2B,E=E,tau=tau,plot=False)
+		results.at[N,'rho12']=rho_1to2
+		results.at[N,'rho21']=rho_2to1
+# 		print(N,rho)
 		
 	if plot==True:
 		fig,ax=_plt.subplots()
-		ax.semilogx(results)
+		ax.semilogx(results.rho12,label='%s to %s CCM'%(s1Name,s2Name))
+		ax.semilogx(results.rho21,label='%s to %s CCM'%(s2Name,s1Name))
 		ax.semilogx(Nrange,_np.ones(Nrange.shape),linestyle='--',color='grey')
 		ax.set_xlabel('N')
 		ax.set_ylabel('Pearson correlation')
+		_finalizeSubplot(ax)
 
 	return results
 
@@ -2766,7 +2834,7 @@ def example_sugihara2012():
 	Reconstruction of the figure's in Sugihara's 2012 paper on CCM
 	"""
 	
-	print('work in progress')
+	print('work in progress.  the plots arent in amazing agreement for some reason')
 	
 	import numpy as np
 	import pandas as pd
@@ -2836,50 +2904,43 @@ def example_sugihara2012():
 		tau=1
 		
 		rho_1B, rho_2B = ccm(s1A,s1B,s2A,s2B,E=E,tau=tau,plot=True)
+		
+		
+	## Figure 3B
+	if True:
+		
+		E=2
+		tau=1
+		
+		N=400
+		results=_pd.DataFrame()
+		
+		for Bxy in np.arange(0,0.421,0.02):
+			for Byx in np.arange(0,0.41,0.02):
+				print(Bxy,Byx)
+				x,y=function(N,rx=3.8,ry=3.5,Bxy=Bxy,Byx=Byx,IC=[0.2,0.4],plot=False)
+								
+				s1A=pd.Series(x[:N//2])
+				s1B=pd.Series(x[N//2:])
+				s2A=pd.Series(y[:N//2])
+				s2B=pd.Series(y[N//2:])
+				
+				rho_1B, rho_2B = ccm(s1A,s1B,s2A,s2B,E=E,tau=tau,plot=False)
+				results.at[Bxy,Byx]=rho_1B-rho_2B
+		
+		import xarray as xr
+		da = xr.DataArray(results.values, 
+				  dims=['Bxy', 'Byx'],
+                  coords={'Bxy': np.arange(0,0.421,0.02),
+				   'Byx': np.arange(0,0.41,0.02)})
+		
+		
+		fig,ax=plt.subplots()
+		from matplotlib import cm
+		f=da.plot(levels=np.arange(-0.65,.66,.1),cmap=cm.Spectral_r,center=0,cbar_kwargs={'ticks': _np.arange(-1,1.01,0.1), 'label':'Rho-Rho'})
+		fig.show()
+
+
+# if __name__=='__main__':
+#  	example_sugihara2012()
 	
-	
-	#TODO Add Figures 3B and 3E
-	#TODO Add titles to the 3C and 3D case
-	#TODO add labels to the 3A case
-	
-	
-	
-if __name__=='__main__':
-	example_sugihara2012()
-	
-# 	
-
-# if False:
-# 	import matplotlib.pyplot as plt
-# 	import numpy as np
-# 	import johnspythonlibrary2 as jpl2
-# 	
-# 	N=2000-1
-# 	x,y,z=solveLorentz(N=N,plot=True)
-
-
-
-
-# 	def plot3D(x,y,z,xlabel='',ylabel='',zlabel=''):
-# 		
-# 		from mpl_toolkits.mplot3d import Axes3D
-# 		
-# 		fig = _plt.figure()
-# 		ax = fig.add_subplot(111, projection='3d')
-# 		ax.plot(x,y,z)
-# 		ax.set_xlabel(xlabel)
-# 		ax.set_ylabel(ylabel)
-# 		ax.set_zlabel(zlabel)
-
-# 	plot3D(z[2:],z[1:-1],z[:-2],'z(t)','z(t-1)','z(t-2)')	
-
-# 	plot3D(x[2:],x[1:-1],x[:-2],'x(t)','x(t-1)','x(t-2)')	
-
-# 	plot3D(y[2:],y[1:-1],y[:-2],'y(t)','y(t-1)','y(t-2)')	
-
-# 	plot3D(x,y,z,'x(t)','y(t)','z(t)')	
-
-
-# 	fig = _plt.figure()
-# 	ax = fig.add_subplot(111, projection='3d')
-# 	ax.plot(x,y,z)
