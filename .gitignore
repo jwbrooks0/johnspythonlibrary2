@@ -132,6 +132,7 @@ dmypy.json
 _settings.py
 *.ods#
 *.png
-
+*.gif
+*.csv
 
 
