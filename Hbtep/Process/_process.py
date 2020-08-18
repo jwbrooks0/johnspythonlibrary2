@@ -206,9 +206,9 @@ def removeMagneticOffsetWithCurrentReference(	dfArrayRaw,
 								
 		dfMask=dfMask.set_index('time')
 		dfMask=dfMask.dropna()
-		dfMask=_pd.Series(_gaussianFilter_df(dfMask.index.to_numpy(),dfMask.Data.copy(),timeFWHM=timeFWHM,plot=False,filterType='low'),index=dfMask.index)
+		dfMask=_pd.DataFrame(_gaussianFilter_df(_pd.DataFrame(dfMask.Data.copy(),index=dfMask.index),timeFWHM=timeFWHM,plot=False,filterType='low'),index=dfMask.index)
 		dfSignal=_filterDFByTime(dfSignal.copy(),dfMask.index[0],dfMask.index[-1])
-		dfResult=_pd.Series(dfSignal-dfMask,index=dfMask.index.to_numpy())
+		dfResult=_pd.DataFrame(dfSignal-dfMask.Data,index=dfMask.index.to_numpy())
 		if plot==True:
 			title+=', %d'%shotno
 			fig,ax=_plt.subplots(3)
