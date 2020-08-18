@@ -43,4 +43,46 @@ def chirp(t,tStartStop=[0,1],fStartStop=[1e3,1e4],phi=270,plot=False,method='log
 	return y
 
 
+def gaussianNoise(shape,mean=0,stdDev=1,plot=False):
+	"""
+	Produces Gaussian noise based on the standard deviation
+	This is a wrapper for the numpy.random.normal function
 
+	Parameters
+	----------
+	shape : tuple of ints
+		Shape of desired noise; such as generated from np.shape()
+	mean : float
+		Offset value. The default is 0.
+	stdDev : float
+		"Amplitude" (standard deviation) of the noise. The default is 1.
+	plot : bool, optional
+		Optional plot of results
+
+	Returns
+	-------
+	noise : numpy array
+		Array containing the generated noise.  
+		
+	Examples
+	--------
+	
+	Example 1::
+		
+		t=np.arange(0,10e-3,2e-6)
+		y1=np.sin(2*np.pi*t*1e3)
+		y2=y1+gaussianNoise(y1.shape,mean=0,stdDev=0.5)
+		fig,ax=plt.subplots()
+		ax.plot(t,y2,label='signal with noise')
+		ax.plot(t,y1,label='signal without noise')
+		ax.legend()
+
+	"""
+	
+	noise = _np.random.normal(mean,stdDev,shape)
+	
+	if plot==True:
+		fig,ax=_plt.subplots()
+		ax.plot(noise)
+		
+	return noise
