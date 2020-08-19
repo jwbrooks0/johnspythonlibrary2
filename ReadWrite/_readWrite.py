@@ -3,7 +3,7 @@ import numpy as _np
 import pandas as _pd
 import matplotlib.pyplot as _plt
 from functools import wraps as _wraps
-
+import pickle as _pkl
 
 try:
 	import johnspythonlibrary2.ReadWrite._settings as _settings
@@ -13,7 +13,40 @@ except ImportError:
 	LOCALDIRTOSAVEDATA=''
 	
 
+def readFromPickle(filename):
+	"""
+	Parameters
+	----------
+	filename : str
+		file name and path of file to be read.
 
+	Returns
+	-------
+	TYPE
+		Returned file, of whatever type.  
+
+	"""
+	
+	return _pkl.load(open(filename,'rb'))
+
+
+def writeToPickle(data,filename):
+	"""
+	Parameters
+	----------
+	data : any data type
+		File to be saved
+	filename : str
+		file name and path to save the data
+
+	Returns
+	-------
+	None.
+
+	"""
+	
+	_pkl.dump(data,open(filename,"wb"))
+	
 
 def convertMatToDF(filename):
 	"""
