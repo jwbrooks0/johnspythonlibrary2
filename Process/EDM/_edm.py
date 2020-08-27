@@ -102,17 +102,36 @@ def createTentMap(N=1000,plot=False,x0=_np.sqrt(2)/2.0):
 def solveLorentz(	N=2000,
 					dt=0.05,
 					IC=[-9.38131377, -8.42655716 , 29.30738524],
-					addNoise=False,
+# 					addNoise=False,
 					plot=False,
-					seed=[0,1,2],
-					T=1):
+# 					seed=[0,1,2],
+					T=1,
+					removeMean=False,
+					normalize=False,
+					removeFirstNPoints=0):
 	"""
 	Solves the lorentz attractor nonlinear ODEs.
 	
 	References
 	----------
 	 * https://en.wikipedia.org/wiki/Lorenz_system
+	 
+	Examples
+	--------
+	Example 1::
+		
+		solveLorentz( 	N=4000,
+						dt=0.05,
+						IC=[-9.38131377, -8.42655716 , 29.30738524],
+						plot=True,
+						T=1,
+						removeMean=True,
+						normalize=True,
+						removeFirstNPoints=500)
+						
 	"""
+	N0=_np.copy(N)
+	N+=removeFirstNPoints
 	T=N*dt
 	
 	from scipy.integrate import solve_ivp
@@ -128,7 +147,8 @@ def solveLorentz(	N=2000,
 	args=[10,8/3.,28] # sigma, b, r
 	
 # 	print(T)
-	t_eval=_np.arange(0,T+dt,dt)
+	t_eval=_np.arange(0,T,dt)
+# 	t_eval=_np.arange(0,T+dt,dt)
 # 	print(t_eval)
 	psoln = solve_ivp(	ODEs,
 						[0,T],
@@ -138,14 +158,30 @@ def solveLorentz(	N=2000,
 						)
 	
 	x,y,z=psoln.y
-	if addNoise==True:
-		noiseAmp=5
-		_np.random.seed(seed[0])
-		x+=_np.random.rand(x.shape[0])*noiseAmp
-		_np.random.seed(seed[1])
-		y+=_np.random.rand(y.shape[0])*noiseAmp
-		_np.random.seed(seed[2])
-		z+=_np.random.rand(z.shape[0])*noiseAmp
+	
+	if removeFirstNPoints>0:
+		x=x[removeFirstNPoints:]
+		y=y[removeFirstNPoints:]
+		z=z[removeFirstNPoints:]
+	
+	if removeMean==True:
+		x-=x.mean()
+		y-=y.mean()
+		z-=z.mean()
+		
+	if normalize==True:
+		x/=x.std()
+		y/=y.std()
+		z/=z.std()
+		
+# 	if addNoise==True:
+# 		noiseAmp=5
+# 		_np.random.seed(seed[0])
+# 		x+=_np.random.rand(x.shape[0])*noiseAmp
+# 		_np.random.seed(seed[1])
+# 		y+=_np.random.rand(y.shape[0])*noiseAmp
+# 		_np.random.seed(seed[2])
+# 		z+=_np.random.rand(z.shape[0])*noiseAmp
 			
 		
 	if plot!=False:
@@ -1216,14 +1252,13 @@ def calcWeights(radii,method='exponential'):
 	
 	if method =='exponential':
 		weights=_np.exp(-radii/radii.min(axis=1)[:,_np.newaxis])
-		weights/=weights.sum(axis=1)[:,_np.newaxis] 	 
+		weights/=weights.sum(axis=1)[:,_np.newaxis] 	# TODO this line throws a warning. fix.   "FutureWarning: Support for multi-dimensional indexing (e.g. 'obj[:,None]') is deprecated and will be removed in a future version.  Convert to a numpy array before indexing instead."
 	elif method =='uniform':
 		weights=_np.ones(radii.shape)/radii.shape[1]
 	else:
 		raise Exception('Incorrect weighting method provided')
 	
-	weights=_pd.DataFrame(weights,index=radii.index)
-	return weights
+	return _pd.DataFrame(weights,index=radii.index)
 
 
 
@@ -2943,4 +2978,3 @@ def example_sugihara2012():
 
 # if __name__=='__main__':
 #  	example_sugihara2012()
-	
