@@ -1108,7 +1108,8 @@ def quartzJumperAndGroundingBusData(	shotno=96530,
 										tStart=_TSTART,
 										tStop=_TSTOP,
 										plot=False,
-										timeFWHMSmoothing=0.4e-3):
+										timeFWHMSmoothing=0.4e-3,
+										forceDownload=False):
 	"""
 	External rogowski data
 	
@@ -1153,7 +1154,7 @@ def quartzJumperAndGroundingBusData(	shotno=96530,
 	
 	
 	# load raw data
-	dfRaw=dfJumperRaw(shotno,tStart,tStop,dfMeta)
+	dfRaw=dfJumperRaw(shotno,tStart,tStop,dfMeta,forceDownload=forceDownload)
 	dfRaw['WestRackGround']*=100
 	dfRaw['NorthRackGround']*=100
 	dfRaw=_filterDFByTime(dfRaw,tStart,tStop)

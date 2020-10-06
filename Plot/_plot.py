@@ -144,7 +144,7 @@ def finalizeFigure(fig,
 	
 	
 def legendOutside(	ax,
-				    ncol=1,
+					ncol=1,
 					xy=(1.04,1),
 					refCorner='upper left',
 					fontSizeStandard=8,
@@ -179,9 +179,9 @@ def positionPlot(	fig,
 					hspace=None):
 	"""
 	left  = 0.125  # the left side of the subplots of the figure
-	right = 0.9    # the right side of the subplots of the figure
+	right = 0.9	# the right side of the subplots of the figure
 	bottom = 0.1   # the bottom of the subplots of the figure
-	top = 0.9      # the top of the subplots of the figure
+	top = 0.9	  # the top of the subplots of the figure
 	wspace = 0.2   # the amount of width reserved for blank space between subplots
 	hspace = 0.2   # the amount of height reserved for white space between subplots
 	
@@ -386,7 +386,7 @@ def circle(ax,xy=(0,0),r=1,color='r',linestyle='-',alpha=1,fill=True,label=''):
 	circle1 = _plt.Circle(xy, r, color=color,alpha=alpha,fill=fill,linestyle=linestyle)
 	ax.add_artist(circle1)
 
-def arrow(ax,xyTail=(0,0),xyHead=(1,1),color='r',width=3,headwidth=10,headlength=10,alpha=1.0):
+def arrow(ax,xyTail=(0,0),xyHead=(1,1),color='r',width=3,headwidth=10,headlength=10,alpha=1.0,label=''):
 	"""
 	Draws an arrow
 	
@@ -415,12 +415,13 @@ def arrow(ax,xyTail=(0,0),xyHead=(1,1),color='r',width=3,headwidth=10,headlength
 							)
 		
 	"""
-	ax.annotate("", xy=xyHead, xytext=xyTail, arrowprops=dict(	width=width,
+	return ax.annotate("", xy=xyHead, xytext=xyTail, arrowprops=dict(	width=width,
 														headwidth=headwidth,
 														headlength=headlength,
 														color=color,
-														alpha=alpha),
-				label='current')
+														alpha=alpha,
+														label=label),
+				label=label)
 	
 
 def rectangle(ax,x_bottomleft,y_bottomleft,width,height,color='r',alpha=0.5):
@@ -546,5 +547,122 @@ def contourPlot(	ax,
 	
 	
 	for c in CS.collections:
-	    c.set_edgecolor("face")
+		c.set_edgecolor("face")
 		
+		
+### misc
+
+
+
+import matplotlib as _mpl
+def colorScalarMap(minValue=0,maxValue=10,colorMap=_mpl.cm.Reds):
+	"""
+	normalizes a matplotlib colormap to the desired range.  the returned colormap
+	produces RGBA colors
+	
+	Parameters
+	----------
+	minValue : float
+		lowest value for the colormap
+	maxValue : float
+		largest value for the colormap
+	colorMap : matplotlib.colors.LinearSegmentedColormap
+		matplotlib color map
+		
+	Returns
+	-------
+	s_m : matplotlib.cm.ScalarMappable
+		normalized colormap. to convert a number to RGBA, call
+		s_m.to_rgba(0.5) or with whatever number you wish
+	
+	Example
+	-------
+	:
+		
+		fig,ax=plt.subplots()
+		x=np.arange(1,20,.1)
+		y=np.cos(x)
+		c=np.cos(x)
+		cmap=colorScalarMap(-1,1)
+		ax.scatter(x,y,color=cmap.to_rgba(c))
+		plt.show()
+		
+	References
+	----------
+	https://stackoverflow.com/questions/48398726/flexible-way-to-add-subplots-to-figure-and-one-colorbar-to-figure
+	"""
+#	import matplotlib
+	norm = _mpl.colors.Normalize(minValue,maxValue)
+	s_m = _mpl.cm.ScalarMappable(cmap=colorMap, norm=norm)
+	s_m.set_array([])
+	return s_m
+
+
+### custom colormaps
+
+
+def RdOrWGnBu_colormap(plot=False):
+	"""
+	Red - Orange - White - Green - Blue colormap
+
+	Parameters
+	----------
+	plot : TYPE, optional
+		Optional plot to show an example of the new colormap.
+
+	Returns
+	-------
+	newcmp : matplotlib.colors.ListedColormap
+		new colormap
+		
+	Examples
+	--------
+	Example 1 ::
+		
+		_plt.close('all')
+		cmap=RdOrWGnBu_colormap(plot=True)
+		
+	References
+	----------
+	::
+		
+		https://matplotlib.org/3.1.0/tutorials/colors/colormap-manipulation.html
+		https://matplotlib.org/tutorials/colors/colormaps.html
+
+	"""
+	
+	from matplotlib import cm
+	from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+	import numpy as np
+
+	top = cm.get_cmap('GnBu_r', 128)
+	bottom = cm.get_cmap('OrRd', 128)
+	
+	newcolors = np.vstack((top(np.linspace(0, 1, 128)),
+						   bottom(np.linspace(0, 1, 128))))
+	newcmp = ListedColormap(newcolors, name='RdOrWGnBu')
+		
+	if plot==True:
+		def plot_examples(cms):
+			"""
+			helper function to plot two colormaps
+			"""
+			x=np.linspace(0,2*np.pi,500)
+			y=np.linspace(0,2*np.pi,500)
+			X,Y=np.meshgrid(x,y)
+			data=1*np.cos(2*X-5*Y)#+np.random.randn(X.shape[0],X.shape[1])*0.2
+		
+			fig, axs = _plt.subplots(1, len(cms), figsize=(2.5*len(cms), 3), constrained_layout=True)
+			for [ax, cmap] in zip(axs, cms):
+				psm = ax.pcolormesh(data, cmap=cmap, rasterized=True, vmin=data.min(), vmax=data.max())
+				ax.set_title(cmap.name)
+				fig.colorbar(psm, ax=ax)
+			_plt.show()
+		
+		viridis = cm.get_cmap('viridis', 256)
+		Spectral = cm.get_cmap('Spectral_r', 256)
+		seismic = cm.get_cmap('seismic', 256)
+
+		plot_examples([viridis, Spectral, seismic, newcmp])
+		
+	return newcmp

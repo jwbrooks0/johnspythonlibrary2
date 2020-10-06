@@ -142,7 +142,8 @@ def removeMagneticOffsetWithCurrentReference(	dfArrayRaw,
 												timeFWHM=4e-4,
 												spatialFilter=False,
 												plot=False,
-												shotno=0):
+												shotno=0,
+												y2label='G'):
 	"""
 	Same as standard offset subtraction but with an extra feature.  This is that
 	an additional dataframe with an oscillating current is also include.  The filter
@@ -211,28 +212,31 @@ def removeMagneticOffsetWithCurrentReference(	dfArrayRaw,
 		dfResult=_pd.DataFrame(dfSignal-dfMask.Data,index=dfMask.index.to_numpy())
 		if plot==True:
 			title+=', %d'%shotno
-			fig,ax=_plt.subplots(3)
+			fig,ax=_plt.subplots(3,sharex=True)
 			ax[0].plot(dfProbe.index*1e3,dfProbe,label='Probe\nCurrent')
-			ax[1].plot(dfSignalOld.index*1e3,dfSignalOld*1e4,label='Original')
-			ax[1].plot(dfMask.index*1e3,dfMask*1e4,label='Offset')
-			ax[2].plot(dfResult.index*1e3,dfResult*1e4,label='Result')
+			ax[1].plot(dfSignalOld.index*1e3,dfSignalOld,label='Original')
+# 			ax[1].plot(dfSignalOld.index*1e3,dfSignalOld*1e4,label='Original')
+# 			ax[1].plot(dfMask.index*1e3,dfMask*1e4,label='Offset')
+# 			ax[2].plot(dfResult.index*1e3,dfResult*1e4,label='Result')
+			ax[1].plot(dfMask.index*1e3,dfMask,label='Offset')
+			ax[2].plot(dfResult.index*1e3,dfResult,label='Result')
 			_plot.finalizeSubplot(ax[0],
 									   ylabel='A',
 							   title=title)
 			_plot.finalizeSubplot(ax[1],
-									   ylabel='G'
+									   ylabel=y2label
 							   )
 			_plot.finalizeSubplot(ax[2],
 							   xlabel='Time (ms)',
-									   ylabel='G'
+									   ylabel=y2label
 							   )
 			_plot.finalizeFigure(fig,figSize=[6,3.5])
 		
 		return dfResult
 
 	# clip data between 1.6e-3 and 10e-3
-	dfArrayRaw=_filterDFByTime(dfArrayRaw.copy(),1.6e-3,10e-3)
-	dfCurrent=_filterDFByTime(dfCurrent.copy(),1.6e-3,10e-3)
+	dfArrayRaw=_filterDFByTime(dfArrayRaw.copy(),1.6000001e-3,10.0000001e-3)
+	dfCurrent=_filterDFByTime(dfCurrent.copy(),1.6000001e-3,10.0000001e-3)
 	
 	# not used.  ignore
 	if spatialFilter==True:
