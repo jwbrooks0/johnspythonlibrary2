@@ -43,6 +43,8 @@ _mpl.rcParams['axes.titlesize'] = _FONTSIZE+2
 # legend
 _mpl.rcParams['legend.numpoints'] = 3  # not working
 
+# other
+_mpl.rcParams.update({'figure.autolayout': True})
 
 ###################################################################################
 ### figure/ax related
@@ -380,7 +382,7 @@ def subplotsWithColormaps(nrows=2,sharex=False):
 ###################################################################################
 ### shapes
 
-def circle(ax,xy=(0,0),r=1,color='r',linestyle='-',alpha=1,fill=True):
+def circle(ax,xy=(0,0),r=1,color='r',linestyle='-',alpha=1,fill=True,label=''):
 	circle1 = _plt.Circle(xy, r, color=color,alpha=alpha,fill=fill,linestyle=linestyle)
 	ax.add_artist(circle1)
 
