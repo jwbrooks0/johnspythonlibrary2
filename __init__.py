@@ -1,4 +1,4 @@
-
+from ._version import __version__
 
 try:
 	# This file does not exist by default.  Rename the template file and fill in the appropriate variables within.
