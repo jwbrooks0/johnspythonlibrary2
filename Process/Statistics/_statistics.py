@@ -4,6 +4,10 @@ import pandas as _pd
 import scipy as _sp
 
 
+def crossCorrelation(y1,y2,mode='same'):
+	""" cross correlation wrapper for numpy function """
+	CC=_np.correlate(y1,y2,mode=mode)
+	return CC
 
 
 def correlationCoefficient(data,fit):
