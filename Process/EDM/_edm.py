@@ -120,10 +120,11 @@ def solveLorentz(	N=2000,
 	--------
 	Example 1::
 		
-		solveLorentz( 	N=4000,
-						dt=0.05,
+		_plt.close('all')
+		solveLorentz( 	N=5000,
+						dt=0.02,
 						IC=[-9.38131377, -8.42655716 , 29.30738524],
-						plot=True,
+						plot='all',
 						T=1,
 						removeMean=True,
 						normalize=True,
@@ -199,14 +200,27 @@ def solveLorentz(	N=2000,
 		_plt.figure();_plt.plot(z,x)
 	
 		from mpl_toolkits.mplot3d import Axes3D
+		import matplotlib as _mpl
+		_mpl.rcParams.update({'figure.autolayout': False})
 		fig = _plt.figure()
-		ax = fig.add_subplot(111, projection='3d')
+		ax = fig.add_subplot(121, projection='3d')
 		ax.plot(x,y,zs=z)
 		ax.set_xlabel('x')
 		ax.set_ylabel('y')
 		ax.set_zlabel('z')		
-		ax.set_title('Lorentz Attractor\n'+r'($\sigma$, b, r)='+'(%.3f, %.3f, %.3f)'%(args[0],args[1],args[2])+'\nIC = (%.3f, %.3f, %.3f)'%(IC[0],IC[1],IC[2]))
+		ax.set_title('Lorentz Attractor\n'+r'($\sigma$, b, r)='+'(%.3f, %.3f, %.3f)'%(args[0],args[1],args[2])+'\nIC = (%.3f, %.3f, %.3f)'%(IC[0],IC[1],IC[2])+'\nState space')
 		
+		
+		ax = fig.add_subplot(122, projection='3d')
+		ax.plot(x[6::3],x[3:-3:3],zs=x[:-6:3])
+# 		ax.plot(y[2:],y[1:-1],zs=y[:-2])
+# 		ax.plot(z[2:],z[1:-1],zs=z[:-2])
+		ax.set_xlabel('x(t)')
+		ax.set_ylabel(r'x(t-$\tau$)')
+		ax.set_zlabel(r'x(t-2$\tau$)')
+		ax.set_title('Lorentz Attractor\n'+r'($\sigma$, b, r)='+'(%.3f, %.3f, %.3f)'%(args[0],args[1],args[2])+'\nIC = (%.3f, %.3f, %.3f)'%(IC[0],IC[1],IC[2])+'\nTime-lagged state space')
+# 		fig.set_tight_layout(True)
+		fig.tight_layout(pad=5,w_pad=5)
 		
 	return x,y,z
 
@@ -493,32 +507,6 @@ def printTime(string,start):
 	print('%.3fs'%((_time.time()-start)))
 	
 	
-# @deprecated
-# def forecast_old(sx,dfY,keysOfNearestNeighbors,weights,T,plot=False):
-# 	""" The forecasting method.  Combines weights with correct indices (keys) to get the forecast """
-# 	# TODO this file REQUIRES dfY as an input.  Make this optional
-# 	# TODO I believe that this function is the bottleneck for this algorithm.  Try to optomize
-# 	# TODO write a case for T=0
-# 	s=sx.copy()
-# 	dfTActual=_pd.DataFrame(index=dfY.index.values[:-T+1],dtype=float)
-# 	for key in range(1,1+T):
-# 		dfTActual['%d'%key]=dfY.iloc[key-1:dfY.shape[0]-T+key][0].values	
-# 	dfTGuess=_pd.DataFrame(index=dfTActual.index,columns=dfTActual.columns,dtype=float)
-# 	
-# 	for key,val in dfTGuess.iteritems():
-# 			print(key)
-# 			shape=keysOfNearestNeighbors.shape
-# 			y=_pd.DataFrame(sx.loc[(keysOfNearestNeighbors+int(key)-1).values.reshape(-1)].values.reshape(shape),index=keysOfNearestNeighbors.index,columns=keysOfNearestNeighbors.columns)
-
-# 			dfTGuess.at[:,key]=(weights*y).sum(axis=1).values
-# 		
-# 	if plot==True:
-# 		fig,ax=_plt.subplots()
-# 		_plt.plot(dfTActual['1'],label='actual')
-# 		_plt.plot(dfTGuess['1'],label='guess')
-# 		_plt.legend()
-# 	return dfTActual,dfTGuess
-
 
 def applyForecast(s,dfY,keys,weights,T,plot=False):
 	""" 
@@ -549,7 +537,6 @@ def applyForecast(s,dfY,keys,weights,T,plot=False):
 		dfTActual, dfTGuess=applyForecast(s,Py,keys,weights,T=10,plot=True)
 	
 	"""
-	# TODO update so that T starts at 0 instead of 1
 	
 	index=dfY.index.values[:-T]
 	dfTActual=_pd.DataFrame(index=index,dtype=float)
@@ -1233,6 +1220,7 @@ def calcWeights(radii,method='exponential'):
 		points,indices,radii=findNearestNeighbors(A,B,numberOfNearestPoints=numberOfNearestPoints)
 		
 		weights=calcWeights(radii)
+		print(weights)
 		
 		for i in range(len(B)):
 			fig,ax=_plt.subplots()
@@ -1251,8 +1239,13 @@ def calcWeights(radii,method='exponential'):
 		radii=_pd.DataFrame(radii)
 	
 	if method =='exponential':
-		weights=_np.exp(-radii/radii.min(axis=1)[:,_np.newaxis])
-		weights/=weights.sum(axis=1)[:,_np.newaxis] 	# TODO this line throws a warning. fix.   "FutureWarning: Support for multi-dimensional indexing (e.g. 'obj[:,None]') is deprecated and will be removed in a future version.  Convert to a numpy array before indexing instead."
+		if True:
+			weights=_np.exp(-radii/_np.array(radii.min(axis=1)).reshape(-1,1))
+			weights=weights/_np.array(weights.sum(axis=1)).reshape(-1,1)
+		else: # this is the old method but it threw warnings.  I've replaced it with the above, but I'm leaving the old here just in case
+			weights=_np.exp(-radii/radii.min(axis=1)[:,_np.newaxis])  #  this throws the same error as below.  fix.
+			weights=weights/weights.sum(axis=1)[:,_np.newaxis] 	#  this line throws a warning. fix.   "FutureWarning: Support for multi-dimensional indexing (e.g. 'obj[:,None]') is deprecated and will be removed in a future version.  Convert to a numpy array before indexing instead."
+		
 	elif method =='uniform':
 		weights=_np.ones(radii.shape)/radii.shape[1]
 	else:
@@ -1266,7 +1259,9 @@ def calcWeights(radii,method='exponential'):
 
 def calcCorrelationCoefficient(data,fit,plot=False):
 	""" 
-	Pearson correlation coefficient 
+	Pearson correlation coefficient .
+	Note that # pearson correlation is rho=sqrt(r^2)=r and allows for a value from
+	1 (perfectly coorelated) to 0 (no correlation) to -1 (perfectly anti-correlated)
 	
 	Reference
 	---------
@@ -1314,6 +1309,28 @@ def calcCorrelationCoefficient(data,fit,plot=False):
 		y1=np.sin(2*np.pi*f*t)
 		y2=-y1+(np.random.rand(len(t))-0.5)*0.1
 		calcCorrelationCoefficient(y1,y2,plot=True)
+		
+	Example 4::
+		
+		## Test for divide by zero warning
+		
+		import numpy as np
+		f=2e3
+		t=np.arange(0,1e-3,2e-6)
+		data=np.sin(2*np.pi*f*t)
+		fit=np.zeros(data.shape)
+		calcCorrelationCoefficient(data,fit,plot=True)
+		
+	Example 5::
+		
+		## Test for divide by nan
+		
+		import numpy as np
+		f=2e3
+		t=np.arange(0,1e-3,2e-6)
+		data=np.sin(2*np.pi*f*t)
+		fit=np.zeros(data.shape)*np.nan
+		calcCorrelationCoefficient(data,fit,plot=True)
 	"""
 	if type(data)==_pd.core.frame.Series or type(data)==_np.ndarray:
 		data=_pd.DataFrame(data)
@@ -1331,10 +1348,13 @@ def calcCorrelationCoefficient(data,fit,plot=False):
 		SSxy=((f-f.mean())*(y-y.mean())).sum()
 		SSxx=((f-f.mean())**2).sum()
 		SSyy=((y-y.mean())**2).sum()
-		rho[i]=SSxy/_np.sqrt(SSxx*SSyy) # r-squared value
+		if _np.sqrt(SSxx*SSyy)!=0:
+			rho[i]=SSxy/_np.sqrt(SSxx*SSyy) # r-squared value  #TODO this line occassionally returns a RuntimeWarning.  Fix.  "RuntimeWarning: invalid value encountered in double_scalars"
+		else: # TODO possibly add a divide by nan or by inf case?
+			rho[i]=_np.nan # recently added this case for divide by zero.  i'm leaving this comment here until i'm sure the fix is bug free
 # 		rho[i]=SSxy**2/(SSxx*SSyy) # r-squared value
 		
-# 		rho[i]=_np.sqrt(rho[i]) # pearson correlation is sqrt(r^2)=r
+# 		rho[i]=_np.sqrt(rho[i]) 
 	
 		if plot==True:
 			fig,ax=_plt.subplots()
@@ -1345,51 +1365,6 @@ def calcCorrelationCoefficient(data,fit,plot=False):
 			
 	return rho
 
-
-	
-# @deprecated
-# def correlationCoefficient(data,fit,plot=False):
-# 	#TODO retire this function
-# 	""" 
-# 	Correlation coefficient 
-# 	
-# 	Reference
-# 	---------
-# 	https://mathworld.wolfram.com/CorrelationCoefficient.html
-# 	"""
-# 	if type(data)==_pd.core.frame.DataFrame or type(data)==_pd.core.frame.Series:
-# 		y=data.values.reshape(-1)
-# 		f=fit.values.reshape(-1)
-# 	elif type(data)==_np.ndarray:
-# 		y=data.reshape(-1)
-# 		f=fit.reshape(-1)
-# 	SSxy=((f-f.mean())*(y-y.mean())).sum()
-# 	SSxx=((f-f.mean())**2).sum()
-# 	SSyy=((y-y.mean())**2).sum()
-# 	rho=SSxy**2/(SSxx*SSyy)
-# 	
-# 	if plot==True:
-# 		fig,ax=_plt.subplots()
-# 		ax.plot(data,label='Original data')
-# 		ax.plot(fit,label='Reconstructed data')
-# 		ax.legend()
-# 		ax.set_title('Rho = %.3f'%rho)
-# 	return rho
-
-
-	
-
-# def calcRho(dfTActual,dfTFit,E,T,plot=True):
-# 	""" calculates correlation coefficient between Fit and Actual data """
-# 	dfRho=_pd.DataFrame(index=range(1,T+1))
-# 	for t in range(1,T+1):
-# 		if plot=='all':
-# 			plotFitVsActual(dfTFit[str(t)],dfTActual[str(t)])
-# 		dfRho.at[t,E]=correlationCoefficient(dfTActual[str(t)],dfTFit[str(t)])
-# 		
-# 	if plot==True or plot=='all':
-# 		plotRho(dfRho)
-# 	return dfRho
 
 
 def findNearestNeighbors(X,Y,numberOfNearestPoints=1):
@@ -1435,6 +1410,75 @@ def findNearestNeighbors(X,Y,numberOfNearestPoints=1):
 
 ###################################################################################
 #%% Main functions
+
+def gridded_reconstruction_underdevelopment():
+	print('under development')
+	
+	"""
+	
+	Examples
+	--------
+	Example 1::
+		
+		import pandas as pd
+		import matplotlib.pyplot as plt; plt.close('all')
+		import johnspythonlibrary2 as jpl2
+		import numpy as np
+		
+		N=10000
+		T=1
+		x,y,z=solveLorentz(N=N,T=T)
+		t=np.linspace(0,T+T/N,N)
+		s1A=pd.Series(x,index=t)
+		s2A=pd.Series(z,index=t)
+		
+		x,y,z=solveLorentz(N=N,T=T,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3])
+		s1B=pd.Series(x,index=t)
+		s2B=pd.Series(z,index=t)
+		
+		E=2
+		knn=E+1
+		tau=1
+		
+		P1A=convertToTimeLaggedSpace(s1A,E,tau)
+		
+		M=100
+		x_bins=np.linspace(s1A.min(),s1A.max(),M+2)[1:-1]
+		X=np.meshgrid(x_bins,x_bins,indexing='ij')
+		X2=[X[0].reshape(-1),X[1].reshape(-1)]
+		df_grid=pd.DataFrame(np.array(X2).transpose())
+		
+		points,indices,radii=findNearestNeighbors(df_grid.values,P1A.values,1)
+		indices=indices.reshape(-1)
+		
+		i=3
+		fig,ax=_plt.subplots()
+		ax.set_aspect('equal')
+		ax.plot(df_grid[0],df_grid[1],'.',label='grid')
+		ax.plot(P1A.iloc[i,0],P1A.iloc[i,1],'x',label='point of interest')			
+		ax.plot(points[i][:,0],points[i][:,1],label='%d nearest neighbors'%numberOfNearestPoints,marker='o',linestyle='', markerfacecolor="None")
+			
+			
+		
+# 		sB2_recon,rho=SMIReconstruction(	s1A, 
+# 											s2A, 
+# 											s1B, 
+# 											E, 
+# 											tau, 
+# 											s2B=s2B, 
+# 											plot=True,
+# 											s1Name='Lorentz-x',
+# 											s2Name='Lorentz-z',
+# 											A='IC1',
+# 											B='IC2')
+# 		
+# 		fig=plt.gcf()
+# 		ax=fig.get_axes()
+# 		ax[0].set_xlim([0.2,0.25])
+# 		ax[1].set_xlim([0.2,0.25])
+		
+	"""
+	
 
 def forecast(s,E,T,tau=1,knn=None,plot=False,weightingMethod=None,showTime=False):
 	
@@ -1532,178 +1576,6 @@ def forecast(s,E,T,tau=1,knn=None,plot=False,weightingMethod=None,showTime=False
 		
 	return dic
 
-
-
-# def SMIReconstruction_depricated(	s1A,
-# 						s2A,
-# 						s1B,
-# 						E,
-# 						tau,
-# 						knn=None,
-# 						s2B=None,
-# 						plot=False,
-# 						s1Name='s1',
-# 						s2Name='s2',
-# 						A='A',
-# 						B='B',
-# 						printStepInfo=False):
-# 	"""
-# 	
-# 	Parameters
-# 	----------
-# 	s1A : pandas series
-# 		Signal 1 (from source 1) and first half (e.g. A)
-# 	s2A : pandas series
-# 		Signal 2 (from source 2) and first half (e.g. A)
-# 	s1B : pandas series
-# 		Signal 1 (from source 1) and second half (e.g. B)
-# 	s2B : pandas series
-# 		Signal 2 (from source 2) and second half (e.g. B)
-# 		Optional signal.  Is used to calculate rho if provided.  
-# 	tau : int
-# 		time step parameter
-# 	knn : int
-# 		number of nearest neighbors.  None is default = E+1
-# 	plot : bool
-# 		(Optional) plot
-# 	
-# 	
-# 	Returns
-# 	-------
-# 	sB2_recon : pandas series
-# 		Reconstructed sB2 signal
-# 	rho : float
-# 		Correlation value between sB2 and sB2_reconstruction.  Value is between 0 and where 1 is perfect agreement.  
-
-
-# 	Notes
-# 	-----
-# 	  * This algorithm is based on https://doi.org/10.1088%2F1361-6595%2Fab0b1f
-# 	
-# 	
-# 	Examples
-# 	--------
-# 	Example 1::
-# 		
-# 		import pandas as pd
-# 		import matplotlib.pyplot as plt; plt.close('all')
-# 		import johnspythonlibrary2 as jpl2
-# 		
-# 		N=10000
-# 		T=1
-# 		x,y,z=solveLorentz(N=N,T=T)
-# 		t=np.linspace(0,T+T/N,N+1)
-# 		s1A=pd.Series(x,index=t)
-# 		s2A=pd.Series(z,index=t)
-# 		
-# 		x,y,z=solveLorentz(N=N,T=T,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3])
-# 		s1B=pd.Series(x,index=t)
-# 		s2B=pd.Series(z,index=t)
-# 		
-# 		E=4
-# 		knn=E+1
-# 		tau=1
-# 		
-# 		sB2_recon,rho=SMIReconstruction(	s1A, 
-# 											s2A, 
-# 											s1B, 
-# 											E, 
-# 											tau, 
-# 											s2B=s2B, 
-# 											plot=True,
-# 											s1Name='Lorentz-x',
-# 											s2Name='Lorentz-z',
-# 											A='IC1',
-# 											B='IC2')
-# 		fig=plt.gcf()
-# 		ax=fig.get_axes()
-# 		ax[0].set_xlim([0.2,0.25])
-# 		ax[1].set_xlim([0.2,0.25])
-# 		
-# 	"""
-# 	if type(s1A) != _pd.core.series.Series:
-# 		raise Exception('sA1 should be in Pandas series format')
-# 	if type(s2A) != _pd.core.series.Series:
-# 		raise Exception('sA2 should be in Pandas series format')
-# 	if type(s1B) != _pd.core.series.Series:
-# 		raise Exception('sB1 should be in Pandas series format')
-# 	if type(s2B) != None:
-# 		if type(s2B) != _pd.core.series.Series:
-# 			raise Exception('sB2 should be in Pandas series format')
-# 			
-# 	# index
-# 	index_1=s1A.copy().index.values
-# 	index_2=s2A.copy().index.values
-# 	
-# 	
-# 	# reset the index to integers (this ensures all indices are the same and prevents issues with combining Series with possibly different indices in the future)
-# 	s1A.index=_np.arange(0,s1A.shape[0],dtype=int)
-# 	s2A.index=_np.arange(0,s2A.shape[0],dtype=int)
-# 	s1B.index=_np.arange(0,s1B.shape[0],dtype=int)
-# 	if type(s2B) != None:
-# 		s2B.index=_np.arange(0,s2B.shape[0],dtype=int)
-# 	
-# 	if type(knn)==type(None):
-# 		knn=E+1	# simplex method
-# 		
-# 	if printStepInfo==True:
-# 		print("E = %d, \ttau = %d, \tknn = %d"%(E,tau,knn),end='')
-# 		
-# 	## remove offset
-# 	s1A=s1A.copy()-s1A.mean()
-# 	s2A=s2A.copy()-s2A.mean()
-# 	s1B=s1B.copy()-s1B.mean()
-# 	if type(s2B)!=type(None):
-# 		s2B=s2B.copy()-s2B.mean()
-# 		
-# 	## convert to state space
-# 	P1A,P2A,P1B=convertToStateSpace([s1A,s2A,s1B],E=E,tau=tau)
-
-# 	## Create map from sA1 to sA2
-# 	keys,weights=createMap(P1A,P1B,knn)
-# 	
-# 	## apply map to sB1 to get reconstructed sB2
-# 	s2B_recon=reconstruct(s2A,keys,weights)
-# 	
-# 	## calc rho
-# 	rho=calcCorrelationCoefficient(s2B[(E-1)*tau:],s2B_recon)	
-# 	if printStepInfo==True:
-# 		print(", \trho = %.3f"%rho)
-
-# 	
-# 	if plot==True and type(s2B)!=type(None):
-# 		
-# 		## sanity check map by reconstructing sA2 from sA1
-# 		s1B_recon=reconstruct(s1A,keys,weights)
-# 		rho_s1B=calcCorrelationCoefficient(s1B[(E-1)*tau:],s1B_recon)
-# 		
-# 		fig=_plt.figure()
-# 		ax1 = _plt.subplot(221)
-# 		ax2 = _plt.subplot(222, sharex = ax1)
-# 		ax3 = _plt.subplot(223, sharex = ax1)
-# 		ax4 = _plt.subplot(224, sharex = ax2)
-# 		ax=[ax1,ax2,ax3,ax4]
-# 		
-# # 		fig,ax=_plt.subplots(2,2,sharex=False,sharey=True)
-# 		ax[0].plot(index_1,s1A)
-# 		_finalizeSubplot(ax[0],subtitle='%s %s'%(s1Name,A),legendOn=False,title='E = %d, tau = %d, knn = %d, N = %d'%(E, tau, knn,s1A.shape[0]),ylabel='Training data')
-# 		print(index_1)
-# 		ax[1].plot(index_1,s1B,label='original')
-# 		ax[1].plot(index_1[ (s1A.shape[0]-s1B_recon.shape[0]):],s1B_recon,label='reconstructed')
-# 		_finalizeSubplot(ax[1],subtitle='%s %s, rho=%.3f'%(s1Name,B,rho_s1B),legendLoc='lower right')
-# 		ax[2].plot(index_2,s2A)
-# 		_finalizeSubplot(ax[2],subtitle='%s %s'%(s2Name, A),legendOn=False,ylabel='Test data',xlabel='Time')
-# 		ax[3].plot(index_2,s2B,label='original')
-# 		ax[3].plot(index_2[(s1A.shape[0]-s2B_recon.shape[0]):],s2B_recon,label='reconstructed')
-# 		_finalizeSubplot(ax[3],subtitle='%s %s, rho=%.3f'%(s2Name,B, rho),legendLoc='lower right',xlabel='Time')
-# 		_finalizeFigure(fig,figSize=[6,4])
-# 	
-# 	## plot
-# 	
-# # 	ax=_plt.gca()
-# # 	ax.set_title('results of applied map\nrho = %.3f\n%s'%(rho,ax.get_title()))
-# 		
-# 	return s2B_recon,rho
 
 
 
@@ -2250,7 +2122,7 @@ def ccmScan(s1,s2,E,tau,Nrange,plot=False,s1Name='s1',s2Name='s2'):
 
 
 def SMIParameterScan2(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False):
-	print('work in progress')
+	print('work in progress') #TODO move away from Pools for multiprocessing
 	
 	"""
 	s1A : pandas series
@@ -2733,105 +2605,279 @@ def example_lorentzAttractor_reconstruction():
 	import numpy as np
 	import johnspythonlibrary2 as jpl2
 	
-	N=2000-1
-	x,y,z=solveLorentz(N=N,plot=True)
-	
-	N+=1
-	x=x[N//2:]
-	y=y[N//2:]
-	z=z[N//2:]
 	if True:
-		fig=plt.gcf()
-		fig.get_axes()[0].set_xlim(N//2,N)
-		fig.savefig('lorentzReconstruction_figure1_time.png')
+		N=500
+		dt=0.2
+		x,y,z=solveLorentz(N=N,plot=True,dt=dt,removeFirstNPoints=1200)
+		
+		N+=1
+		x=x[N//2:]
+		y=y[N//2:]
+		z=z[N//2:]
+		if True:
+			fig=plt.gcf()
+			fig.get_axes()[0].set_xlim(N//2,N)
+			fig.savefig('lorentzReconstruction_figure1_time.png')
+		
+		if True:
+			_,_,_=solveLorentz(N=N,plot='all',dt=dt)
+			fig=plt.gcf()
+			fig.savefig('lorentzReconstruction_figure1_statespace.png')
 	
-	if True:
-		_,_,_=solveLorentz(N=N,plot='all')
-		fig=plt.gcf()
-		fig.savefig('lorentzReconstruction_figure1_statespace.png')
+		N=N//2
+		s1A=_pd.Series(x[:N//2])
+		s1B=_pd.Series(x[N//2:])
+		s2A=_pd.Series(z[:N//2])
+		s2B=_pd.Series(z[N//2:])
+		
+		if True:
+			fig,ax=plt.subplots(2,2)
+			ax[0,0].plot(np.arange(0,N//2),s1A,label='Original')
+			ax[0,1].plot(np.arange(N//2,N),s1B,label='Original')#,color='tab:blue')
+			ax[1,0].plot(np.arange(0,N//2),s2A,label='Original')
+			ax[1,1].plot(np.arange(N//2,N),s2B,label='Original')#,color='tab:blue')
+			
+			jpl2.Plot.finalizeSubplot(	ax[0,0],
+										subtitle='x A (first half)',
+										legendOn=False,
+										xlim=[0,N//2-1],
+										ylabel='x',
+										title='A')
+			jpl2.Plot.finalizeSubplot(	ax[0,1],
+										subtitle='x B (second half)',
+										legendOn=False,
+										xlim=[N//2,N],
+										title='B')
+			jpl2.Plot.finalizeSubplot(	ax[1,0],
+										subtitle='z A (first half)',
+										legendOn=False,
+										xlabel='Time',
+										xlim=[0,N//2-1],
+										ylabel='z',)
+			jpl2.Plot.finalizeSubplot(	ax[1,1],
+										subtitle='z B (second half)',
+										legendOn=False,
+										xlabel='Time',
+										xlim=[N//2,N])
+			ax[0,1].set_yticklabels([''])
+			ax[1,1].set_yticklabels([''])
+			ax[0,0].set_xticklabels([''])
+			ax[0,1].set_xticklabels([''])
+			fig.subplots_adjust(wspace=0.05,hspace=0.05)
+			fig.suptitle('Take x and z signals and split in half (A and B)')
+		
+			fig.savefig('lorentzReconstruction_figure2_breakupData.png')
+			
+			
+		if True:
+			
+			for E, tau in zip([3,4],[1,2]):
+				print(E,tau)
+	# 			E=3
+	# 			tau=1
+				
+				P1A=convertToTimeLaggedSpace(s1A.copy(), E=E, tau=tau)
+				P1B=convertToTimeLaggedSpace(s1B.copy(), E=E, tau=tau)
+				
+				keys,weights = createMap(P1A,P1B,knn=4)
+				
+				s1B_recon=reconstruct(s1A,keys,weights)
+				s2B_recon=reconstruct(s2A,keys,weights)
+	# 				s1B_recon_rho=calcCorrelationCoefficient(s1B[E-1:],s1B_recon)
+				
+				
+				fig0, ax0 = plt.subplots(2, 2, gridspec_kw={'width_ratios': [5, 1]},sharey=False)
+				s1A.plot(ax=ax0[0,0],linewidth=0.5,marker='.',markersize=3)
+				s2A.plot(ax=ax0[1,0],linewidth=0.5,marker='.',markersize=3)
 
-	N=N//2
-	s1A=_pd.Series(x[:N//2])
-	s1B=_pd.Series(x[N//2:])
-	s2A=_pd.Series(z[:N//2])
-	s2B=_pd.Series(z[N//2:])
-	
-	if True:
-		fig,ax=plt.subplots(2,2)
-		ax[0,0].plot(np.arange(0,N//2),s1A,label='Original')
-		ax[0,1].plot(np.arange(N//2,N),s1B,label='Original')#,color='tab:blue')
-		ax[1,0].plot(np.arange(0,N//2),s2A,label='Original')
-		ax[1,1].plot(np.arange(N//2,N),s2B,label='Original')#,color='tab:blue')
+				index=12
+				ax0[0,1].plot(s1B[0:20],linewidth=0.5,marker='.',markersize=3,color='blue') #s1A.index[-1]+1+np.arange(0,index+10)
+				ax0[1,1].plot(s2B[0:20],linewidth=0.5,marker='.',markersize=3,color='blue') #s1A.index[-1]+1+np.arange(0,index+10),
+				
+	# 				y1=P1B.loc[index]
+				x1=np.arange(index-E*(tau)+(tau-1),index,tau)+1
+				print(x1)
+				y1=s1B.loc[x1].values
+				ax0[0,1].plot(x1,y1,linewidth=1.5,color='r',marker='o',markerfacecolor='none')
+				ax0[0,1].plot(x1[-1],y1[-1],linewidth=1.5,color='r',marker='s',markerfacecolor='none',markeredgewidth=2)
+				
+# 				ax0[0,1].plot(x1,y1,linewidth=1.5,color='r',marker='o',markerfacecolor='none')
+				ax0[1,1].plot(x1[-1],s2B.loc[x1].values[-1],linewidth=1.5,color='r',marker='s',markerfacecolor='none',markeredgewidth=2)
+				
+				
+				z=keys.loc[index]
+				for i,(key,val) in enumerate(z.iteritems()):
+	# 					print(key)
+	# 					print(val)
+					x2=np.arange(val-E*(tau)+(tau-1),val,tau)+1
+					y2=s1A.loc[x2].values
+					ax0[0,0].plot(x2,y2,linewidth=1.5,color='tab:orange',marker='o',markerfacecolor='none')
+					ax0[0,0].plot(x2[-1],y2[-1],linewidth=1.5,color='tab:orange',marker='s',markerfacecolor='none',markeredgewidth=2)
+					
+# 					ax0[0,0].plot(x2,y2,linewidth=1.5,color='tab:orange',marker='o',markerfacecolor='none')
+					ax0[1,0].plot(x2[-1],s2A.loc[x2].values[-1],linewidth=1.5,color='tab:orange',marker='s',markerfacecolor='none',markeredgewidth=2)
+					
+					
+				ax0[1,1].plot(x1[-1],s2B_recon.loc[x1[-1]],linestyle='',marker='d',color='green',markerfacecolor='none',markeredgewidth=2)
+					
+				jpl2.Plot.finalizeSubplot(	ax0[0,0],
+# 											xlabel='time',
+											ylabel='x',
+											legendOn=False,
+											ylim=[-17,17])
+				jpl2.Plot.finalizeSubplot(	ax0[0,1],
+# 											xlabel='time',
+	# 										ylabel='x',
+											legendOn=False,
+											ylim=[-17,17])
+				jpl2.Plot.finalizeSubplot(	ax0[1,0],
+ 											xlabel='time',
+											ylabel='x',
+											legendOn=False,
+											ylim=[8,44])
+				jpl2.Plot.finalizeSubplot(	ax0[1,1],
+ 											xlabel='time',
+	# 										ylabel='x',
+											legendOn=False,
+											ylim=[8,44])
+				jpl2.Plot.finalizeFigure(fig0, figSize=[6.5,4.1])
+				fig0.savefig('lorentz_recon_example_E_%d_tau_%d.png'%(E,tau),dpi=150)
+				
+			
+			
+			
+			
+			
+			
+		E=3
+		tau=1
 		
-		jpl2.Plot.finalizeSubplot(	ax[0,0],
-									subtitle='x A (first half)',
-									legendOn=False,
-									xlim=[0,N//2-1],
-									ylabel='x',
-									title='A')
-		jpl2.Plot.finalizeSubplot(	ax[0,1],
-									subtitle='x B (second half)',
-									legendOn=False,
-									xlim=[N//2,N],
-									title='B')
-		jpl2.Plot.finalizeSubplot(	ax[1,0],
-									subtitle='z A (first half)',
-									legendOn=False,
-									xlabel='Time',
-									xlim=[0,N//2-1],
-									ylabel='z',)
-		jpl2.Plot.finalizeSubplot(	ax[1,1],
-									subtitle='z B (second half)',
-									legendOn=False,
-									xlabel='Time',
-									xlim=[N//2,N])
-		ax[0,1].set_yticklabels([''])
-		ax[1,1].set_yticklabels([''])
-		ax[0,0].set_xticklabels([''])
-		ax[0,1].set_xticklabels([''])
-		fig.subplots_adjust(wspace=0.05,hspace=0.05)
-		fig.suptitle('Take x and z signals and split in half (A and B)')
-	
-		fig.savefig('lorentzReconstruction_figure2_breakupData.png')
+		P1A=convertToTimeLaggedSpace(s1A, E=E, tau=tau)
+		P1B=convertToTimeLaggedSpace(s1B, E=E, tau=tau)
 		
-	E=3
-	tau=1
-	
-	P1A=convertToTimeLaggedSpace(s1A, E=E, tau=tau)
-	P1B=convertToTimeLaggedSpace(s1B, E=E, tau=tau)
-	
-	keys,weights = createMap(P1A,P1B,knn=E+1)
-	
-	s1B_recon=reconstruct(s1A,keys,weights)
-	s1B_recon_rho=calcCorrelationCoefficient(s1B[E-1:],s1B_recon)
+		keys,weights = createMap(P1A,P1B,knn=E+1)
+		
+		s1B_recon=reconstruct(s1A,keys,weights)
+		s1B_recon_rho=calcCorrelationCoefficient(s1B[E-1:],s1B_recon)
+		
+		
+		
+			
+		
+		if True:
+			ax[0,1].plot(np.arange(N//2+E-1,N),s1B_recon,color='tab:blue',label='Reconstruction')
+			jpl2.Plot.finalizeSubplot(	ax[0,1],
+										subtitle='x B (second half). rho=%.3f'%s1B_recon_rho,
+										legendOn=True,
+										xlim=[N//2,N],
+										title='B',
+										legendLoc='lower right')
+			fig.suptitle('For each point in x_B, use x_A to predict (reconstruct) x_B.\nThis provides a map from x_A to x_B with a near perfect reconstruction.\nE=%d, tau=%d, N=%d'%(E,tau,N//2))
+			fig.savefig('lorentzReconstruction_figure3_createMap.png')
+			
+			
+			
+		
+		s2B_recon=reconstruct(s2A,keys,weights)
+		s2B_recon_rho=calcCorrelationCoefficient(s2B[E-1:],s2B_recon)
+		if True:
+			ax[1,1].plot(np.arange(N//2+E-1,N),s2B_recon,color='tab:blue',label='Reconstruction')
+			jpl2.Plot.finalizeSubplot(	ax[1,1],
+										subtitle='z B (second half). rho=%.3f'%s2B_recon_rho,
+										legendOn=True,
+										xlim=[N//2,N],
+										xlabel='Time',
+										legendLoc='lower right')
+			fig.suptitle('Apply this same map to z_A to predict (reconstruct) z_B.\n The correlation for z_B_recon is almost as good as x_B_recon.\nE=%d, tau=%d, N=%d'%(E,tau,N//2))
+			fig.savefig('lorentzReconstruction_figure4_applyMap2.png')
+			
+			
+			
 	if True:
-		ax[0,1].plot(np.arange(N//2+E-1,N),s1B_recon,color='tab:blue',label='Reconstruction')
-		jpl2.Plot.finalizeSubplot(	ax[0,1],
-									subtitle='x B (second half). rho=%.3f'%s1B_recon_rho,
+		
+		import pandas as pd
+		import numpy as np
+		import matplotlib.pyplot as plt
+		E=3
+		tau=1
+		
+		N=40000
+		dt=0.005
+		
+		# solve Lorentz equations with one set of ICs
+		xA,yA,zA=solveLorentz(N=N,dt=dt,
+					removeMean=True,
+					normalize=True,)
+		s1A=pd.Series(xA)
+		s2A=pd.Series(zA)
+		
+		# solve Lorentz equations with a second set of ICs
+		xB,yB,zB=solveLorentz(N=N,dt=dt,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3],
+					removeMean=True,
+					normalize=True,)
+		s1B=pd.Series(xB)
+		s2B=pd.Series(zB)
+		
+		out=SMIReconstruction(s1A,s2A,s1B,E=E,tau=tau,s2B=s2B,plot=False)
+		
+		from mpl_toolkits.mplot3d import Axes3D
+		import matplotlib as _mpl
+		_mpl.rcParams.update({'figure.autolayout': False})
+# 		fig = _plt.figure()
+
+		fig = plt.figure(constrained_layout=True)
+		
+		from matplotlib.gridspec import GridSpec
+		gs = GridSpec(4, 4, figure=fig)
+		ax1 = fig.add_subplot(gs[0:2, 0:2], projection='3d')
+		ax2 = fig.add_subplot(gs[ 0:2,2:4], projection='3d')
+		ax3 = fig.add_subplot(gs[2, 0:4])
+		ax4 = fig.add_subplot(gs[3, 0:4],sharex=ax3)
+		ax1.plot(xA[0:8000],yA[0:8000],zs=zA[0:8000],linewidth=0.5)
+# 		ax.set_xlabel('x')
+# 		ax.set_ylabel('y')
+# 		ax.set_zlabel('z')	
+		ax1.set_xticklabels([''])
+		ax1.set_yticklabels([''])
+		ax1.set_zticklabels([''])	
+		ax2.set_xticklabels([''])
+		ax2.set_yticklabels([''])
+		ax2.set_zticklabels([''])
+		
+		tau=10
+# 		ax = fig.add_subplot(322, projection='3d')
+		ax2.plot(xA[tau*2::tau][0:1000],xA[tau:-tau:tau][0:1000],zs=xA[:-2*tau:tau][0:1000],linewidth=0.5)
+		
+		ax3.plot(xB,label='x',linewidth=2)
+		ax4.plot(zB,label='original',linewidth=2)
+		ax4.plot(out[0],label='reconst.',linewidth=1.5,linestyle='-')
+		
+		jpl2.Plot.finalizeSubplot(ax3,
+									xlabel='',
+									xtickLabels=[''],
+									ylabel='',
+									subtitle='x',
+									ytickLabels=[''],
+									legendOn=False,
+									)
+		jpl2.Plot.finalizeSubplot(ax4,
+									xlabel='Time',
+									xtickLabels=[''],
+									ytickLabels=[''],
+									ylabel='',
 									legendOn=True,
-									xlim=[N//2,N],
-									title='B',
-									legendLoc='lower right')
-		fig.suptitle('For each point in x_B, use x_A to predict (reconstruct) x_B.\nThis provides a map from x_A to x_B with a near perfect reconstruction.\nE=%d, tau=%d, N=%d'%(E,tau,N//2))
-		fig.savefig('lorentzReconstruction_figure3_createMap.png')
+									subtitle='z',
+									xlim=[0,5000],
+									legendLoc='upper right')
+		jpl2.Plot.subTitle(ax1, 'a)',xy=(0.1,0.9),horizontalalignment='left')
+		jpl2.Plot.subTitle(ax2, 'b)',xy=(0.1,0.9),horizontalalignment='left')
+		jpl2.Plot.subTitle(ax3, 'c)',xy=(0.015,0.95),horizontalalignment='left')
+		jpl2.Plot.subTitle(ax4, 'd)',xy=(0.015,0.95),horizontalalignment='left')
 		
+		for i in range(5):
+			jpl2.Plot.finalizeFigure(fig,figSize=[4,4])
 		
-		
-	
-	s2B_recon=reconstruct(s2A,keys,weights)
-	s2B_recon_rho=calcCorrelationCoefficient(s2B[E-1:],s2B_recon)
-	if True:
-		ax[1,1].plot(np.arange(N//2+E-1,N),s2B_recon,color='tab:blue',label='Reconstruction')
-		jpl2.Plot.finalizeSubplot(	ax[1,1],
-									subtitle='z B (second half). rho=%.3f'%s2B_recon_rho,
-									legendOn=True,
-									xlim=[N//2,N],
-									xlabel='Time',
-									legendLoc='lower right')
-		fig.suptitle('Apply this same map to z_A to predict (reconstruct) z_B.\n The correlation for z_B_recon is almost as good as x_B_recon.\nE=%d, tau=%d, N=%d'%(E,tau,N//2))
-		fig.savefig('lorentzReconstruction_figure4_applyMap2.png')
-		
-		
+			
 	if True:
 		
 		import pandas as pd
@@ -2860,6 +2906,8 @@ def example_lorentzAttractor_reconstruction():
 		fig.savefig('lorentzReconstruction_figure5_EAndTauScan.png')
 		
 		return df
+	
+	
 		
 	
 	
@@ -2972,7 +3020,7 @@ def example_sugihara2012():
 		
 		fig,ax=plt.subplots()
 		from matplotlib import cm
-		f=da.plot(levels=np.arange(-0.65,.66,.1),cmap=cm.Spectral_r,center=0,cbar_kwargs={'ticks': _np.arange(-1,1.01,0.1), 'label':'Rho-Rho'})
+		da.plot(levels=np.arange(-0.65,.66,.1),cmap=cm.Spectral_r,center=0,cbar_kwargs={'ticks': _np.arange(-1,1.01,0.1), 'label':'Rho-Rho'})
 		fig.show()
 
 
