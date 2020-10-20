@@ -1,4 +1,4 @@
-__version__ = "3.0.0"
+__version__ = "3.1.0"
 
 # first digit = major changes (overhauls, etc)
 # second digit = minor changes (new functions, etc)
