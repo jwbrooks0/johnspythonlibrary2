@@ -4,6 +4,384 @@ import pandas as _pd
 import matplotlib.pyplot as _plt
 from scipy import fftpack as _fftpack
 from johnspythonlibrary2 import Plot as _plot
+from johnspythonlibrary2.Plot import subTitle as _subTitle
+
+###############################################################################
+#%% Fourier methods
+
+
+def fft_max_freq(df_fft,positiveOnly=True):
+	"""
+	Calculates the maximum frequency associted with the fft results
+	
+	Example
+	-------
+	::
+		
+		import numpy as np
+		
+		dt=2e-6
+		f=1e3
+		t=np.arange(0,10e-3,dt)
+		y=np.sin(2*np.pi*t*f)
+		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
+							index=t,
+							columns=['a','b','c'])
+		df_fft=fft_df(df,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
+		max_freq=fft_max_freq(df_fft)
+		
+	"""
+	df_fft=_np.abs(df_fft.copy())
+	
+	if positiveOnly==True:
+		df_fft=df_fft[df_fft.index>0]
+	
+	return df_fft.idxmax(axis=0)
+	
+	
+# depricated
+def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
+	"""
+	Simple wrapper for fft from scipy
+	
+	Parameters
+	----------
+	df : pandas.core.frame.DataFrame
+		dataframe of time dependent data
+		index = time
+	plot : bool
+		(optional) Plot results
+	trimNegFreqs : bool
+		(optional) True - only returns positive frequencies
+	normalizeAmplitude : bool
+		(optional) True - normalizes the fft (output) amplitudes to match the time series (input) amplitudes
+		
+	Returns
+	-------
+	dfFFT : pandas.core.frame.DataFrame
+		complex FFT of df
+	
+	References
+	-----------
+	https://stackoverflow.com/questions/25735153/plotting-a-fast-fourier-transform-in-python
+	
+	Example
+	-------
+	::
+		
+		import numpy as np
+		
+		dt=2e-6
+		f=1e3
+		t=np.arange(0,10e-3,dt)
+		y=np.sin(2*np.pi*t*f)
+		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
+							index=t,
+							columns=['a','b','c'])
+		df_fft=fft_df(df,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
+		
+	"""
+	
+	if type(df)!=_pd.core.frame.DataFrame:
+		if type(df)==_pd.core.series.Series:
+			df=_pd.DataFrame(df)
+		else:
+			raise Exception('Input data not formatted correctly')
+	
+	# initialize
+	
+	# fft
+	from numpy.fft import fft
+	dt=df.index[1]-df.index[0]
+	freq = _fftpack.fftfreq(df.shape[0],d=dt)
+	dfFFT=df.apply(fft,axis=0).set_index(freq)
+# 	dfFFT=df.apply(_fftpack.fft,axis=0).set_index(freq)
+	
+	# options
+	if trimNegFreqs==True:
+		dfFFT=dfFFT[dfFFT.index>=0]
+	if normalizeAmplitude==True:
+		N=df.shape[0]
+		dfFFT*=2.0/N
+		
+	# optional plot of results
+	if plot==True:
+		
+		dfAmp=dfFFT.abs()
+		dfPhase=phase(dfFFT)
+		for i,(key,val) in enumerate(df.iteritems()):
+# 			f,(ax1,ax2,ax3)=_plt.subplots(nrows=32)
+			f,(ax1,ax2)=_plt.subplots(nrows=2)
+			
+			ax1.plot(val)
+			ax1.set_ylabel('Orig. signal')
+			ax1.set_xlabel('Time')
+			ax1.set_title(key)
+			
+			ax2.loglog(dfPhase.index,dfAmp[key],marker='.')
+			ax2.set_ylabel('Amplitude')
+			
+# 			ax3.plot(dfPhase.index,dfPhase[key],marker='.',linestyle='')
+# 			ax3.set_ylabel('Phase')
+			ax2.set_xlabel('Frequency')
+# 			ax3.set_ylim([-_np.pi,_np.pi])
+		
+	# return results
+	return dfFFT
+
+
+
+def fft(da,plot=False,trimNegFreqs=False,normalizeAmplitude=False,sortByFFT=False):
+	"""
+	Simple wrapper for fft from scipy
+	
+	Parameters
+	----------
+	da : xarray.DataArray
+		dataarray of time dependent data
+		coord1 = time or t (units in seconds)
+	plot : bool
+		(optional) Plot results
+	trimNegFreqs : bool
+		(optional) True - only returns positive frequencies
+	normalizeAmplitude : bool
+		(optional) True - normalizes the fft (output) amplitudes to match the time series (input) amplitudes
+		
+	Returns
+	-------
+	da_fft : xarray.DataArray
+		complex FFT of da
+	
+	References
+	-----------
+	https://stackoverflow.com/questions/25735153/plotting-a-fast-fourier-transform-in-python
+	
+	Example
+	-------
+	::
+		
+		import numpy as np
+		import xarray as xr
+		
+		dt=2e-6
+		f=1e3
+		t=np.arange(0,10e-3,dt)
+		y=np.sin(2*np.pi*t*f)+np.random.normal(0,1,t.shape)
+		da=xr.DataArray( 	y,
+							dims=['t'],
+							coords={'t':t})
+		fft_result=fft(da,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
+		
+	"""
+	import xarray as xr
+	
+	if type(da)!=xr.core.dataarray.DataArray:
+			raise Exception('Input data not formatted correctly')
+	
+	if da.dims[0] not in ['t','time','T','Time']:
+			raise Exception('Time dimension needs to be labeled t or time')
+	
+	time=_np.array(da['%s'%da.dims[0]])
+	
+	# do fft
+	from numpy.fft import fft
+	dt=time[1]-time[0]
+	freq = _fftpack.fftfreq(da.shape[0],d=dt)
+	fft_results=xr.DataArray(	fft(da.data),
+								dims=['f'],
+								coords={'f':freq})
+	fft_results.attrs["units"] = "au"
+	fft_results.f.attrs["units"] = "Hz"
+	fft_results.f.attrs["long_name"] = 'Frequency'
+	fft_results.attrs["long_name"] = 'FFT amplitude'
+	
+	# options
+	if trimNegFreqs==True:
+		fft_results=fft_results[fft_results.f>=0]
+	if normalizeAmplitude==True:
+		N=da.shape[0]
+		fft_results*=2.0/N
+	if sortByFFT == True:
+		fft_results=fft_results.sortby('f')
+		
+	# optional plot of results
+	if plot==True:
+		
+		da_temp=fft_results.copy().sortby('f')
+		
+		f,(ax1,ax2)=_plt.subplots(nrows=2)
+		
+		da.plot(ax=ax1)
+		(_np.abs(da_temp)).plot(ax=ax2)
+		ax1.set_ylabel('Orig. signal')
+		ax1.set_xlabel('Time')
+		ax2.set_yscale('log')
+ 		# ax2.set_xscale('log')
+		ax2.set_ylabel('FFT Amplitude')
+		ax2.set_xlabel('Frequency')
+		
+	# return results
+	return fft_results
+
+
+
+def fftSingleFreq_df(df,f,plot=False):
+	"""
+	Performs a Fourier transform of a signal at a single frequency
+	
+	Parameters
+	----------
+	df : pandas.core.frame.DataFrame
+		the signal being analyzed
+		index = time
+	f : float
+		The frequency (in Hz) that is being investigated
+		
+	Return
+	------
+	dfResults : pandas.core.frame.DataFrame
+		fft results at frequency, f
+		
+	References
+	----------
+	https://dsp.stackexchange.com/questions/8611/fft-for-a-single-frequency
+	
+	Example
+	-------
+	::
+		
+		dt=2e-6
+		f=1e3
+		t=np.arange(0,10e-3,dt)
+		y=np.sin(2*np.pi*t*f)
+		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
+							index=t,
+							columns=['a','b','c'])
+		dfResults=fftSingleFreq_df(df,f,plot=True)
+
+	"""
+	
+	# init
+	N=df.shape[0]
+	
+	# fft (complex, amplitude, and phase)
+	dfResults=_pd.DataFrame(columns=df.columns,index=['fft','amp','phase'])
+	for i,(key,val) in enumerate(df.iteritems()):
+#		print(key)
+		fft=_np.nansum(val*_np.exp(-1j*2*_np.pi*f*val.index.values))*2./N
+		dfResults.at['fft',key]=fft
+		amp=_np.abs(fft)
+		dfResults.at['amp',key]=amp
+		phase=wrapPhase(_np.arctan2(_np.imag(fft),_np.real(fft))+_np.pi/2)
+		dfResults.at['phase',key]=phase
+#		print(phase)
+
+		# optional plot
+		if plot==True:
+			fig,ax=_plt.subplots()
+			ax.set_title("%s\nFreq: %.1f, Avg. amplitude: %.3f, Avg. phase: %.3f"% (key,f,amp,phase))
+			ax.plot(val)
+			ax.plot(val.index,amp*_np.ones(val.shape[0])) 
+		
+	return dfResults
+
+
+
+def ifft(	dfFFT,
+			t=None,
+			plot=False,
+			invertNormalizedAmplitude=True,
+			returnRealOnly=True):
+	
+	"""
+	Examples
+	--------
+	
+	Example1::
+		
+		import numpy as np
+		dt=2e-6
+		f=1e3
+		t=np.arange(0,10e-3,dt)
+		y=np.sin(2*np.pi*t*f)
+		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
+							index=t,
+							columns=['a','b','c'])
+		dfFFT=fft_df(df,plot=False,normalizeAmplitude=False)
+		
+		df2=ifft(dfFFT)
+		
+		for key,val in df.iteritems():
+			
+			_plt.figure()
+			_plt.plot(df.index,val)
+			sig=df2[key]
+			sig2=_pd.DataFrame(sig.abs())*np.exp(phase(sig))
+			_plt.plot(df2.index,sig)
+			
+			
+	Example2::
+			
+		import pandas as pd
+		import numpy as np
+		import johnspythonlibrary2 as jpl2
+		import matplotlib.pyplot as plt
+		
+		# input signal
+		dt=2e-6
+		f=1e3
+		t=np.arange(0,10e-3,dt)
+		y1=jpl2.Process.SigGen.chirp(t,[1e-3,9e-3],[1e3,1e5])
+		df1=pd.DataFrame(y1,index=t)
+		
+		# filter type 1 : butterworth filter
+		y2=jpl2.Process.Filters.butterworthFilter(df1,10e3,plot=False)
+		df2=pd.DataFrame(y2,index=t)
+		
+		# filter type 2 : IFFT reconstructed Butterworth filter
+		tf=jpl2.Process.TF.calcTF(df1,df2,plot=False)
+		dfFFT=fft_df(df1,plot=False,normalizeAmplitude=False)
+		df3=ifft(pd.DataFrame(tf['lowpassFiltered']*dfFFT[0]))
+		
+		# plots
+		fig,ax=plt.subplots(2,sharex=True)
+		ax[0].plot(df1,label='Input signal')
+		ax[0].plot(df2,label='Output signal')
+		ax[1].plot(df1,label='Input signal')
+		ax[1].plot(df3,label='Output signal')
+		_plot.finalizeSubplot( 	ax[0],
+								subtitle='Butterworth filter')
+		_plot.finalizeSubplot( 	ax[1],
+								subtitle='IFFT reconstructed Butterworth filter')
+		
+	"""
+	
+	if type(dfFFT)==_pd.core.series.Series:
+		dfFFT=_pd.DataFrame(dfFFT)
+	
+	# create a time basis if not provided
+	if t==None:
+		N=dfFFT.shape[0]
+		df=dfFFT.index[1]-dfFFT.index[0]
+		dt=1/df/N
+		t=_np.arange(0,N)*dt
+		
+	# IFFT function
+	from numpy.fft import ifft
+# 	from scipy.fftpack.ifft
+	dfIFFT=dfFFT.apply(ifft,axis=0).set_index(t)
+	
+	# option
+	if returnRealOnly==True:
+		dfIFFT=_pd.DataFrame(_np.real(dfIFFT),index=dfIFFT.index,columns=dfIFFT.columns)
+	
+	# plots
+	if plot==True:
+		fig,ax=_plt.subplots()
+		ax.plot(dfIFFT)
+		
+	return dfIFFT
+	
 
 def stft(	df,
 			numberSamplesPerSegment=1000,
@@ -47,6 +425,8 @@ def stft(	df,
 		
 		# create fake signal.
 		import numpy as np
+		import xarray as xr
+		
 		fs = 10e3
 		N = 1e5
 		amp = 2 * np.sqrt(2)
@@ -66,8 +446,10 @@ def stft(	df,
 		
 	Example2::
 		
-		# create fake signal.
 		import numpy as np
+		import xarray as xr
+		
+		# create fake signal.
 		fs = 10e3
 		N = 1e5
 		amp = 2 * np.sqrt(2)
@@ -267,6 +649,9 @@ def stftSingleFrequency_df(df,
 
 
 	
+###############################################################################
+#%% Coherence
+
 	
 def _coherenceComplex(x, y, fs=1.0, window='hann', nperseg=None, noverlap=None,
 			  nfft=None, detrend='constant', axis=-1):
@@ -473,102 +858,146 @@ def coherenceAnalysis(t,y1,y2,numPointsPerSegment=1024,plot=False,noverlap=None,
 	return f, Cxy
 
 
-def ifft(	dfFFT,
-			t=None,
-			plot=False,
-			invertNormalizedAmplitude=True,
-			returnRealOnly=True):
+###############################################################################
+#%% Phase related
+
 	
+
+
+def wrapPhase(phases):
+	""" 
+	simple wrap phase function from -pi to +pi
+	
+	Parameters
+	----------
+	phases : numpy.ndarray or pandas.core.frame.DataFrame
+		array of phase data
+		
+	Returns
+	-------
+	wrapped phase
+	
+	Example
+	-------
+	phi=np.arange(-10,10,0.1)
+	fig,ax=plt.subplots()
+	ax.plot(phi,wrapPhase(phi),'x')
+	plt.show()
+	
+	References
+	----------
+	https://stackoverflow.com/questions/15927755/opposite-of-numpy-unwrap
 	"""
-	Examples
-	--------
+	return (phases + _np.pi) % (2 * _np.pi) - _np.pi
+		
 	
-	Example1::
+	
+def unwrapPhase(inData):
+	"""
+	Takes in phase array (in radians).  I think it needs to be centered about 0.
+	Unwraps phase data so that it is continuous.
+	This is important for phase data when you want to take it's derivative to
+	get frequency.  
+	
+	Parameters
+	----------
+	data : numpy.ndarray
+		data being unwrapped
 		
-		import numpy as np
-		dt=2e-6
-		f=1e3
-		t=np.arange(0,10e-3,dt)
-		y=np.sin(2*np.pi*t*f)
-		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
-							index=t,
-							columns=['a','b','c'])
-		dfFFT=fft_df(df,plot=False,normalizeAmplitude=False)
-		
-		df2=ifft(dfFFT)
-		
-		for key,val in df.iteritems():
-			
-			_plt.figure()
-			_plt.plot(df.index,val)
-			sig=df2[key]
-			sig2=_pd.DataFrame(sig.abs())*np.exp(phase(sig))
-			_plt.plot(df2.index,sig)
-			
-			
-	Example2::
-			
-		import pandas as pd
-		import numpy as np
-		import johnspythonlibrary2 as jpl2
-		import matplotlib.pyplot as plt
-		
-		# input signal
-		dt=2e-6
-		f=1e3
-		t=np.arange(0,10e-3,dt)
-		y1=jpl2.Process.SigGen.chirp(t,[1e-3,9e-3],[1e3,1e5])
-		df1=pd.DataFrame(y1,index=t)
-		
-		# filter type 1 : butterworth filter
-		y2=jpl2.Process.Filters.butterworthFilter(df1,10e3,plot=False)
-		df2=pd.DataFrame(y2,index=t)
-		
-		# filter type 2 : IFFT reconstructed Butterworth filter
-		tf=jpl2.Process.TF.calcTF(df1,df2,plot=False)
-		dfFFT=fft_df(df1,plot=False,normalizeAmplitude=False)
-		df3=ifft(pd.DataFrame(tf['lowpassFiltered']*dfFFT[0]))
-		
-		# plots
-		fig,ax=plt.subplots(2,sharex=True)
-		ax[0].plot(df1,label='Input signal')
-		ax[0].plot(df2,label='Output signal')
-		ax[1].plot(df1,label='Input signal')
-		ax[1].plot(df3,label='Output signal')
-		_plot.finalizeSubplot( 	ax[0],
-								subtitle='Butterworth filter')
-		_plot.finalizeSubplot( 	ax[1],
-								subtitle='IFFT reconstructed Butterworth filter')
+	Return
+	------
+	outData : numpy.ndarray
+		unwrapped data array
 		
 	"""
-	
-	if type(dfFFT)==_pd.core.series.Series:
-		dfFFT=_pd.DataFrame(dfFFT)
-	
-	# create a time basis if not provided
-	if t==None:
-		N=dfFFT.shape[0]
-		df=dfFFT.index[1]-dfFFT.index[0]
-		dt=1/df/N
-		t=_np.arange(0,N)*dt
+	return _np.unwrap(inData)
+
+def calcPhaseDifference(dfX1,dfX2,plot=False,title=''):
+	"""
+	Calculates the phase difference between two complex signals.
+	Also calculates the average and standard deviation of the phase difference.
+
+	Parameters
+	----------
+	dfX1 : pandas.core.frame.DataFrame
+		Complex signal in sine and cosine basis
+	dfX2 : pandas.core.frame.DataFrame
+		Complex signal in sine and cosine basis
+	plot : bool, optional
+		Create plot of results. The default is False.
+
+	Returns
+	-------
+	dfPD : pandas.core.frame.DataFrame
+		Phase difference between X1 and X2
 		
-	# IFFT function
-	from numpy.fft import ifft
-# 	from scipy.fftpack.ifft
-	dfIFFT=dfFFT.apply(ifft,axis=0).set_index(t)
+	References
+	----------
+	https://vicrucann.github.io/tutorials/phase-average/
 	
-	# option
-	if returnRealOnly==True:
-		dfIFFT=_pd.DataFrame(_np.real(dfIFFT),index=dfIFFT.index,columns=dfIFFT.columns)
+	Example
+	-------
+	::
+		
+		dt=2e-6
+		t=np.arange(0,10e-3,dt)
+		f=1.5e3
+		y1=np.sin(2*np.pi*t*f+0.25*np.pi)
+		y2=np.sin(2*np.pi*t*f+0.75*np.pi)
+		
+		df1=_pd.DataFrame(y1,index=t)
+		df2=_pd.DataFrame(y2,index=t)
+		
+		dfX1,dfAmp1,dfPhase1=hilbertTransform_df(df1,plot=False)
+		dfX2,dfAmp2,dfPhase2=hilbertTransform_df(df2,plot=False)
+		
+		dfPD,avePhaseDiff,stdPhaseDiff=calcPhaseDifference(dfX1,dfX2,plot=True,)
+	"""
 	
-	# plots
+	# phase difference calc
+	S12=dfX1*_np.conj(dfX2)
+	dfPD=_pd.DataFrame(_np.arctan2(_np.imag(S12),_np.real(S12)),
+							index=dfX1.index)
+	
+	# phase diff average and standard deviation calc
+	X=_np.cos(dfPD)
+	Y=_np.sin(dfPD)
+	avePhaseDiff=_np.arctan2(Y.mean(),X.mean())
+	
+	stdPhaseDiff=wrapPhase(dfPD-avePhaseDiff).std()
+		
 	if plot==True:
-		fig,ax=_plt.subplots()
-		ax.plot(dfIFFT)
+		fig,ax=_plt.subplots(3,sharex=True)
+		ax[0].plot(dfX1.index,_np.real(dfX1),label='Real')
+		ax[0].plot(dfX1.index,_np.imag(dfX1),label='Imag')
+		ax[1].plot(dfX2.index,_np.real(dfX2),label='Real')
+		ax[1].plot(dfX2.index,_np.imag(dfX2),label='Imag')
+		p1=_np.arctan2(_np.imag(dfX1),_np.real(dfX1))
+		p2=_np.arctan2(_np.imag(dfX2),_np.real(dfX2))
+		markersize=2
+		ax[2].plot(dfX1.index,p1,'.',label='X1 phase',markersize=markersize)
+		ax[2].plot(dfX1.index,p2,'.',label='X2 phase',markersize=markersize)
+		ax[2].plot(dfX1.index,dfPD,'.',label='Phase diff.',markersize=markersize)
 		
-	return dfIFFT
-	
-	
+		_plot.finalizeSubplot(	ax[0],
+								title=r'Ave. Phase Diff = %.2f $\pm$ %.2f rad'%(avePhaseDiff,stdPhaseDiff),
+								subtitle='X1')
+		_plot.finalizeSubplot(	ax[1],
+								subtitle='X2',
+								)
+		_plot.finalizeSubplot(	ax[2], xlabel='Time',
+								ylabel='Rad.',
+								yticks=[-_np.pi,0,_np.pi],
+								ylim=[-_np.pi,_np.pi],
+								subtitle='Phase',
+								ytickLabels=[r'$-\pi$','0','$\pi$'])
+		_plot.legendOutside(ax[0])
+		_plot.legendOutside(ax[1])
+		_plot.legendOutside(ax[2])
+		_plot.finalizeFigure(fig,figSize=[6,4])
+		
+	return dfPD,avePhaseDiff,stdPhaseDiff
+
 	
 def phase(df):
 	"""
@@ -584,184 +1013,9 @@ def phase(df):
 							  columns=df.columns)
 	
 
-def fft_max_freq(df_fft,positiveOnly=True):
-	"""
-	Calculates the maximum frequency associted with the fft results
-	
-	Example
-	-------
-	::
-		
-		import numpy as np
-		
-		dt=2e-6
-		f=1e3
-		t=np.arange(0,10e-3,dt)
-		y=np.sin(2*np.pi*t*f)
-		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
-							index=t,
-							columns=['a','b','c'])
-		df_fft=fft_df(df,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
-		max_freq=fft_max_freq(df_fft)
-		
-	"""
-	df_fft=_np.abs(df_fft.copy())
-	
-	if positiveOnly==True:
-		df_fft=df_fft[df_fft.index>0]
-	
-	return df_fft.idxmax(axis=0)
-	
-	
-def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
-	"""
-	Simple wrapper for fft from scipy
-	
-	Parameters
-	----------
-	df : pandas.core.frame.DataFrame
-		dataframe of time dependent data
-		index = time
-	plot : bool
-		(optional) Plot results
-	trimNegFreqs : bool
-		(optional) True - only returns positive frequencies
-	normalizeAmplitude : bool
-		(optional) True - normalizes the fft (output) amplitudes to match the time series (input) amplitudes
-		
-	Returns
-	-------
-	dfFFT : pandas.core.frame.DataFrame
-		complex FFT of df
-	
-	References
-	-----------
-	https://stackoverflow.com/questions/25735153/plotting-a-fast-fourier-transform-in-python
-	
-	Example
-	-------
-	::
-		
-		import numpy as np
-		
-		dt=2e-6
-		f=1e3
-		t=np.arange(0,10e-3,dt)
-		y=np.sin(2*np.pi*t*f)
-		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
-							index=t,
-							columns=['a','b','c'])
-		df_fft=fft_df(df,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
-		
-	"""
-	
-	if type(df)!=_pd.core.frame.DataFrame:
-		if type(df)==_pd.core.series.Series:
-			df=_pd.DataFrame(df)
-		else:
-			raise Exception('Input data not formatted correctly')
-	
-	# initialize
-	
-	# fft
-	from numpy.fft import fft
-	dt=df.index[1]-df.index[0]
-	freq = _fftpack.fftfreq(df.shape[0],d=dt)
-	dfFFT=df.apply(fft,axis=0).set_index(freq)
-# 	dfFFT=df.apply(_fftpack.fft,axis=0).set_index(freq)
-	
-	# options
-	if trimNegFreqs==True:
-		dfFFT=dfFFT[dfFFT.index>=0]
-	if normalizeAmplitude==True:
-		N=df.shape[0]
-		dfFFT*=2.0/N
-		
-	# optional plot of results
-	if plot==True:
-		
-		dfAmp=dfFFT.abs()
-		dfPhase=phase(dfFFT)
-		for i,(key,val) in enumerate(df.iteritems()):
-			f,(ax1,ax2,ax3)=_plt.subplots(nrows=3)
-			
-			ax1.plot(val)
-			ax1.set_ylabel('Orig. signal')
-			ax1.set_xlabel('Time')
-			ax1.set_title(key)
-			
-			ax2.plot(dfPhase.index,dfAmp[key],marker='.')
-			ax2.set_ylabel('Amplitude')
-			
-			ax3.plot(dfPhase.index,dfPhase[key],marker='.',linestyle='')
-			ax3.set_ylabel('Phase')
-			ax3.set_xlabel('Frequency')
-			ax3.set_ylim([-_np.pi,_np.pi])
-		
-	# return results
-	return dfFFT
 
-
-
-def fftSingleFreq_df(df,f,plot=False):
-	"""
-	Performs a Fourier transform of a signal at a single frequency
-	
-	Parameters
-	----------
-	df : pandas.core.frame.DataFrame
-		the signal being analyzed
-		index = time
-	f : float
-		The frequency (in Hz) that is being investigated
-		
-	Return
-	------
-	dfResults : pandas.core.frame.DataFrame
-		fft results at frequency, f
-		
-	References
-	----------
-	https://dsp.stackexchange.com/questions/8611/fft-for-a-single-frequency
-	
-	Example
-	-------
-	::
-		
-		dt=2e-6
-		f=1e3
-		t=np.arange(0,10e-3,dt)
-		y=np.sin(2*np.pi*t*f)
-		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
-							index=t,
-							columns=['a','b','c'])
-		dfResults=fftSingleFreq_df(df,f,plot=True)
-
-	"""
-	
-	# init
-	N=df.shape[0]
-	
-	# fft (complex, amplitude, and phase)
-	dfResults=_pd.DataFrame(columns=df.columns,index=['fft','amp','phase'])
-	for i,(key,val) in enumerate(df.iteritems()):
-#		print(key)
-		fft=_np.nansum(val*_np.exp(-1j*2*_np.pi*f*val.index.values))*2./N
-		dfResults.at['fft',key]=fft
-		amp=_np.abs(fft)
-		dfResults.at['amp',key]=amp
-		phase=wrapPhase(_np.arctan2(_np.imag(fft),_np.real(fft))+_np.pi/2)
-		dfResults.at['phase',key]=phase
-#		print(phase)
-
-		# optional plot
-		if plot==True:
-			fig,ax=_plt.subplots()
-			ax.set_title("%s\nFreq: %.1f, Avg. amplitude: %.3f, Avg. phase: %.3f"% (key,f,amp,phase))
-			ax.plot(val)
-			ax.plot(val.index,amp*_np.ones(val.shape[0])) 
-		
-	return dfResults
+###############################################################################
+#%% Hilbert
 
 
 
@@ -848,57 +1102,113 @@ def hilbertTransform_df(df,plot=False):
 
 
 
-def wrapPhase(phases):
-	""" 
-	simple wrap phase function from -pi to +pi
-	
-	Parameters
-	----------
-	phases : numpy.ndarray or pandas.core.frame.DataFrame
-		array of phase data
-		
-	Returns
-	-------
-	wrapped phase
-	
-	Example
-	-------
-	phi=np.arange(-10,10,0.1)
-	fig,ax=plt.subplots()
-	ax.plot(phi,wrapPhase(phi),'x')
-	plt.show()
-	
-	References
-	----------
-	https://stackoverflow.com/questions/15927755/opposite-of-numpy-unwrap
-	"""
-	return (phases + _np.pi) % (2 * _np.pi) - _np.pi
-		
-	
-	
-def unwrapPhase(inData):
-	"""
-	Takes in phase array (in radians).  I think it needs to be centered about 0.
-	Unwraps phase data so that it is continuous.
-	This is important for phase data when you want to take it's derivative to
-	get frequency.  
-	
-	Parameters
-	----------
-	data : numpy.ndarray
-		data being unwrapped
-		
-	Return
-	------
-	outData : numpy.ndarray
-		unwrapped data array
-		
-	"""
-	return _np.unwrap(inData)
+
+###############################################################################
+#%% Bispectrum and bicoherence
 
 
+def bispectrum(	da,
+				   firstQuadrantOnly=False,
+				   plot=False,
+				   returnAll=False):
+	"""
+	work in progress
+	
+	# TODO this code should be correct.  Double check, finalize function, and incorporate with bicoherence function()
+	
+	Examples
+	--------
+		
+		
+	Example 1::
+		
+		import xarray as xr
+		import numpy as np; np.random.seed(2)
+		import matplotlib.pyplot as plt; plt.close('all')
+		
+		phase1,phase2=np.random.rand(2)*np.pi*2
+		noise=np.random.normal(0,1,t.shape)
+		
+		## create signal and index
+		t=np.arange(0,10e-3,10e-6)
+		f1=1e3
+		f2=3.14159*1e3
+		y=np.cos(2*np.pi*t*f1+phase1)*np.cos(2*np.pi*t*f2+phase2)+noise
+		da=xr.DataArray(y,
+					  dims=['t'],
+					  coords={'t':t})
+		da=fft(da,plot=True).sortby('f')
+		b=bispectrum(da,plot=True,firstQuadrantOnly=True)
+		
+		y=0.5*np.cos(2*np.pi*t*(f2+f1)+phase1)+0.5*np.cos(2*np.pi*t*(f2-f1)+phase2)+noise
+		da=xr.DataArray(y,
+					  dims=['t'],
+					  coords={'t':t})
+		da=fft(da,plot=True).sortby('f')
+		b=bispectrum(da,plot=True,firstQuadrantOnly=True)
+		
+	"""
+	import numpy as np
+	import xarray as xr
+	
+	N=da.shape[0]
+	signal=da.data
+	try:
+		index=da.f.copy().data
+	except:
+		index=da.freq.copy().data
+	
+	
+	# Solve for M1 = F(f1)*F(f2)
+	def M1(signal,index,index1name='f1',index2name='f2'):
+		return xr.DataArray(	np.outer(signal,signal),
+				 			    dims=[index1name,index2name],
+								coords={index1name:index,index2name:index})
+	
+	# Solve for M2 = F(f1+f2)
+	def M2(signal,index):
+		x=signal
+		f=index
+		
+		# padding signal and index to account for the extremes of min(index)+min(index) and max(index)+max(index)
+		f_long=np.arange(f.min()*2, 2*(f.max()+f[1]-f[0]), f[1]-f[0])
+		x_long=np.concatenate(	(np.zeros(N//2)*np.nan,
+								  x,
+								  np.zeros(N//2)*np.nan))
+		x_long=xr.DataArray(	x_long,
+				 			    dims=['f'],
+								coords={'f':f_long})
+		
+		# calculate each permutation of f1+f2
+		f1temp,f2temp=np.meshgrid(f,f)
+		fsumlist=(f1temp+f2temp).reshape(-1)
+		
+		# find M2 = F(f1+f2)
+		return xr.DataArray(	x_long.loc[fsumlist].data.reshape(N,N),
+				 			    dims=['f1','f2'],
+								coords={'f1':f,'f2':f})
+	
+	# bispectrum
+	m1=M1(signal=signal,index=index)
+	m2=np.conj(M2(signal=signal,index=index))
+	b=m1*m2
+	b.f1.attrs["units"] = "Hz"
+	b.f2.attrs["units"] = "Hz"
+	
+	if firstQuadrantOnly==True:
+		b=b[b.f1>=0,b.f2>=0]
+	
+	if plot==True:
+		_plt.figure()
+		np.abs(b).plot()
+		
+	if returnAll==False:
+		return b
+	else:
+		return b, m1, m2
 
-def bicoherence(	sx,
+
+def bicoherenceDeprecated(	sx,
 					windowLength,
 					numberWindows,
 					plot=False,
@@ -1229,93 +1539,263 @@ def bicoherence(	sx,
 	return dfBicoh,dfBispec
 
 
-
-
-def calcPhaseDifference(dfX1,dfX2,plot=False,title=''):
+def bicoherence(	da,
+					windowLength,
+					numberWindows,
+					plot=False,
+					windowFunc='Hann',
+					title='',
+					mask='AB',
+					drawRedLines=[]):
 	"""
-	Calculates the phase difference between two complex signals.
-	Also calculates the average and standard deviation of the phase difference.
-
+	Bicoherence and bispectrum analysis.  This algorithm is based on [Kim1979].
+	
 	Parameters
 	----------
-	dfX1 : pandas.core.frame.DataFrame
-		Complex signal in sine and cosine basis
-	dfX2 : pandas.core.frame.DataFrame
-		Complex signal in sine and cosine basis
-	plot : bool, optional
-		Create plot of results. The default is False.
-
+	sx : pandas.core.series.Series
+		Signal.  index is time.
+	windowLength : int
+		Length of each data window
+	numberWindows : int
+		Number of data windows
+	plot : bool
+		Optional plot of data
+	windowFunc : str
+		'Hann' uses a Hann window (Default)
+		Otherise, uses no window 
+		
 	Returns
 	-------
-	dfPD : pandas.core.frame.DataFrame
-		Phase difference between X1 and X2
-		
+	dfBicoh : pandas.core.frame.DataFrame
+		Bicoherence results.  Index and columns are frequencies.
+	dfBispec : pandas.core.frame.DataFrame
+		Bispectrum results.  Index and columns are frequencies.
+	
 	References
 	----------
-	https://vicrucann.github.io/tutorials/phase-average/
+	* Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979). 
+
+	* D.Kong et al Nuclear Fusion 53, 113008 (2013).
 	
-	Example
-	-------
-	::
+	
+	Examples
+	--------
+	Example set 1::
 		
-		dt=2e-6
-		t=np.arange(0,10e-3,dt)
-		f=1.5e3
-		y1=np.sin(2*np.pi*t*f+0.25*np.pi)
-		y2=np.sin(2*np.pi*t*f+0.75*np.pi)
+		import matplotlib.pyplot as plt
+		import numpy as np
+		import pandas as pd
 		
-		df1=_pd.DataFrame(y1,index=t)
-		df2=_pd.DataFrame(y2,index=t)
+		plt.close('all')
+		### Example dataset.  Figure 4 in reference: Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979).
 		
-		dfX1,dfAmp1,dfPhase1=hilbertTransform_df(df1,plot=False)
-		dfX2,dfAmp2,dfPhase2=hilbertTransform_df(df2,plot=False)
+		### initialize examples
+		numberRecords=64
+		recordLength=128*2
+		N=recordLength
+		M=numberRecords
+		dt=5e-1
+		t=np.arange(0,N*M)*dt
+		fN=1
+		fb=0.220*fN
+		fc=0.375*fN
+		fd=fb+fc
+		fa=fc-fb
 		
-		dfPD,avePhaseDiff,stdPhaseDiff=calcPhaseDifference(dfX1,dfX2,plot=True,)
+		def randomPhase(n=1,seed=0):
+			np.random.seed(seed)
+			return (np.random.rand(n)-0.5)*np.pi
+		
+		def sigGen(t,f,theta):
+			M=len(theta)
+			N=len(t)//M
+			T,Theta=np.meshgrid(t[0:N],theta)
+			return 1*np.cos(2*np.pi*T*f+Theta)
+		
+# 		def finalizeAndSaveFig(figName='',figSize=[6,4.5]):
+# 			fig=plt.gcf(); 
+# 			fig.axes[1].set_ylim([0,1.1]); 
+# 			fig.set_size_inches(figSize)
+# 			if figName!='':
+# 				fig.savefig(figName,dpi=150)
+# 				
+# 		def diagonalOverlay(f1,f0=[fa,fb,fc,fd],ax=None):
+# 			if type(ax)==type(None):
+# 				ax=plt.gcf().axes[0]
+# 			for f in f0:
+# 				x=f1[f1>=f/2.]
+# 				y=f-x
+# 				ax.plot(x,y,'r--',linewidth=0.5)
+			
+		thetab=randomPhase(M,seed=1)
+		thetac=randomPhase(M,seed=2)
+		noise=np.random.normal(0,0.1,(M,N))
+		baseSignal=sigGen(t,fb,thetab)+sigGen(t,fc,thetac)+noise
+	
+		import xarray as xr
+		
+		### Figure 1
+		x1=(baseSignal).flatten()
+		da=xr.DataArray(x1,dims=['t'],coords={'t':t})
+		dfBicoh=bicoherence(	da,
+						windowLength=recordLength,
+						numberWindows=numberRecords,
+						windowFunc='Hann',
+						mask='A',
+						plot=True)
+		_plt.gcf().savefig('images/figure1.png')
+		
+		### Figure 2
+		thetad=randomPhase(M,seed=3)
+		x2=(baseSignal+0.5*sigGen(t,fd,thetad)).flatten()
+		da=xr.DataArray(x2,dims=['t'],coords={'t':t})
+		dfBicoh=bicoherence(	da,
+						windowLength=recordLength,
+						numberWindows=numberRecords,
+						windowFunc='Hann',
+						mask='A',
+						plot=True)
+		_plt.gcf().savefig('images/figure2.png')
+		
+		### Figure 3
+		x3=(baseSignal+0.5*sigGen(t,fd,thetab+thetac)).flatten()
+		da=xr.DataArray(x3,dims=['t'],coords={'t':t})
+		dfBicoh=bicoherence(	da,
+						windowLength=recordLength,
+						numberWindows=numberRecords,
+						windowFunc='Hann',
+						plot=True,
+						mask='A',
+# 						drawRedLines=[fb,fc,fd],
+						drawRedLines=[fd])
+		_plt.gcf().savefig('images/figure3.png')
+		
+		### Figure 4
+		x4=(baseSignal+1*sigGen(t,fb,thetab)*sigGen(t,fc,thetac)).flatten()
+		da=xr.DataArray(x4,dims=['t'],coords={'t':t})
+		dfBicoh=bicoherence(	da,
+						windowLength=recordLength,
+						numberWindows=numberRecords,
+						windowFunc='Hann',
+						mask='A',
+						plot=True,
+# 						drawRedLines=[fb,fc,fd,fa],
+						drawRedLines=[fc,fd])
+		_plt.gcf().savefig('images/figure4.png')
+		
+		### Figure 5
+		x5=(baseSignal+0.5*sigGen(t,fd,thetad)+1*sigGen(t,fb,thetab)*sigGen(t,fc,thetac)).flatten()
+		da=xr.DataArray(x5,dims=['t'],coords={'t':t})
+		dfBicoh=bicoherence(	da,
+									windowLength=recordLength,
+									numberWindows=numberRecords,
+									windowFunc='Hann',
+									mask='A',
+									plot=True,
+									drawRedLines=[fc,fd])
+		_plt.gcf().savefig('images/figure5.png')
+
+
 	"""
+	import numpy as np
+	import matplotlib.pyplot as plt
+	import pandas as pd
+	import xarray as xr
+	from mpl_toolkits.axes_grid1 import make_axes_locatable
 	
-	# phase difference calc
-	S12=dfX1*_np.conj(dfX2)
-	dfPD=_pd.DataFrame(_np.arctan2(_np.imag(S12),_np.real(S12)),
-							index=dfX1.index)
+	N=windowLength
+	M=numberWindows
+		
+	### main code
 	
-	# phase diff average and standard deviation calc
-	X=_np.cos(dfPD)
-	Y=_np.sin(dfPD)
-	avePhaseDiff=_np.arctan2(Y.mean(),X.mean())
+	# calculate window function
+	if windowFunc=='Hann':
+		n=np.arange(0,N)
+		window=np.sin(np.pi*n/(N-1.))**2
+		window/=np.sum(window)*1.0/N  	# normalize
+	else:
+		raise Exception('Hann is the only valid window function at the moment')
+		
+	# step in time
+	for i in range(M):
+		
+		# window data
+		index=np.arange(N*(i),N*(i+1),)
+		da_xi=(da[index]-da[index].mean())*window
+		
+		# fft 
+		da_Xi=fft(da_xi,plot=False,sortByFFT=True)
+		
+		# bispectrum
+		b,FiFj,conjFij=bispectrum(da_Xi,returnAll=True)
+		
+		# calculate bicoherence numerator and denominators
+		if i==0:
+			numerator=FiFj*conjFij
+			denom1=np.abs(FiFj)**2
+			denom2=np.abs(conjFij)**2
+		else:
+			numerator+=FiFj*conjFij
+			denom1+=np.abs(FiFj)**2
+			denom2+=np.abs(conjFij)**2
+			
+	# calculate bicoherence
+	bicoh=numerator**2/(denom1*denom2)
 	
-	stdPhaseDiff=wrapPhase(dfPD-avePhaseDiff).std()
+	# options
+	if mask=='AB':
+		f1=bicoh.coords['f1']
+		f2=bicoh.coords['f2']
+		
+		a=(f1<=f2)&(f1>=-f2)
+		b=(a*1.0).values
+		b[b==0]=np.nan
+		bicoh*=b
+		bicoh=bicoh[:,bicoh.f2>=0]
+		bicoh=bicoh[bicoh.f1<=0.5,:]
+	elif mask=='A':
+		f1=bicoh.coords['f1']
+		f2=bicoh.coords['f2']
+		
+		a=(f1<=f2)&(f1>=-f2)
+		b=(a*1.0).values
+		b[b==0]=np.nan
+		bicoh*=b
+		bicoh=bicoh[:,bicoh.f2>=0]
+		bicoh=bicoh[bicoh.f1>=0,:]
+		bicoh=bicoh[bicoh.f1<=0.5,:]
+		
+	bicoh.f1.attrs['units']='Hz'
+	bicoh.f2.attrs['units']='Hz'
 		
 	if plot==True:
-		fig,ax=_plt.subplots(3,sharex=True)
-		ax[0].plot(dfX1.index,_np.real(dfX1),label='Real')
-		ax[0].plot(dfX1.index,_np.imag(dfX1),label='Imag')
-		ax[1].plot(dfX2.index,_np.real(dfX2),label='Real')
-		ax[1].plot(dfX2.index,_np.imag(dfX2),label='Imag')
-		p1=_np.arctan2(_np.imag(dfX1),_np.real(dfX1))
-		p2=_np.arctan2(_np.imag(dfX2),_np.real(dfX2))
-		markersize=2
-		ax[2].plot(dfX1.index,p1,'.',label='X1 phase',markersize=markersize)
-		ax[2].plot(dfX1.index,p2,'.',label='X2 phase',markersize=markersize)
-		ax[2].plot(dfX1.index,dfPD,'.',label='Phase diff.',markersize=markersize)
+		fig,ax=_plt.subplots(1,2)
+		im=np.abs(bicoh).plot(ax=ax[0],levels=np.linspace(0,1,20+1))
+		ax[0].set_aspect('equal')
+		fig.get_axes()[-1].remove()
+		divider = make_axes_locatable(ax[0])
+		cax = divider.append_axes("right", size="3%", pad=0.1)
+		_plt.colorbar(im, cax=cax)#,label='Bicoherence')
+		_subTitle(ax[0],'Bicoherence')
 		
-		_plot.finalizeSubplot(	ax[0],
-								title=r'Ave. Phase Diff = %.2f $\pm$ %.2f rad'%(avePhaseDiff,stdPhaseDiff),
-								subtitle='X1')
-		_plot.finalizeSubplot(	ax[1],
-								subtitle='X2',
-								)
-		_plot.finalizeSubplot(	ax[2], xlabel='Time',
-								ylabel='Rad.',
-								yticks=[-_np.pi,0,_np.pi],
-								ylim=[-_np.pi,_np.pi],
-								subtitle='Phase',
-								ytickLabels=[r'$-\pi$','0','$\pi$'])
-		_plot.legendOutside(ax[0])
-		_plot.legendOutside(ax[1])
-		_plot.legendOutside(ax[2])
-		_plot.finalizeFigure(fig,figSize=[6,4])
+		fft_results=fft(da,trimNegFreqs=True)
+		fft_results/=fft_results.sum()
+		np.abs(fft_results).plot(ax=ax[1])
+		_subTitle(ax[1],'FFT')
 		
-	return dfPD,avePhaseDiff,stdPhaseDiff
+		
+		for y0 in drawRedLines:
+			f1=bicoh.coords['f1'].data
+			f2=bicoh.coords['f2'].data
+			ax[0].plot(f2,y0-f2,color='r',linestyle='--',linewidth=0.75)
+	
+		fig.set_size_inches(8,2)
+		fig.set_size_inches(8,2)
+		
+		
+	return bicoh
+			
+
 
 
 
