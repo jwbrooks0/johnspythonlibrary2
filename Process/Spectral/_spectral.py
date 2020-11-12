@@ -5,21 +5,54 @@ import matplotlib.pyplot as _plt
 from scipy import fftpack as _fftpack
 from johnspythonlibrary2 import Plot as _plot
 from johnspythonlibrary2.Plot import subTitle as _subTitle
+import xarray as _xr
 
 ###############################################################################
 #%% Fourier methods
 
 
-def fft_max_freq(df_fft,positiveOnly=True):
+# def fft_max_freq(df_fft,positiveOnly=True):
+#  	"""
+#  	Calculates the maximum frequency associted with the fft results
+ 	
+#  	Example
+#  	-------
+#  	::
+# 		
+# 		import numpy as np
+# 		
+# 		dt=2e-6
+# 		f=1e3
+# 		t=np.arange(0,10e-3,dt)
+# 		y=np.sin(2*np.pi*t*f)
+# 		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
+#  							index=t,
+#  							columns=['a','b','c'])
+# 		df_fft=fft_df(df,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
+# 		max_freq=fft_max_freq(df_fft)
+# 		
+#  	"""
+#  	df_fft=_np.abs(df_fft.copy())
+ 	
+#  	if positiveOnly==True:
+# 		df_fft=df_fft[df_fft.index>0]
+ 	
+#  	return df_fft.idxmax(axis=0)
+
+
+def fft_max_freq(da_fft,positiveOnly=True):
 	"""
 	Calculates the maximum frequency associted with the fft results
 	
+	Parameters
+	----------
+	da_fft : pandas dataframe or xarray dataarray
+	
 	Example
 	-------
-	::
+	Example - pandas ::
 		
 		import numpy as np
-		
 		dt=2e-6
 		f=1e3
 		t=np.arange(0,10e-3,dt)
@@ -28,15 +61,46 @@ def fft_max_freq(df_fft,positiveOnly=True):
 							index=t,
 							columns=['a','b','c'])
 		df_fft=fft_df(df,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
-		max_freq=fft_max_freq(df_fft)
+		# DataFrame
+		max_freq=fft_max_freq(df_fft,positiveOnly=True)
+		print(max_freq)
+		# Series
+		max_freq=fft_max_freq(df_fft['a'],positiveOnly=True)
+		print('max frequency = %.3f'%max_freq)
+		
+		
+	Example - xarray ::
+		
+		dt=2e-6
+		f=1e3
+		t=_np.arange(0,10e-3,dt)
+		y=_np.sin(2*_np.pi*t*f)
+		da=_xr.DataArray( 	y,
+							dims=['t'],
+							coords={'t':t})
+		da_fft=fft(da,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
+		max_freq=fft_max_freq(da_fft,positiveOnly=True)
+		print('max frequency = %.3f'%max_freq)
 		
 	"""
-	df_fft=_np.abs(df_fft.copy())
+	da_fft=_np.abs(da_fft.copy())
 	
-	if positiveOnly==True:
-		df_fft=df_fft[df_fft.index>0]
+	if type(da_fft)==_xr.core.dataarray.DataArray:
+		
+		if positiveOnly==True:
+			da_fft=da_fft[da_fft.f>=0]
+		
+		return float(da_fft.idxmax().data)
 	
-	return df_fft.idxmax(axis=0)
+	elif type(da_fft)==_pd.core.frame.DataFrame or type(da_fft)==_pd.core.frame.Series:
+		
+		if positiveOnly==True:
+			da_fft=da_fft[da_fft.index>0]
+			
+		return da_fft.idxmax(axis=0)
+	
+	else:
+		raise Exception('invalid input type')
 	
 	
 # depricated
@@ -108,7 +172,7 @@ def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
 	if plot==True:
 		
 		dfAmp=dfFFT.abs()
-		dfPhase=phase(dfFFT)
+		dfPhase=phase_df(dfFFT)
 		for i,(key,val) in enumerate(df.iteritems()):
 # 			f,(ax1,ax2,ax3)=_plt.subplots(nrows=32)
 			f,(ax1,ax2)=_plt.subplots(nrows=2)
@@ -134,6 +198,8 @@ def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
 def fft(da,plot=False,trimNegFreqs=False,normalizeAmplitude=False,sortByFFT=False):
 	"""
 	Simple wrapper for fft from scipy
+	
+	#TODO update function to process multiple columns at once.  dataset.apply(fft) is the function to use for datasets 
 	
 	Parameters
 	----------
@@ -172,6 +238,25 @@ def fft(da,plot=False,trimNegFreqs=False,normalizeAmplitude=False,sortByFFT=Fals
 							coords={'t':t})
 		fft_result=fft(da,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
 		
+		
+# 		da=xr.DataArray( 	np.array([y,y*1.1,y*1.2]).transpose(),
+# 							dims=['t','signal'],
+# 							coords={'t':t,
+# 								   'signal':['y1','y2','y3']})
+# 		da1=xr.DataArray( 	y,
+# 							dims=['t'],
+# 							coords={'t':t},
+# 							attrs={'name':'y1'})
+# 		da2=xr.DataArray( 	y,
+# 							dims=['t'],
+# 							coords={'t':t},
+# 							attrs={'name':'y2'})
+# 		da3=xr.DataArray( 	y,
+# 							dims=['t'],
+# 							coords={'t':t},
+# 							attrs={'name':'y3'})
+# 		da=xr.Dataset({'y1':da1, 'y2':da2, 'y3':da3})
+		
 	"""
 	import xarray as xr
 	
@@ -181,7 +266,11 @@ def fft(da,plot=False,trimNegFreqs=False,normalizeAmplitude=False,sortByFFT=Fals
 	if da.dims[0] not in ['t','time','T','Time']:
 			raise Exception('Time dimension needs to be labeled t or time')
 	
-	time=_np.array(da['%s'%da.dims[0]])
+	try: 
+		time=_np.array(da.t)
+	except:
+		time=_np.array(da.time)
+# 	time=_np.array(da['%s'%da.dims[0]])
 	
 	# do fft
 	from numpy.fft import fft
@@ -287,7 +376,7 @@ def fftSingleFreq_df(df,f,plot=False):
 
 
 
-def ifft(	dfFFT,
+def ifft_df(	dfFFT,
 			t=None,
 			plot=False,
 			invertNormalizedAmplitude=True,
@@ -309,14 +398,14 @@ def ifft(	dfFFT,
 							columns=['a','b','c'])
 		dfFFT=fft_df(df,plot=False,normalizeAmplitude=False)
 		
-		df2=ifft(dfFFT)
+		df2=ifft_df(dfFFT)
 		
 		for key,val in df.iteritems():
 			
 			_plt.figure()
 			_plt.plot(df.index,val)
 			sig=df2[key]
-			sig2=_pd.DataFrame(sig.abs())*np.exp(phase(sig))
+			sig2=_pd.DataFrame(sig.abs())*np.exp(phase_df(sig))
 			_plt.plot(df2.index,sig)
 			
 			
@@ -341,7 +430,7 @@ def ifft(	dfFFT,
 		# filter type 2 : IFFT reconstructed Butterworth filter
 		tf=jpl2.Process.TF.calcTF(df1,df2,plot=False)
 		dfFFT=fft_df(df1,plot=False,normalizeAmplitude=False)
-		df3=ifft(pd.DataFrame(tf['lowpassFiltered']*dfFFT[0]))
+		df3=ifft_df(pd.DataFrame(tf['lowpassFiltered']*dfFFT[0]))
 		
 		# plots
 		fig,ax=plt.subplots(2,sharex=True)
@@ -383,7 +472,7 @@ def ifft(	dfFFT,
 	return dfIFFT
 	
 
-def stft(	df,
+def stft_df(	df,
 			numberSamplesPerSegment=1000,
 			numberSamplesToOverlap=500,
 			frequencyResolutionScalingFactor=1.,
@@ -776,7 +865,15 @@ def _coherenceComplex(x, y, fs=1.0, window='hann', nperseg=None, noverlap=None,
 	return freqs, Cxy
 
 
-def coherenceAnalysis(t,y1,y2,numPointsPerSegment=1024,plot=False,noverlap=None,verbose=True):
+def coherenceAnalysis(	t,
+						y1,
+						y2,
+						numPointsPerSegment=1024,
+						plot=False,
+						noverlap=None,
+						verbose=True,
+						s1Label='Signal 1',
+						s2Label='Signal 2'):
 	"""
 	Coherence analysis between two signals. Wrapper for scipy's coherence analysis
 	
@@ -809,11 +906,37 @@ def coherenceAnalysis(t,y1,y2,numPointsPerSegment=1024,plot=False,noverlap=None,
 	---------
 	::
 		
+		## Case where signals have the same phase (with a different offset) and one signal has a lot of noise
 		import numpy as np
+		import matplotlib.pyplot as plt; plt.close('all')
 		freq=5
 		time = np.arange(0, 10, 0.01)
-		sinewave1 = np.sin(time*np.pi*2*freq)+ 3.*np.random.randn(len(time)) # add white noise to the signal
-		sinewave2 = np.sin(time*np.pi*2*freq+1.)
+		phase_signal_1=time*np.pi*2*freq
+		phase_signal_2=time*np.pi*2*freq+0.5
+		np.random.seed(0)
+		sinewave1 = np.sin(phase_signal_1)+ 1.5*np.random.randn(len(time)) # add white noise to the signal
+		sinewave2 = np.sin(phase_signal_2)+ 0.0*np.random.randn(len(time)) # add white noise to the signal
+		f,Cxy=coherenceAnalysis(time,sinewave1,sinewave2,plot=True,numPointsPerSegment=128,noverlap=0)
+		_plt.gcf().get_axes()[0].set_title('points overlapped = 0 of 128')
+		f,Cxy=coherenceAnalysis(time,sinewave1,sinewave2,plot=True,numPointsPerSegment=128,noverlap=64)
+		_plt.gcf().get_axes()[0].set_title('points overlapped = 64 of 128')
+		f,Cxy=coherenceAnalysis(time,sinewave1,sinewave2,plot=True,numPointsPerSegment=128,noverlap=127)
+		_plt.gcf().get_axes()[0].set_title('points overlapped = 127 of 128')
+		
+	Example 2
+	---------
+	::
+		
+		## Case where signals have the same phase (with a different offset), one signal has two frequency components and noise
+		import numpy as np
+		import matplotlib.pyplot as plt; plt.close('all')
+		freq=5
+		time = np.arange(0, 10, 0.01)
+		phase_signal_1=time*np.pi*2*freq
+		phase_signal_2=time*np.pi*2*freq+0.5
+		np.random.seed(0)
+		sinewave1 = np.sin(phase_signal_1)
+		sinewave2 = np.sin(phase_signal_2) + 2*np.sin(time*np.pi*2*17.123) + 1.20*np.random.randn(len(time)) # add white noise to the signal
 		f,Cxy=coherenceAnalysis(time,sinewave1,sinewave2,plot=True,numPointsPerSegment=128,noverlap=0)
 		f,Cxy=coherenceAnalysis(time,sinewave1,sinewave2,plot=True,numPointsPerSegment=128,noverlap=64)
 		f,Cxy=coherenceAnalysis(time,sinewave1,sinewave2,plot=True,numPointsPerSegment=128,noverlap=127)
@@ -844,8 +967,8 @@ def coherenceAnalysis(t,y1,y2,numPointsPerSegment=1024,plot=False,noverlap=None,
 	# optional plot
 	if plot==True:
 		fig,(ax1,ax2)=plt.subplots(nrows=2)
-		ax1.plot(t,y1,label='Raw 1')
-		ax1.plot(t,y2,label='Raw 2')
+		ax1.plot(t,y1,label=s1Label)
+		ax1.plot(t,y2,label=s2Label)
 		ax1.legend()
 		ax1.set_xlabel('time (s)')
 		ax2.plot(f, np.abs(Cxy),'.-',label='Coherence')
@@ -854,6 +977,9 @@ def coherenceAnalysis(t,y1,y2,numPointsPerSegment=1024,plot=False,noverlap=None,
 		ax2.set_ylabel('Coherence')
 		ax2.legend()
 		ax2.set_ylim([0,1])
+		if noverlap == None:
+			noverlap=0
+		ax1.set_title('points overlapped = %d of %d'%(noverlap,numPointsPerSegment))
 		
 	return f, Cxy
 
@@ -864,33 +990,39 @@ def coherenceAnalysis(t,y1,y2,numPointsPerSegment=1024,plot=False,noverlap=None,
 	
 
 
-def wrapPhase(phases):
+def wrapPhase(phases,center=0):
 	""" 
-	simple wrap phase function from -pi to +pi
+	simple wrap phase function from -pi to +pi.  units in radians
 	
 	Parameters
 	----------
 	phases : numpy.ndarray or pandas.core.frame.DataFrame
-		array of phase data
+		array of phase data.  units in radians
 		
 	Returns
 	-------
-	wrapped phase
+	wrapped phase (units in radians)
 	
 	Example
 	-------
-	phi=np.arange(-10,10,0.1)
-	fig,ax=plt.subplots()
-	ax.plot(phi,wrapPhase(phi),'x')
-	plt.show()
-	
+	Example 1::
+		
+		phi=_np.arange(-10,10,0.1)
+		fig,ax=_plt.subplots()
+		ax.plot(phi,phi,'.',label='unwrapped')
+		ax.plot(phi,wrapPhase(phi),'x',label='wrapped about phi=0')
+		ax.plot(phi,wrapPhase(phi,_np.pi),'+',label='wrapped about phi=pi')
+		ax.plot(phi,wrapPhase(phi,-_np.pi*2),'v',label='wrapped about phi=-2pi')
+		ax.legend()
+		_plt.show()
+		
 	References
 	----------
-	https://stackoverflow.com/questions/15927755/opposite-of-numpy-unwrap
-	"""
-	return (phases + _np.pi) % (2 * _np.pi) - _np.pi
+	  *  https://stackoverflow.com/questions/15927755/opposite-of-numpy-unwrap
+ 	"""
+	# return (phases + _np.pi) % (2 * _np.pi) - _np.pi
+	return (phases + _np.pi - center) % (2 * _np.pi) - _np.pi + center
 		
-	
 	
 def unwrapPhase(inData):
 	"""
@@ -912,7 +1044,8 @@ def unwrapPhase(inData):
 	"""
 	return _np.unwrap(inData)
 
-def calcPhaseDifference(dfX1,dfX2,plot=False,title=''):
+
+def calcPhaseDifference_df(dfX1,dfX2,plot=False,title=''):
 	"""
 	Calculates the phase difference between two complex signals.
 	Also calculates the average and standard deviation of the phase difference.
@@ -999,7 +1132,7 @@ def calcPhaseDifference(dfX1,dfX2,plot=False,title=''):
 	return dfPD,avePhaseDiff,stdPhaseDiff
 
 	
-def phase(df):
+def phase_df(df):
 	"""
 	Calculates the phase of complex data series.
 	Basis can be time, frequency, etc.
@@ -1157,6 +1290,8 @@ def bispectrum(	da,
 		index=da.f.copy().data
 	except:
 		index=da.freq.copy().data
+	df=index[1]-index[0]
+	index=np.round(index/df).astype(int)
 	
 	
 	# Solve for M1 = F(f1)*F(f2)
@@ -1171,7 +1306,7 @@ def bispectrum(	da,
 		f=index
 		
 		# padding signal and index to account for the extremes of min(index)+min(index) and max(index)+max(index)
-		f_long=np.arange(f.min()*2, 2*(f.max()+f[1]-f[0]), f[1]-f[0])
+		f_long=np.arange(f.min()*2, 2*(f.max()+(f[1]-f[0])), f[1]-f[0])
 		x_long=np.concatenate(	(np.zeros(N//2)*np.nan,
 								  x,
 								  np.zeros(N//2)*np.nan))
@@ -1190,8 +1325,10 @@ def bispectrum(	da,
 	
 	# bispectrum
 	m1=M1(signal=signal,index=index)
-	m2=np.conj(M2(signal=signal,index=index))
+	m2=np.conj(M2(signal,index))
 	b=m1*m2
+	b['f1']=b.f1.data*df
+	b['f2']=b.f2.data*df
 	b.f1.attrs["units"] = "Hz"
 	b.f2.attrs["units"] = "Hz"
 	
@@ -1205,6 +1342,11 @@ def bispectrum(	da,
 	if returnAll==False:
 		return b
 	else:
+		
+# 		m1['f1']=m1.f1.data*df
+# 		m1['f2']=m1.f2.data*df
+# 		m2['f1']=m2.f1.data*df
+# 		m2['f2']=m2.f2.data*df
 		return b, m1, m2
 
 
@@ -1545,10 +1687,14 @@ def bicoherence(	da,
 					plot=False,
 					windowFunc='Hann',
 					title='',
-					mask='AB',
+					mask='A',
 					drawRedLines=[]):
 	"""
 	Bicoherence and bispectrum analysis.  This algorithm is based on [Kim1979].
+	
+	This code appears to be very buggy... #TODO fix
+	
+	http://electricrocket.org/2019/246.pdf
 	
 	Parameters
 	----------
@@ -1696,6 +1842,51 @@ def bicoherence(	da,
 		_plt.gcf().savefig('images/figure5.png')
 
 
+	Example 2 ::
+		
+		N=2e4
+		x1,x2=jpl2.Process.EDM.coupledHarmonicOscillator(N=N,T=10,
+								args=[1,10,1e-4],plot=True)
+		numberWindows=40
+		windowLength=N//numberWindows
+		dfBicoh=bicoherence(	x1,
+						windowLength=windowLength,
+						numberWindows=numberWindows,
+						windowFunc='Hann',
+						mask='A',
+						plot=True,
+						drawRedLines=[73+16])
+		
+# 	Example 3 ::
+# 		
+# 		t=np.arange(0,10e-3,2e-6)
+# 		f1=1.1234e4
+# 		f2=np.pi*1e4
+# 		f3=f1+f2
+# 		
+# 		np.random.seed()
+# 		
+# 		phi1=2*np.pi*f1*t+np.random.rand()*2*np.pi
+# 		phi2=2*np.pi*f2*t+np.random.rand()*2*np.pi
+# 		phi3=phi1+phi2+np.random.rand()*2*np.pi
+# 		
+# 		y1=np.sin(phi1)
+# 		y2=np.sin(phi2)
+# 		y3=np.sin(phi3)
+# 		y=y1+y2
+# 		
+# 		fig,ax=plt.subplots()
+# # 		ax.plot(t,y1,label='1')
+# # 		ax.plot(t,y2,label='2')
+# # 		ax.plot(t,y3,label='3')
+# 		ax.plot(t,y,label='3')
+# 		ax.legend()
+# 		
+# 		da=_xr.DataArray(y,
+# 					   dims=['t'],
+# 					   coords={'t':t})
+# 		bicoherence(da, 510,9,plot=True)
+
 	"""
 	import numpy as np
 	import matplotlib.pyplot as plt
@@ -1703,8 +1894,18 @@ def bicoherence(	da,
 	import xarray as xr
 	from mpl_toolkits.axes_grid1 import make_axes_locatable
 	
-	N=windowLength
-	M=numberWindows
+	N=int(windowLength)
+	M=int(numberWindows)
+	
+	try:
+		time=np.array(da.t)
+	except:
+		time=np.array(da.time)
+	dt=time[1]-time[0]
+	fsamp=1.0/dt
+	
+	print("frequency resolution : %.3f"%(fsamp*M/da.shape[0]))
+	print("nyquist freqency : %.3f"%(fsamp/2))
 		
 	### main code
 	
@@ -1718,7 +1919,7 @@ def bicoherence(	da,
 		
 	# step in time
 	for i in range(M):
-		
+		print(i)
 		# window data
 		index=np.arange(N*(i),N*(i+1),)
 		da_xi=(da[index]-da[index].mean())*window
@@ -1741,6 +1942,8 @@ def bicoherence(	da,
 			
 	# calculate bicoherence
 	bicoh=numerator**2/(denom1*denom2)
+	bicoh['f1']=b.f1
+	bicoh['f2']=b.f2
 	
 	# options
 	if mask=='AB':
@@ -1763,7 +1966,7 @@ def bicoherence(	da,
 		bicoh*=b
 		bicoh=bicoh[:,bicoh.f2>=0]
 		bicoh=bicoh[bicoh.f1>=0,:]
-		bicoh=bicoh[bicoh.f1<=0.5,:]
+		bicoh=bicoh[bicoh.f1<=f1.max()/2,:]
 		
 	bicoh.f1.attrs['units']='Hz'
 	bicoh.f2.attrs['units']='Hz'
@@ -1795,7 +1998,6 @@ def bicoherence(	da,
 		
 	return bicoh
 			
-
 
 
 
