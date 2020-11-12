@@ -4,6 +4,7 @@ import pandas as _pd
 import matplotlib.pyplot as _plt
 from functools import wraps as _wraps
 import pickle as _pkl
+import xarray as _xr
 
 try:
 	import johnspythonlibrary2.ReadWrite._settings as _settings
@@ -46,6 +47,40 @@ def writeToPickle(data,filename):
 	"""
 	
 	_pkl.dump(data,open(filename,"wb"))
+	
+
+def readMatlab73Data(filename,colNames=None):
+	"""
+	Reads matlab 7.3 data
+
+	Parameters
+	----------
+	filename : str
+		name and path of .mat file to be read
+	colNames : list of strings, optional
+		list of names of the data channels in the matlab data file
+		if not provided, returns the raw data
+		
+	References
+	----------
+	  * https://stackoverflow.com/questions/17316880/reading-v-7-3-mat-file-in-python
+
+	"""
+	import mat73
+	data_temp=mat73.loadmat(filename)
+	
+	if type(colNames)==type(None):
+		return data_temp
+	
+	else:
+		das={}
+		for ic,c in enumerate(colNames):
+			t=_np.arange(data_temp[c].NumPoints)*data_temp[c].XInc
+			da=_xr.DataArray((data_temp[c].Data[0]-data_temp[c].Data)*data_temp[c].YInc+data_temp[c].YOrg,
+								dims=['t'],
+								coords={'t':t})
+			das[c]=da
+		return _xr.Dataset(das)
 	
 
 def convertMatToDF(filename):
