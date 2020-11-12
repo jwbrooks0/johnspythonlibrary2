@@ -7,7 +7,7 @@ import matplotlib.pyplot as _plt
 
 from johnspythonlibrary2.Plot import finalizeFigure as _finalizeFigure
 from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot
-from johnspythonlibrary2.Process.Spectral import fft_df, ifft
+from johnspythonlibrary2.Process.Spectral import fft_df, ifft_df
 #from johnspythonlibrary2.Process.Misc import findNearest
 
 
@@ -101,7 +101,7 @@ def fftSignalReconstructFromTF(s1,tf,s2=None,plot=False,positiveFreqsOnly=True):
 	X=fft_df(s1)
 	
 	# take ifft of tf multiplied by X (i.e. the reconstruction)
-	s2_recon=ifft(_pd.DataFrame(tf.iloc[:,0].values*X.iloc[:,0].values,index=tf.index))
+	s2_recon=ifft_df(_pd.DataFrame(tf.iloc[:,0].values*X.iloc[:,0].values,index=tf.index))
 	s2_recon.index=s1.index # make sure s1 and s2_recon have the same time basis
 	
 	if plot==True:
@@ -270,7 +270,10 @@ def bodePlotFromTF(	dfTF,
 	
 
 
-def calcTF(dfInput,dfOutput,singleFreqs=False,plot=False):
+def calcTF(	dfInput,
+			dfOutput,
+			singleFreqs=False,
+			plot=False):
 	"""
 	Calculated the transfer function from one or more input signals
 	
