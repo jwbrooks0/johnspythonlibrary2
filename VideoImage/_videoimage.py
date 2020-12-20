@@ -3,6 +3,40 @@ import numpy as _np
 import matplotlib.pyplot as _plt
 import xarray as _xr
 
+
+#%% filter video
+
+def filter_video(	da,
+					cornerFreq,
+					filterType='low',
+					filterOrder=1,
+					plot=False):
+	
+	## import
+	from johnspythonlibrary2.Process.Filters import filtfiltWithButterworth
+	
+	## check input 
+	if 'time' in da.dims:
+		da=da.rename({'time':'t'})
+	if 'x' not in da.dims and 'y' not in da.dims and 't' not in da.dims:
+		raise Exception('Dimensions not formatted ocrrectly.  Should be (t,x,y)')
+	da=da.transpose('t',...) # 't' dimension must be first.
+	
+	## filter
+	out=_np.apply_along_axis(	filtfiltWithButterworth, 
+								axis=0, 
+								arr=da.data, 
+								cornerFreq=cornerFreq,
+								filterOrder=filterOrder,
+								time=da.t.data,
+								filterType=filterType)
+	daFiltered=_xr.DataArray(	out,
+								dims=da.dims,
+								coords=da.coords  )
+	
+	return daFiltered
+
+
 #%% saving video/images
 
 def save_list_of_figures_to_pdf(figs,filename="output.pdf"):
@@ -16,7 +50,6 @@ def save_list_of_figures_to_pdf(figs,filename="output.pdf"):
 	filename : str
 		filename of the pdf to be saved.  extension should be .pdf
 
-	
 	References
 	----------
 	  * https://stackoverflow.com/questions/17788685/python-saving-multiple-figures-into-one-pdf-file
@@ -31,27 +64,45 @@ def save_list_of_figures_to_pdf(figs,filename="output.pdf"):
 	
 	
 #%% play video/images
-def playVideo(da):
-	print('work in progress')
-# 	import matplotlib.animation as animation
-# 	import matplotlib.pyplot as plt
-# 	
-# 	
-# 	ims=[]
-# 	
-# 	t=da.t.data
-# 	t=t[:100]
-# 	
-# 	plt.ioff()
-# 	for ti in t:
-# 		fig=plt.figure()
-# 		print(ti)
-# 		im=da.sel(t=ti).plot(animated=True)
-# 		ims.append(im)
-# 	plt.ion()
-# 		
-# 	fig=plt.figure()
-# 	ani=animation.ArtistAnimation(fig,ims,interval=50,repeat_delay=1000,blit=True)
+def playVideo(da,interval=200):
+	"""
+	Play video stored in xarray.dataarray format
+
+	Parameters
+	----------
+	da : xarray.core.dataarray.DataArray
+		3D video with dimensions: ('t', 'y', 'x')  
+	interval : int, optional
+		Time interval between frames of the video in milliseconds.  E.g. 60 Hz = 0.0167*1000 = 17
+
+	"""
+	
+	if 'time' in da.dims:
+		da=da.rename({'time':'t'})
+	if 'x' not in da.dims and 'y' not in da.dims and 't' not in da.dims:
+		raise Exception('Dimensions not formatted ocrrectly.  Should be (t,x,y)')
+	da=da.transpose('t',...) # 't' must be first.
+	
+	from matplotlib.animation import FuncAnimation
+	
+	## initialize plot
+	fig, ax = _plt.subplots()
+	ax.set_aspect('equal')
+	t=da.t.data
+	dt=t[1]-t[0]
+	n_t=_np.arange(t.shape[0])
+	
+	## animate
+	def animate(i):
+		ax.clear()
+		da[i,:,:].plot(ax=ax,add_colorbar=False)
+		ax.set_title('t = %d/%d,\ndt = %.3e, interval = %d us'%(n_t[i],n_t[-1],dt,interval))
+	anim = FuncAnimation(fig, animate, interval=interval, frames=da.t.shape[0])
+	_plt.draw()
+	_plt.show()
+	
+	return anim
+
 
 #%% import video or sequence of images
 def loadSequentialImages(partialFileName):
@@ -109,7 +160,13 @@ def loadSequentialImages(partialFileName):
 	return da
 
 
-def loadSequentialRawImages(partialFileName,dtype=_np.uint16,shape=(64,128),fps=None,color=True,plot=False,save=False):
+def loadSequentialRawImages(	partialFileName,
+								dtype=_np.uint16,
+								shape=(64,128),
+								fps=None,
+								color=True,
+								plot=False,
+								save=False):
 	"""
 	Loads sequential images.
 	
@@ -209,8 +266,6 @@ def loadSequentialRawImages(partialFileName,dtype=_np.uint16,shape=(64,128),fps=
 	
 	if save==True:
 		import pickle as pkl
-# 		from johnspythonlibrary2.OS import processFileName
-# 		baseName,dirName,fileExt,fileRoot=processFileName(val[0])
 		pkl.dump(video_out,open(partialFileName.split('*')[0]+'.pkl','wb'))
  	
 	if plot==True:
@@ -268,8 +323,11 @@ def readTiffStack(filename, fps=1):
 
 def svdVideoDecomposition(		X,	
 								plot=False,
-								saveFig=True,
-								fileRoot=''):		
+								saveFigs=False,
+								figsName='results.pdf',
+								fileRoot='',
+								tlim=None,
+								nperseg=5):		
 	"""
 	
 	Parameters
@@ -330,7 +388,16 @@ def svdVideoDecomposition(		X,
 	X=X.stack(z=('y','x')).transpose('z','t')
 	
 	## svd algorithm
-	U, Sigma, VT = _np.linalg.svd(X, full_matrices=False)
+	try:
+		U, Sigma, VT = _np.linalg.svd(X, full_matrices=False)
+	except:
+		try:
+			U, Sigma, VT = _np.linalg.svd(X, full_matrices=False)
+		except:
+			try:
+				U, Sigma, VT = _np.linalg.svd(X, full_matrices=False)
+			except:
+				print('SVD failed after 3 attempts.')
 		
 	## clip results based on minimum dimension
 	n_rank = min(X.shape)
@@ -365,8 +432,8 @@ def svdVideoDecomposition(		X,
 			fig,ax=_plt.subplots(2,sharex=True)
 			energy.plot(ax=ax[0],marker='.')
 			ax[0].set_yscale('log')
-			ax[0].set_title('Mode energy')
-			subTitle(ax[0],'Mode energy')
+			ax[0].set_title('Basis energy')
+			subTitle(ax[0],'Basis energy')
 			ax[0].set_ylabel('Energy (a.u.)')
 			
 			a=_np.cumsum(energy)/energy.sum()
@@ -381,17 +448,20 @@ def svdVideoDecomposition(		X,
 				
 		# Bases plots
 		if True:
-			from johnspythonlibrary2.Process.Spectral import fft_df, fft_max_freq
+			from johnspythonlibrary2.Process.Spectral import fft_df, fft_max_freq, fft, fft_average
 			
 			for i in range(30):
 				fig,ax=_plt.subplots(1,3);
-				df_fft=fft_df(_pd.DataFrame(chronos[i,:]*_np.sqrt(Sigma[i]),index=X.t.data),plot=False)
-				df_fft.index*=1e-3
-				f_max=fft_max_freq(df_fft)
+				N=chronos.t.shape[0]//int(nperseg) ## sets the step for the fft_average function
+				da_fft=fft_average(chronos[i,:]*_np.sqrt(Sigma[i]),nperseg=N,noverlap=_np.floor(N*0.9).astype(int),plot=False,trimNegFreqs=True,zeroTheZeroFrequency=True,returnAbs=True)
+				da_fft['f']=da_fft.f*1e-3
+				f_max=fft_max_freq(da_fft)
 				(topos.sel(basisNum=i)*_np.sqrt(energy.sel(basisNum=i))).plot(ax=ax[0]) 
 				ax[0].set_aspect('equal')
 				(chronos.sel(basisNum=i)*_np.sqrt(energy.sel(basisNum=i))).plot(ax=ax[1])
-				_np.abs(df_fft[df_fft.index>=0].iloc[1:]).plot(ax=ax[2])
+				if type(tlim)!=type(None):
+					ax[1].set_xlim(tlim)
+				da_fft.plot(ax=ax[2])
 	 			# ax[2].set_yscale('log')
 				ax[2].set_title(ax[1].get_title()+', peak freq. = %.2f kHz'%f_max)
 				ax[2].set_xlabel('kHz')
@@ -406,8 +476,9 @@ def svdVideoDecomposition(		X,
 				
 		_plt.ion()
 
-		save_list_of_figures_to_pdf(figs,'svd_decomposition.pdf')
-
+		if saveFigs==True:
+			save_list_of_figures_to_pdf(figs,figsName)
+			_plt.close('all')
 			
 	return topos,chronos,energy
 
