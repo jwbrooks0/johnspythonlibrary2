@@ -49,7 +49,7 @@ def writeToPickle(data,filename):
 	_pkl.dump(data,open(filename,"wb"))
 	
 
-def readMatlab73Data(filename,colNames=None):
+def readMatlab73Data(filename,dataNames=None,returnRaw=False):
 	"""
 	Reads matlab 7.3 data
 
@@ -59,7 +59,8 @@ def readMatlab73Data(filename,colNames=None):
 		name and path of .mat file to be read
 	colNames : list of strings, optional
 		list of names of the data channels in the matlab data file
-		if not provided, returns the raw data
+	returnRaw : bool
+		if True, function returns the raw data (in library format)
 		
 	References
 	----------
@@ -69,17 +70,24 @@ def readMatlab73Data(filename,colNames=None):
 	import mat73
 	data_temp=mat73.loadmat(filename)
 	
-	if type(colNames)==type(None):
+	if returnRaw==True:
 		return data_temp
-	
 	else:
+		colNames=_np.array(list(data_temp.keys()),dtype=str)[:-1]
+		if type(dataNames)==type(None):
+			dataNames=colNames.copy()
+			
 		das={}
 		for ic,c in enumerate(colNames):
-			t=_np.arange(data_temp[c].NumPoints)*data_temp[c].XInc
-			da=_xr.DataArray((data_temp[c].Data[0]-data_temp[c].Data)*data_temp[c].YInc+data_temp[c].YOrg,
+			t=_np.arange(data_temp[c].NumPoints)*data_temp[c].XInc+data_temp[c].XOrg
+			da=_xr.DataArray((data_temp[c].Data)*data_temp[c].YInc+data_temp[c].YOrg,
 								dims=['t'],
-								coords={'t':t})
-			das[c]=da
+								coords={'t':t},
+								attrs={'units':data_temp[c].YUnits})
+			
+			da.t.attrs={'units':data_temp[c].XUnits}
+			das[dataNames[ic]]=da
+			
 		return _xr.Dataset(das)
 	
 
