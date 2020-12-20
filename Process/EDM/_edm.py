@@ -14,21 +14,21 @@ import numpy as _np
 import pandas as _pd
 import xarray as _xr
 import matplotlib.pyplot as _plt
-from deprecated import deprecated
+#from deprecated import deprecated
 from multiprocessing import cpu_count as _cpu_count
 from joblib import Parallel as _Parallel
 from joblib import delayed  as _delayed
 
 # load my external libraries
-from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot
-from johnspythonlibrary2.Plot import finalizeFigure as _finalizeFigure
-#from johnspythonlibrary2.Plot import legendOutside as _legendOutside
-#from johnspythonlibrary2.Plot import heatmap as _heatmap
-from johnspythonlibrary2.Plot import subTitle as _subtitle
+from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot, finalizeFigure as _finalizeFigure, subTitle as _subtitle
+
 
 ###################################################################################
 #%% signal generation
 # various generated signals to test code in this library
+
+# load my external signal generation functions
+from johnspythonlibrary2.Process.SigGen import lorentzAttractor, tentMap#, coupledHarmonicOscillator, predatorPrey, 
 
 
 def twoSpeciesWithBidirectionalCausality(N,tau_d=0,IC=[0.2,0.4],plot=False,params={'Ax':3.78,'Ay':3.77,'Bxy':0.07,'Byx':0.08}):
@@ -41,11 +41,10 @@ def twoSpeciesWithBidirectionalCausality(N,tau_d=0,IC=[0.2,0.4],plot=False,param
 	---------
 	Eq. 1 in https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4592974/
 	
-	
 	Examples
 	--------
 	
-	::
+	Examples 1 and 2::
 	
 		N=3000
 		twoSpeciesWithBidirectionalCausality(N,plot=True)
@@ -61,15 +60,17 @@ def twoSpeciesWithBidirectionalCausality(N,tau_d=0,IC=[0.2,0.4],plot=False,param
 		y[i+1]=y[i]*(params['Ay']-params['Ay']*y[i]-params['Byx']*x[i-tau_d])
 		
 	x=_xr.DataArray(	x[tau_d:],
-						dims=['time'],
+						dims=['t'],
+						coords={'t':_np.arange(_np.shape(x[tau_d:])[0])},
 						attrs={'units':"au",
 								 'standard_name': 'Amplitude'})
-	x.time.attrs={'units':'au'}
+	x.t.attrs={'units':'au'}
 	y=_xr.DataArray(	y[tau_d:],
-						dims=['time'],
+						dims=['t'],
+						coords={'t':_np.arange(_np.shape(y[tau_d:])[0])},
 						attrs={'units':"au",
 								 'standard_name': 'Amplitude'})
-	y.time.attrs={'units':'au'}
+	y.t.attrs={'units':'au'}
 		
 	if plot==True:
 		fig,ax=_plt.subplots()
@@ -80,458 +81,11 @@ def twoSpeciesWithBidirectionalCausality(N,tau_d=0,IC=[0.2,0.4],plot=False,param
 	return x,y
 
 
-
-def predatorPrey():
-	return 'work in progress'
-	# TODO add predator-prey model
-
-def createTentMap(N=1000,plot=False,x0=_np.sqrt(2)/2.0):
-	""" 
-	generate fake data using a tentmap 
-	
-	x=createTentMap(1000,plot=True)
-	"""
-	t=_np.arange(0,N+1)
-	x=_np.zeros(t.shape,dtype=_np.float64)
-	x[0]=x0
-	def tentMap(x,mu=_np.float64(2-1e-15)):
-		for i in range(1,x.shape[0]):
-			if x[i-1]<0.5:
-				x[i]=mu*x[i-1]
-			elif x[i-1]>=0.5:
-				x[i]=mu*(1-x[i-1])
-			else:
-				raise Exception('error')
-		return x
-	
-	x=tentMap(x)
-	
-	# the actual data of interest is the first difference of x
-	xDelta=_xr.DataArray(	x[1:]-x[0:-1],
-						dims=['time'],
-						coords={'time':t[1:]},
-						attrs={'units':"au",
-								 'standard_name': 'Amplitude'})
-	xDelta.time.attrs={'units':'au'}
-	
-	if plot==True:
-		fig,ax=_plt.subplots(2,sharex=True)
-		ax[0].plot(t,x,linestyle='-',marker='.',linewidth=0.5,markersize=3,label='x')
-		xDelta.plot(ax=ax[1],linestyle='-',marker='.',linewidth=0.5,markersize=3,label='x derivative')
-		ax[0].legend()
-		ax[1].legend()
-		
-	return xDelta
-
-
-def solveLorentz(	N=2000,
-					dt=0.05,
-					IC=[-9.38131377, -8.42655716 , 29.30738524],
-# 					addNoise=False,
-					plot=False,
-# 					seed=[0,1,2],
-# 					T=1,
-					removeMean=False,
-					normalize=False,
-					removeFirstNPoints=0,
-					args={'sigma':10.0,
-						   'b':8.0/3.0,
-						   'r':28.0}):
-	"""
-	Solves the lorentz attractor nonlinear ODEs.
-	
-	References
-	----------
-	 * https://en.wikipedia.org/wiki/Lorenz_system
-	 
-	Examples
-	--------
-	Example 1::
-		
-		_plt.close('all')
-		x,y,z=solveLorentz( 	N=5000,
-						dt=0.02,
-						IC=[-9.38131377, -8.42655716 , 29.30738524],
-						plot='all',
-						removeMean=True,
-						normalize=True,
-						removeFirstNPoints=500)
-						
-	"""
-# 	N0=_np.copy(N)
-	N+=removeFirstNPoints
-	T=N*dt
-	
-	from scipy.integrate import solve_ivp
-		
-	def ODEs(t,y,*args):
-		X,Y,Z = y
-		sigma,b,r=args
-		derivs=	[	sigma*(Y-X),
-					-X*Z+r*X-Y,
-					X*Y-b*Z]
-		return derivs
-	
-	t_eval=_np.arange(0,T,dt)
-	psoln = solve_ivp(	ODEs,
-						[0,T],
-						IC,  # initial conditions
-						args=args.values(),
-						t_eval=t_eval
-						)
-	
-	x,y,z=psoln.y
-	
-	x=_xr.DataArray(	x,
-						dims=['time'],
-						coords={'time':t_eval},
-						attrs={'units':"au",
-								 'standard_name': 'Amplitude'})
-	x.time.attrs={'units':'au'}
-	y=_xr.DataArray(	y,
-						dims=['time'],
-						coords={'time':t_eval},
-						attrs={'units':"au",
-								 'standard_name': 'Amplitude'})
-	y.time.attrs={'units':'s'}
-	z=_xr.DataArray(	z,
-						dims=['time'],
-						coords={'time':t_eval},
-						attrs={'units':"au",
-								 'standard_name': 'Amplitude'})
-	z.time.attrs={'units':'au'}
-	
-	if removeFirstNPoints>0:
-		x=x[removeFirstNPoints:]
-		y=y[removeFirstNPoints:]
-		z=z[removeFirstNPoints:]
-	
-	if removeMean==True:
-		x-=x.mean()
-		y-=y.mean()
-		z-=z.mean()
-		
-	if normalize==True:
-		x/=x.std()
-		y/=y.std()
-		z/=z.std()
-			
-	if plot!=False:
-		fig,ax=_plt.subplots(3,sharex=True)
-		markersize=2
-		x.plot(ax=ax[0],marker='.',markersize=markersize)
-		y.plot(ax=ax[1],marker='.',markersize=markersize)
-		z.plot(ax=ax[2],marker='.',markersize=markersize)
-		ax[0].set_title('Lorentz Attractor\n'+r'($\sigma$, b, r)='+'(%.3f, %.3f, %.3f)'%(args['sigma'],args['b'],args['r'])+'\nIC = (%.3f, %.3f, %.3f)'%(IC[0],IC[1],IC[2]))
-		
-	if plot=='all':
-		_plt.figure();_plt.plot(x,y)
-		_plt.figure();_plt.plot(y,z)
-		_plt.figure();_plt.plot(z,x)
-	
-# 		from mpl_toolkits.mplot3d import Axes3D
-		import matplotlib as _mpl
-		_mpl.rcParams.update({'figure.autolayout': False})
-		fig = _plt.figure()
-		ax = fig.add_subplot(121, projection='3d')
-		ax.plot(x,y,zs=z)
-		ax.set_xlabel('x')
-		ax.set_ylabel('y')
-		ax.set_zlabel('z')		
-		ax.set_title('Lorentz Attractor\n'+r'($\sigma$, b, r)='+'(%.3f, %.3f, %.3f)'%(args['sigma'],args['b'],args['r'])+'\nIC = (%.3f, %.3f, %.3f)'%(IC[0],IC[1],IC[2])+'\nState space')
-		
-		ax = fig.add_subplot(122, projection='3d')
-		ax.plot(x[6::3],x[3:-3:3],zs=x[:-6:3])
-		ax.set_xlabel('x(t)')
-		ax.set_ylabel(r'x(t-$\tau$)')
-		ax.set_zlabel(r'x(t-2$\tau$)')
-		ax.set_title('Lorentz Attractor\n'+r'($\sigma$, b, r)='+'(%.3f, %.3f, %.3f)'%(args['sigma'],args['b'],args['r'])+'\nIC = (%.3f, %.3f, %.3f)'%(IC[0],IC[1],IC[2])+'\nTime-lagged state space')
-		fig.tight_layout(pad=5,w_pad=5)
-		
-	return x,y,z
-
-
-def coupledHarmonicOscillator(	N=10000,
-								  T=1,
-								IC=[0,0.9,0,-1],
-								args=[1,1,1e-4],
-								plot=False):
-	"""
-	#TODO
-	
-	Examples
-	--------
-	Example1 ::
-		x1,x2=coupledHarmonicOscillator(plot=True,N=1e5,T=10)
-	
-	References
-	----------
-	http://users.physics.harvard.edu/~schwartz/15cFiles/Lecture3-Coupled-Oscillators.pdf
-
-	"""
-	
-	import matplotlib.pyplot as _plt
-	
-	dt=T/N
-	
-	from scipy.integrate import solve_ivp
-	 
-	def ODEs(t,y,*args):
-		y1,x1,y2,x2 = y
-		k,kappa,m=args
-		derivs=	[	-(k+kappa)/m*x1+kappa/m*x2,
-					y1,  
- 					-(k+kappa)/m*x2+kappa/m*x1,
-					y2]
-		return derivs
-
-	time=_np.arange(0,T,dt)
-	psoln = solve_ivp(	ODEs,
-					t_span=[0,T],
-					y0=IC,  # initial conditions
-					args=args,
-					t_eval=time
-					)
-	
-	y1,x1,y2,x2 =psoln.y
-	
-	
-	x1=_xr.DataArray(	x1,
-						dims=['time'],
-						coords={'time':time},
-						attrs={'units':"au",
-								 'standard_name': 'Amplitude'})
-	x1.time.attrs={'units':'au'}
-	x2=_xr.DataArray(	x2,
-						dims=['time'],
-						coords={'time':time},
-						attrs={'units':"au",
-								 'standard_name': 'Amplitude'})
-	x2.time.attrs={'units':'s'}
-	
-	if plot==True:
-		fig,ax=_plt.subplots(2,sharex=True)
-		x1.plot(ax=ax[0],marker='.')
-		x2.plot(ax=ax[1],marker='.')
-		ax[0].set_title('Coupled harmonic oscillator\n'+r'(k, kappa, m)='+'(%.3f, %.3f, %.6f)'%(args[0],args[1],args[2])+'\nIC = (%.3f, %.3f, %.3f, %.3f)'%(IC[0],IC[1],IC[2],IC[3]))
-
-	return x1,x2
-
-
-###################################################################################
-#%% plotting functions
-
-
-def plotRho_deprecated(dfRho,ax=None,fig=None):
-	""" plotting function for rho, the correlation coefficient """
-	if ax==None:
-		fig,ax=_plt.subplots()
-	
-	for i,(key,val) in enumerate(dfRho.iteritems()):
-		
-		ax.plot(val,'-x',label='E=%d'%val.name)
-		_finalizeSubplot(	ax,
-									ylim=[0,1.02],
-									xlim=[1,dfRho.index[-1]],
-									xlabel=r'Prediction time steps ($\tau_p$)',
-									ylabel=r'Correlation coefficient ($\rho$)',
-									legendOn=True)
-	return fig,ax
-		
-
-def plotFitVsActual_deprecated(sFit,sActual,ax=None):
-	""" plots fit data vs. actual data for a qualitative "goodness of fit" plot """
-	if ax==None:
-		fig,ax=_plt.subplots()
-	
-	
-	ax.plot(sActual,sFit,'.',label=r'$\tau_p$=%s'%sFit.name,markersize=3)
-	ax.plot([-1,0.5],[-1,0.5],'k')
-	_finalizeSubplot(	ax,
-							ylim=[-1,0.5],
-							xlim=[-1,0.5],
-							xlabel='Actual',
-							ylabel='Fit',
-							legendOn=True,
-							numberLegendPoints=3
-							)
-	
-	
-def correlationHeatmap(x,y,Z,xlabel='',ylabel='',showMax=True,cbarMinMax=None):
-	import numpy as _np
-	import seaborn as sb
-	# from matplotlib.colors import LogNorm
-	fig,ax=_plt.subplots()
-	
-	
-	if type(cbarMinMax) != type(None):
-		vmin=cbarMinMax[0]
-		vmax=cbarMinMax[1]
-	else:
-		vmin=_np.nanmin(Z)
-		vmax=_np.nanmax(Z)
-	ax=sb.heatmap(	Z,
- 			vmin=vmin,
- 			vmax=vmax,
-# 			norm=LogNorm(vmin=0.01, vmax=1),
-			)
-	
-	ax.collections[0].colorbar.set_label("Pearson correlation")
-	
-	ax.invert_yaxis()
-	
-	ax=_plt.gca()
-	ax.set_xlabel(xlabel)
-	ax.set_ylabel(ylabel)
-	
-# 	xticks=ax.get_xticks()
-
-	if showMax==True:
-		
-		import matplotlib as _mpl
-		_mpl.rcParams['legend.numpoints'] = 1
-		
-		def coordinate_map(in_data,coordinate='x',):
-			""" 
-			Note that the ticks and ticklabels are in heatmap() do not have a 1 to 1 mapping.
-			this function determines the mapping for the x and y coordinates and applies it to whatever data is provided.
-			"""
-			if coordinate=='x':
-				index=0
-				ticklabels_obj=ax.get_xticklabels()
-			elif coordinate=='y':
-				index=1
-				ticklabels_obj=ax.get_yticklabels()
-				
-			ticks=_np.zeros(len(ticklabels_obj),dtype=float)
-			ticklabels=_np.zeros(len(ticklabels_obj),dtype=float)
-			
-			for i in range(len(ticklabels_obj)):
-				ticks[i]=ticklabels_obj[i].get_position()[index]
-				ticklabels[i]=float(ticklabels_obj[i].get_text())
-				
-			slope,intercept=_np.polyfit(ticklabels,ticks,deg=1)
-			out_data=in_data*slope+intercept
-			return out_data
-		
-		
-		ymax,xmax=_np.where(Z.max().max()==Z)
-		xmax=Z.columns[xmax].values
-		ymax=Z.index[ymax].values
-		xmax_map=coordinate_map(xmax,'x')
-		ymax_map=coordinate_map(ymax,'y')
-		print(xmax_map,ymax_map)
-		ax.plot(xmax_map,ymax_map,c='g',marker='*',label='%s_max'%ylabel,linestyle='')
-# 		ax.plot(xmax_map,ymax_map,c='g',marker='*',label='E_max',linestyle='')
-# 		ax.plot(xmax,ymax,'go')
-		ax.set_title('Max: (%s, %s)=(%d,%d)'%(xlabel,ylabel,xmax,ymax))
-		
-# 		for i,(key,val) in enumerate(Z.iterrows()):
-# 			print(i,key)
-# 			val.ixd
-		temp=Z.idxmax()
-		y=temp.values
-		x=temp.index.values
-		
-		ax.plot(coordinate_map(x,'x'),coordinate_map(y,'y'),c='g',linestyle='-',label='%s_max(%s)'%(ylabel,xlabel))
-# 		ax.plot(coordinate_map(x,'x'),coordinate_map(y,'y'),c='g',linestyle='-',label='E_max(tau)')
-
-		temp=Z.idxmax(axis=1)
-		x=temp.values
-		y=temp.index.values
-		
-		ax.plot(coordinate_map(x,'x'),coordinate_map(y,'y'),c='deepskyblue',linestyle='-',label='%s_max(%s)'%(xlabel,ylabel))
-
-
-
-		ax.legend()
-# 	ax.plot(ymax+y[0],xmax+x[0],'rx')
-	
-# 	return fig,ax
-# 	
-
-
-def dimensionHeatmap(Z,xlabel='',ylabel='',showMax=True):
-	import numpy as _np
-	import seaborn as sb
-	from matplotlib.colors import LogNorm
-	fig,ax=_plt.subplots()
-	x=Z.index.values
-	y=Z.columns.values
-	
-# 	sb.heatmap(	Z,
-# # 			vmin=0,
-# # 			vmax=1,
-# 			norm=LogNorm(vmin=0.01, vmax=1))
-	sb.heatmap(	Z,
- 			vmin=0,
- 			vmax=1,
-# 			norm=LogNorm(vmin=0.01, vmax=1),
-			)
-	
-	ax.invert_yaxis()
-	
-# 	ax=_plt.gca()
-	ax.set_xlabel(xlabel)
-	ax.set_ylabel(ylabel)
-	
-# 	xticks=ax.get_xticks()
-
-	if showMax==True:
-		
-		import matplotlib as _mpl
-		_mpl.rcParams['legend.numpoints'] = 1
-		
-		def coordinate_map(in_data,coordinate='x',):
-			""" 
-			Note that the ticks and ticklabels are in heatmap() do not have a 1 to 1 mapping.
-			this function determines the mapping for the x and y coordinates and applies it to whatever data is provided.
-			"""
-			if coordinate=='x':
-				index=0
-				ticklabels_obj=ax.get_xticklabels()
-			elif coordinate=='y':
-				index=1
-				ticklabels_obj=ax.get_yticklabels()
-				
-			ticks=_np.zeros(len(ticklabels_obj),dtype=float)
-			ticklabels=_np.zeros(len(ticklabels_obj),dtype=float)
-			
-			for i in range(len(ticklabels_obj)):
-				ticks[i]=ticklabels_obj[i].get_position()[index]
-				ticklabels[i]=float(ticklabels_obj[i].get_text())
-				
-			slope,intercept=_np.polyfit(ticklabels,ticks,deg=1)
-			out_data=in_data*slope+intercept
-			return out_data
-		
-		
-		ymax,xmax=_np.where(Z.max().max()==Z)
-		xmax=Z.columns[xmax].values
-		ymax=Z.index[ymax].values
-		xmax_map=coordinate_map(xmax,'x')
-		ymax_map=coordinate_map(ymax,'y')
-		print(xmax_map,ymax_map)
-		ax.plot(xmax_map,ymax_map,c='g',marker='*',label='E_max',linestyle='')
-# 		ax.plot(xmax,ymax,'go')
-		ax.set_title('Max: (%s, %s)=(%d,%d)'%(xlabel,ylabel,xmax,ymax))
-		
-# 		for i,(key,val) in enumerate(Z.iterrows()):
-# 			print(i,key)
-# 			val.ixd
-		temp=Z.idxmax()
-		y=temp.values
-		x=temp.index.values
-		
-		ax.plot(coordinate_map(x,'x'),coordinate_map(y,'y'),c='g',linestyle='-',label='E_max(T)')
-		ax.legend()
-
-
 ###################################################################################
 #%% sub-functions
 
 	
-def applyForecast_new(s,Py,keys,weights,T,plot=False):
+def applyForecast(s,Py,edm_map,T,plot=False):
 	""" 
 	The forecasting method.  Combines weights with correct indices (keys) to get the forecast 
 	
@@ -559,9 +113,9 @@ def applyForecast_new(s,Py,keys,weights,T,plot=False):
 		import pandas as pd
 		
 		N=1000
-		x,y,z=solveLorentz(N=N)
-		s=x.copy()
-		s['time']=np.arange(0,N)
+		ds=lorentzAttractor(N=N)
+		s=ds.x.copy()
+		s['t']=np.arange(0,N)
 		sx=s[:N//2]
 		sy=s[N//2:]
 		
@@ -569,140 +123,58 @@ def applyForecast_new(s,Py,keys,weights,T,plot=False):
 		tau=1
 		knn=E+1
 		
-		Px=convertToTimeLaggedSpace_new(sx,E=E,tau=tau)
-		Py=convertToTimeLaggedSpace_new(sy,E=E,tau=tau)
-		Py['time']=Py.time+N//2
+		Px=convertToTimeLaggedSpace(sx,E=E,tau=tau)
+		Py=convertToTimeLaggedSpace(sy,E=E,tau=tau)
+		Py['t']=Py.t+N//2
 		
-		keys,weights=createMap_new(Px,Py,knn=knn)
+		edm_map=createMap(Px,Py,knn=knn)
 		
-		results=applyForecast_new(s,Py,keys,weights,T=10,plot=True)
+		results=applyForecast(s,Py,edm_map,T=10,plot=True)
 	
 	"""
 	
 	# initialize a matrix for the forecast results
-	index=Py.time.values[:-T]
-	results=_xr.DataArray(dims=['time','future'],
-						 coords={'time':index,
+	index=Py.t.values[:-T]
+	results=_xr.DataArray(dims=['t','future'],
+						 coords={'t':index,
 								 'future':_np.arange(0,T+1)})
 	
 	# perform forecast
-	shape=keys.sel(time=index).shape
+	shape=edm_map['keys'].sel(t=index).shape
 	for a in results.transpose():
-		print(a)
-		y=s.sel(time=keys.sel(time=index).values.reshape(-1)+a.future.values).values.reshape(shape)
-		results.loc[:,a.future.values] = (weights.sel(time=index)*y).sum(axis=1).values
-# 		import sys;sys.exit()
-# 	for key,val in forecast.iteritems():
-# 			shape=keys.loc[index].shape
-# 			y=s.loc[keys.loc[index].values.reshape(-1)+key].values.reshape(shape)
-
-# 			results.at[:,key]=(weights.loc[index]*y).sum(axis=1).values
+		y=s.sel(t=edm_map['keys'].sel(t=index).values.reshape(-1)+a.future.values).values.reshape(shape)
+		results.loc[:,a.future.values] = (edm_map['weights'].sel(t=index)*y).sum(axis=1).values
 		
 	if plot==True:
 		
-		# construct a matrix (dfTActual) of the actual future time (being that we know it)
-		dfTActual=_xr.DataArray(dims=['time','future'],
-						 coords={'time':index,
-								 'future':_np.arange(0,T+1)})
-		for key in range(0,1+T):
-			dfTActual[:,key]=s[index+key].values	
-			
+		# contruct actual future data matrix to use with the pearson correlation below
+		dfTActual=_xr.DataArray(	_np.zeros(results.shape),
+										 dims=results.dims,
+										 coords=results.coords)
+		for fut in results.future.data:
+			dfTActual.loc[:,fut]=Py.sel(delay=0,t=(dfTActual.t.data+fut)).data
 		
 		fig,ax=_plt.subplots(T+1,sharex=True,sharey=True)
-		rho=calcCorrelationCoefficient(dfTActual.values, results.values)
+		rho=_xr.DataArray(dims=['T'],
+							coords={'T':_np.arange(T+1)})
+		for Ti in rho.coords['T'].data:
+			print(Ti)
+			rho.loc[Ti]=calcCorrelationCoefficient(dfTActual.sel(future=Ti), results.sel(future=Ti))
+			
 		for i, Ti in enumerate(range(0,1+T)):
 			dfTActual.sel(future=Ti).plot(ax=ax[i])
 			results.sel(future=Ti).plot(ax=ax[i])
 			ax[i].set_title('')
 			ax[i].set_xlabel('')
-# 			ax[i].plot(dfTActual.sel(future=Ti).index.values+Ti,dfTActual[Ti],label='actual')
-# 			ax[i].plot(results[Ti].index.values+Ti,results[Ti],label='forecast')
-			_subtitle(ax[i],'T=%d, rho=%.3f'%(Ti,rho[i]))
-# 			_finalizeSubplot(ax[i],legendOn=False,xlim=[s.index[-1]//2,s.index[-1]+1])
-# 		_finalizeSubplot(ax[-1],legendOn=False,xlim=[s.index[-1]//2,s.index[-1]+1],xlabel='Time')
+			_subtitle(ax[i],'T=%d, rho=%.3f'%(Ti,rho.sel(T=Ti).data))
 		ax[0].set_title('N=%d'%len(s))
 		_finalizeFigure(fig,h_pad=0)
 		
 	return results
 	
 
-@deprecated
-def applyForecast(s,dfY,keys,weights,T,plot=False):
-	""" 
-	The forecasting subfunction.  Combines weights with correct indices (keys) to get the forecast 
-		
-	Examples
-	--------
-	Example 1::
-		
-		import numpy as np
-		import matplotlib.pyplot as plt; plt.close('all')
-		import pandas as pd
-		
-		N=2000
-		x,y,z=solveLorentz(N=N)
-		s=_pd.Series(z)
-		sx=_pd.Series(z[:1000])
-		sy=_pd.Series(z[1000:],index=s.index[N//2:])
-# 		s2A=_pd.Series(z[:1000])
-# 		s2B=_pd.Series(z[1000:])
-		
-		E=3
-		tau=1
-		
-# 		N=500
-# 		s=createTentMap(N=N)
-# 		sx=s[:N//2]
-# 		sy=s[N//2:]
-# 		
-# 		E=3
-# 		knn=E+1
-# 		tau=1
-# 		
-# 		s=pd.DataFrame(s)
-# 		sx=pd.DataFrame(sx)
-# 		sy=pd.DataFrame(sy)
-		
-		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
-		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
-		
-		keys,weights=createMap(Px,Py,knn=knn)
-		
-		dfTActual, dfTGuess=applyForecast(s,Py,keys,weights,T=10,plot=True)
 	
-	"""
-	
-	index=dfY.index.values[:-T]
-	dfTActual=_pd.DataFrame(index=index,dtype=float)
-	for key in range(0,1+T):
-		dfTActual[key]=s.loc[index+key].values	
-	dfTGuess=_pd.DataFrame(index=dfTActual.index,columns=dfTActual.columns,dtype=float)
-	
-	for key,val in dfTGuess.iteritems():
-			shape=keys.loc[index].shape
-# 			y=s.loc[keys.loc[index+key].values.reshape(-1)].values.reshape(shape)
-			y=s.loc[keys.loc[index].values.reshape(-1)+key].values.reshape(shape)
-
-			dfTGuess.at[:,key]=(weights.loc[index]*y).sum(axis=1).values
-		
-	if plot==True:
-		
-		fig,ax=_plt.subplots(T,sharex=True,sharey=True)
-		rho=calcCorrelationCoefficient(dfTActual, dfTGuess)
-		for i, Ti in enumerate(range(1,1+T)):
-			ax[i].plot(dfTActual[Ti].index.values+Ti,dfTActual[Ti],label='actual')
-			ax[i].plot(dfTGuess[Ti].index.values+Ti,dfTGuess[Ti],label='guess')
-# 			ax[i].legend()
-			_subtitle(ax[i],'T=%d, rho=%.3f'%(Ti,rho[i]))
-			_finalizeSubplot(ax[i],legendOn=False,xlim=[s.index[-1]//2,s.index[-1]+1])
-		_finalizeSubplot(ax[-1],legendOn=False,xlim=[s.index[-1]//2,s.index[-1]+1],xlabel='Time')
-		ax[0].set_title('N=%d'%len(s))
-		_finalizeFigure(fig,h_pad=0)
-	return dfTActual,dfTGuess
-
-
-	
-def calc_EDM_time(N,E,tau,dt=1.0):
+def calc_EDM_time(N,E,tau,dt=int(1)):
 	""" 
 	Calculates the effective "time basis" used in the time-lagged state space 
 	
@@ -722,7 +194,7 @@ def calc_EDM_time(N,E,tau,dt=1.0):
 	numpy.ndarray of floats
 		The effective "time basis" used in the time-lagged state space 
 	"""
-	return _np.arange((E-1)*tau,N,dtype=float)*dt
+	return _np.arange((E-1)*tau,N,dtype=type(dt))*dt
 
 
 def calc_EMD_delay(E,tau):	
@@ -744,10 +216,10 @@ def calc_EMD_delay(E,tau):
 	return _np.arange(-(E-1)*tau,1,tau,dtype=int)
 
 
-@deprecated
+
 def calcWeights(radii,method='exponential'):
 	""" 
-	Weights to be applied nearest neighbors 
+	Calculates weights used with the findNearestNeighbors() function
 	
 	Example
 	-------
@@ -776,68 +248,6 @@ def calcWeights(radii,method='exponential'):
 			ax.plot(B[i][0],B[i][1],'x',label='point of interest')
 			ax.plot(points[i][:,0],points[i][:,1],label='%d nearest neighbors\nwith weights shown'%numberOfNearestPoints,marker='o',linestyle='', markerfacecolor="None")
 			plt.legend()
-			
-			w=weights.iloc[0]
-			for j,v in weights.iloc[i].iteritems():
-				ax.text(points[i][j,0],points[i][j,1],'%.3f'%v)
-			
-	
-	"""
-	if type(radii) in [_np.ndarray]:
-		radii=_pd.DataFrame(radii)
-	
-	if method =='exponential':
-		if True:
-			weights=_np.exp(-radii/_np.array(radii.min(axis=1)).reshape(-1,1))
-			weights=weights/_np.array(weights.sum(axis=1)).reshape(-1,1)
-		else: # this is the old method but it threw warnings.  I've replaced it with the above, but I'm leaving the old here just in case
-			weights=_np.exp(-radii/radii.min(axis=1)[:,_np.newaxis])  #  this throws the same error as below.  fix.
-			weights=weights/weights.sum(axis=1)[:,_np.newaxis] 	#  this line throws a warning. fix.   "FutureWarning: Support for multi-dimensional indexing (e.g. 'obj[:,None]') is deprecated and will be removed in a future version.  Convert to a numpy array before indexing instead."
-		
-	elif method =='uniform':
-		weights=_np.ones(radii.shape)/radii.shape[1]
-	else:
-		raise Exception('Incorrect weighting method provided')
-	
-	return _pd.DataFrame(weights,index=radii.index)
-
-
-def calcWeights_new(radii,method='exponential'):
-	""" 
-	Weights to be applied nearest neighbors 
-	
-	Example
-	-------
-	Example 1::
-		
-		# create data
-		x=_np.arange(0,10+1)
-		y=_np.arange(100,110+1)
-		X,Y=_np.meshgrid(x,y)
-		X=X.reshape((-1,1))
-		Y=Y.reshape((-1,1))
-		A=_np.concatenate((X,Y),axis=1)
-		
-		# points to investigate
-		B=[[5.1,105.1],[8.9,102.55],[3.501,107.501]]
-		
-		numberOfNearestPoints=5
-		points,indices,radii=findNearestNeighbors(A,B,numberOfNearestPoints=numberOfNearestPoints)
-		
-		weights=calcWeights(radii)
-		print(weights)
-		
-		for i in range(len(B)):
-			fig,ax=_plt.subplots()
-			ax.plot(X.reshape(-1),Y.reshape(-1),'.',label='original data')
-			ax.plot(B[i][0],B[i][1],'x',label='point of interest')
-			ax.plot(points[i][:,0],points[i][:,1],label='%d nearest neighbors\nwith weights shown'%numberOfNearestPoints,marker='o',linestyle='', markerfacecolor="None")
-			plt.legend()
-			
-			w=weights.iloc[0]
-			for j,v in weights.iloc[i].iteritems():
-				ax.text(points[i][j,0],points[i][j,1],'%.3f'%v)
-			
 	
 	"""
 	if type(radii) in [_np.ndarray]:
@@ -857,21 +267,18 @@ def calcWeights_new(radii,method='exponential'):
 		raise Exception('Incorrect weighting method provided')
 	
 	return _xr.DataArray(weights)
-# 	return _pd.DataFrame(weights,index=radii.index)
-
-
 
 
 
 def calcCorrelationCoefficient(data,fit,plot=False):
 	""" 
-	Pearson correlation coefficient .
-	Note that # pearson correlation is rho=sqrt(r^2)=r and allows for a value from
+	Pearson correlation coefficient.
+	Note that pearson correlation is rho=sqrt(r^2)=r and allows for a value from
 	1 (perfectly coorelated) to 0 (no correlation) to -1 (perfectly anti-correlated)
 	
 	Reference
 	---------
-	Eq. 22 in https://mathworld.wolfram.com/CorrelationCoefficient.html
+	 * Eq. 22 in https://mathworld.wolfram.com/CorrelationCoefficient.html
 	
 	Examples
 	--------
@@ -882,28 +289,9 @@ def calcCorrelationCoefficient(data,fit,plot=False):
 		import numpy as np
 		f=2e3
 		t=np.arange(0,1e-3,2e-6)
-		y1=np.sin(2*np.pi*f*t)
-		y2=y1+(np.random.rand(len(t))-0.5)*0.1
-		calcCorrelationCoefficient(y1,y2,plot=True)
-		
-	Example 2::
-		
-		## Test for two cases at once.  
-		
-		f=2e3
-		t=np.arange(0,1e-3,2e-6)
-		y1=np.sin(2*np.pi*f*t)
-		y2=y1+(np.random.rand(len(t))-0.5)*0.1
-		f=5.2e3
-		y3=np.sin(2*np.pi*f*t)
-		y4=y3+(np.random.rand(len(t))-0.5)*1
-		df1=pd.DataFrame()
-		df2=pd.DataFrame()
-		df1['y1']=y1
-		df2['y2']=y2
-		df1['y3']=y3
-		df2['y4']=y4
-		calcCorrelationCoefficient(df1,df2,plot=True)
+		data=np.sin(2*np.pi*f*t)
+		fit=data+(np.random.rand(len(t))-0.5)*0.1
+		calcCorrelationCoefficient(data,fit,plot=True)
 		
 	Example 3::
 		
@@ -938,55 +326,110 @@ def calcCorrelationCoefficient(data,fit,plot=False):
 		fit=np.zeros(data.shape)*np.nan
 		calcCorrelationCoefficient(data,fit,plot=True)
 	"""
-	if type(data)==_pd.core.frame.Series or type(data)==_np.ndarray:
-		data=_pd.DataFrame(data)
-		fit=_pd.DataFrame(fit)
-	elif type(data)==_pd.core.frame.DataFrame:
+	if type(data)==_np.ndarray:
+		data=_xr.DataArray(data,
+						 dims=['t'],
+						 coords={'t':_np.arange(data.shape[0])})  
+		fit=_xr.DataArray(fit,
+						 dims=['t'],
+						 coords={'t':_np.arange(fit.shape[0])})
+	elif type(data)==_xr.core.dataarray.DataArray:
 		pass
 	else:
 		raise Exception('Improper data type')
 		
-	rho=_np.zeros(data.shape[1])
-	for i,(key,val) in enumerate(data.iteritems()):
-		y=val.values
-		f=fit.iloc[:,i].values
+	if True:
+		
+		y=data.data
+		f=fit.data
 		
 		SSxy=((f-f.mean())*(y-y.mean())).sum()
 		SSxx=((f-f.mean())**2).sum()
 		SSyy=((y-y.mean())**2).sum()
 		if _np.sqrt(SSxx*SSyy)!=0:
-			rho[i]=SSxy/_np.sqrt(SSxx*SSyy) # r-squared value  #TODO this line occassionally returns a RuntimeWarning.  Fix.  "RuntimeWarning: invalid value encountered in double_scalars"
+			rho=SSxy/_np.sqrt(SSxx*SSyy) # r-squared value  #TODO this line occassionally returns a RuntimeWarning.  Fix.  "RuntimeWarning: invalid value encountered in double_scalars"
+			# rho[i]=SSxy**2/(SSxx*SSyy) # r-squared value
 		else: # TODO possibly add a divide by nan or by inf case?
-			rho[i]=_np.nan # recently added this case for divide by zero.  i'm leaving this comment here until i'm sure the fix is bug free
-# 		rho[i]=SSxy**2/(SSxx*SSyy) # r-squared value
-		
-# 		rho[i]=_np.sqrt(rho[i]) 
-	
+			rho=_np.nan # recently added this case for divide by zero.  i'm leaving this comment here until i'm sure the fix is bug free
+
 		if plot==True:
 			fig,ax=_plt.subplots()
 			ax.plot(y,label='Original data')
 			ax.plot(f,label='Reconstructed data')
 			ax.legend()
-			ax.set_title('%s, Rho = %.3f'%(key,rho[i]))
+			ax.set_title('Rho = %.3f'%(rho))
 			
 	return rho
 
 
-def check_dataArray(x):
+def check_dataArray(x,resetTimeIndex=False):
 	"""
-	Takes in an input signal and make sure it meets the various standards required for data throughout this library.
+	Takes in an input signal (xarray.DataArray) and makes sure it meets the various requirements used through this library.  
 	This function either corrects any issues it finds or throws an error.
 
 	Parameters
 	----------
 	x : Ideally numpy array or xarray.DataArray
 		Input signal
+	resetTimeIndex : bool
+		True - resets time coordinate to [0,1,2,3,...,N-1]
 
 	Returns
 	-------
 	x : xarray.core.dataarray.DataArray
 		Output signal with the correct variable name for the time series data.
 
+	Examples
+	--------
+	
+	Example 1::
+		
+		# standard
+		dt=0.1
+		t=np.arange(1000)*dt
+		y=_xr.DataArray(	_np.sin(0.00834*2*np.pi*t),
+							dims=['t'],
+							coords={'t':t})
+		check_dataArray(y)
+		
+	Example 2::
+		
+		# numpy array
+		dt=0.1
+		t=np.arange(1000)*dt
+		check_dataArray(_np.sin(0.00834*2*np.pi*t))
+		
+	Example 3::
+		
+		# other input types
+		dt=0.1
+		t=np.arange(1000)*dt
+		y=_xr.DataArray(	_np.sin(0.00834*2*np.pi*t),
+							dims=['t'],
+							coords={'t':t})
+		check_dataArray([y])
+		check_dataArray(	_pd.Series(_np.sin(0.00834*2*np.pi*t)))
+		
+	Example 4::
+		
+		# time data named incorrectly
+		dt=0.1
+		t=np.arange(1000)*dt
+		y=_xr.DataArray(	_np.sin(0.00834*2*np.pi*t),
+							dims=['time'],
+							coords={'time':t})
+		check_dataArray(y)
+		
+	Example 5::
+		
+		# time data named incorrectly again
+		dt=0.1
+		t=np.arange(1000)*dt
+		y=_xr.DataArray(	_np.sin(0.00834*2*np.pi*t),
+							dims=['Time'],
+							coords={'Time':t})
+		check_dataArray(y)
+		
 	"""
 	
 	# if input is a numpy array, convert it to an xarray.DataArray structure
@@ -997,195 +440,80 @@ def check_dataArray(x):
 	
 	# make sure data is an xarray.DataArray structure
 	elif type(x) not in [_xr.core.dataarray.DataArray]: 
-		raise Exception('Improper data type of input')
+		raise Exception('Input should be an xarray.DataArray. Instead, %s encountered.'%(str(type(x))))
 		
 	# make sure time dimension is present and named correctly
-	if 'time' in x.dims:
+	if x.coords._names==set(): # if no coordinate is present
+		x=_xr.DataArray(	x,
+							dims=['t'],
+							coords={'t':_np.arange(x.shape[0])})
+	elif 'time' in x.dims:
 		x=x.rename({'time':'t'})
 	elif 't' not in x.dims:
 		raise Exception('time or t dimension not in signal')
+		
+	if resetTimeIndex==True:
+		x['t']=_np.arange(x.t.shape[0]).astype(int)
 	
 	return x
 		
 
-
-@deprecated
-def convertToStateSpace(s,E,tau):
-	""" 
-	Convert input to state space using the embedded dimension, E,
-	and time step, tau 
-	
-	Example
-	-------
-	Example 1::
-		
-		s=_pd.Series(_np.arange(0,100))
-		P=convertToStateSpace(s, E=5, tau=1)[0]
-		
-	Example 2::
-		
-		s1=_pd.Series(_np.arange(0,100))
-		s2=_pd.Series(_np.arange(1000,1100))
-		P1,P2=convertToStateSpace([s1,s2], E=5, tau=1)
-		
-	Example 3::
-		
-		s=_pd.Series(_np.arange(0,100))
-		P=convertToStateSpace(s, E=5, tau=5)[0]
-		
-	Example 4::
-		
-		
-		
-# 		#s=createTentMap(300,plot=False)
-
-		N=1000
-		x,y,z=solveLorentz(N=N,plot='all')
-		s=pd.Series(x)
-		
-		P=convertToStateSpace(s, E=2, tau=1)[0]
-		
-		fig,ax=plt.subplots()
-		ax.plot(s,marker='.')
-		
-		fig,ax=plt.subplots()
-		ax.plot(P.iloc[:,0],P.iloc[:,1],'.',markersize=2)
-		ax.set_xlabel('Dimension 1')
-		ax.set_ylabel('Dimension 2')
-		
-	"""
-	if type(s) != list:
-		s=[s]
-	out=[]
-	for si in s:
-		index=si.index.values[(E-1)*tau:]
-		columns=_np.arange(-(E-1)*tau,1,tau)
-		dfs=_pd.DataFrame(index=index,columns=columns)	
-		for key,val in dfs.iteritems():
-			if key==0:
-				dfs[key]=si.iloc[key-columns.min():si.shape[0]+key].values	
-			else:
-				dfs[key]=si.iloc[key-columns.min():si.shape[0]+key].values	
-		out.append(dfs)
-	return out
-
-
-@deprecated
-def convertToTimeLaggedSpace(s,E,tau):
+def convertToTimeLaggedSpace(	s,
+								E,
+								tau,
+								fuse=False):
 	""" 
 	Convert input to time lagged space using the embedded dimension, E,
 	and time step, tau.
 	
 	Parameters
 	----------
-	s : pandas.core.series.Series or list of pandas.core.series.Series
+	s : xarray.DataArray or list of xarray.DataArray 
 		Input signal(s) to convert to time-lagged space.  If multiple signals are provided, the signals are "fused" together.  
 	E : int
 		Dimensional parameter
 	tau : int
 		Time lag parameter
+	fuse : bool
+		True - fuses input signals 		
 		
 	Returns
 	-------
-	P : pandas.core.frame.DataFrame
+	P : xarray.DataArray or list of xarray.DataArray
 		Dataframe containing the input signal(s) converted to time-lagged space.  
-	
-	Example
-	-------
-	Example 1::
-		
-		s=_pd.Series(_np.arange(0,100))
-		P=convertToTimeLaggedSpace(s, E=5, tau=1)
-		
-	Example 2::
-		
-		s1=_pd.Series(_np.arange(0,100))
-		s2=_pd.Series(_np.arange(1000,1100))
-		P12=convertToTimeLaggedSpace([s1,s2], E=5, tau=1)
-		
-	Example 3::
-		
-		s=_pd.Series(_np.arange(0,100))
-		P=convertToTimeLaggedSpace(s, E=5, tau=5)
-		
-	Example 4::
-		
-		N=1000
-		x,y,z=solveLorentz(N=N,plot='all')
-		s=[pd.Series(x),pd.Series(z)]
-		
-		P=convertToTimeLaggedSpace(s, E=3, tau=2)
-			
-	"""
-	if type(s) != list:
-		s=[s]
-	if type(s[0]) != _pd.core.series.Series:
-		raise Exception('Input data should be a pandas Series or list of pandas Series')
-	
-	# initialize dataframe
-	index=s[0].index.values[(E-1)*tau:]
-	columns=_np.zeros(0,dtype=str)
-	for i,si in enumerate(s):
-		c=_np.arange(-(E-1)*tau,1,tau)
-		c=['%d_%d'%(i+1,j) for j in c]
-		columns=_np.concatenate((columns,c))
-	P=_pd.DataFrame(index=index,columns=columns,dtype=float)	
-	
-	# populate dataframe, one Series and one column at a time
-	for i,si in enumerate(s):
-		c=_np.arange(-(E-1)*tau,1,tau)
-		for j,cj in enumerate(c):
-			name='%d_%d'%(i+1,cj)
-			P[name]=si.iloc[cj+(E-1)*tau:si.shape[0]+cj].values	
-		
-	return P
-
-
-def convertToTimeLaggedSpace_new(s,E,tau):
-	""" 
-	Convert input to time lagged space using the embedded dimension, E,
-	and time step, tau.
-	
-	Parameters
-	----------
-	s : xarray.DataArray or xarray.DataArray
-		Input signal(s) to convert to time-lagged space.  If multiple signals are provided, the signals are "fused" together.  
-	E : int
-		Dimensional parameter
-	tau : int
-		Time lag parameter
-		
-	Returns
-	-------
-	P : pandas.core.frame.DataFrame
-		Dataframe containing the input signal(s) converted to time-lagged space.  
+		Signals are fused if fuse=True
 	
 	Example
 	-------
 	Example 1::
 		
 		s=_xr.DataArray(_np.arange(0,100),
-						  dims=['time'],
-						  coords={'time':_np.arange(100,200)})
-		P=convertToTimeLaggedSpace_new(s, E=5, tau=1)
+						  dims=['t'],
+						  coords={'t':_np.arange(100,200)})
+		P=convertToTimeLaggedSpace(s, E=5, tau=1)
 		
 	Example 2::
 		
 		s1=_xr.DataArray(_np.arange(0,100))
 		s2=_xr.DataArray(_np.arange(1000,1100))
-		P12=convertToTimeLaggedSpace_new([s1,s2], E=5, tau=1)
+		s=[s1,s2]
+		P12=convertToTimeLaggedSpace(s, E=5, tau=1)
 		
 	Example 3::
 		
 		s=_xr.DataArray(_np.arange(0,100))
-		P=convertToTimeLaggedSpace_new(s, E=5, tau=5)
+		P=convertToTimeLaggedSpace(s, E=5, tau=5)
 		
 	Example 4::
 		
+		# fusion example
 		N=1000
-		x,y,z=solveLorentz(N=N,plot='all')
-		s=[x,z]
-		P=convertToTimeLaggedSpace_new(s, E=3, tau=2)
+		ds=lorentzAttractor(N=N,plot='all')
+		s=[ds.x,ds.z]
+		E=3
+		tau=2
+		fuse=True
+		P=convertToTimeLaggedSpace(s, E=E, tau=tau,fuse=fuse)
 			
 	"""
 	# make sure input is a list
@@ -1193,19 +521,17 @@ def convertToTimeLaggedSpace_new(s,E,tau):
 		s=[s]
 		
 	# process each input
-	Plist=[]
+	Plist=[]	
 	for si in s:
 		
 		# check input data
 		si=check_dataArray(si)
 		
 		# initialize empty dataArray
-		#index=_np.arange((E-1)*tau,si.shape[0])
-		index=calc_EDM_time(si.shape[0],E=E,tau=tau,dt=1)
-		#columns=_np.arange(-(E-1)*tau,1,tau)
+		index=calc_EDM_time(si.shape[0],E=E,tau=tau,dt=1).astype(int)
 		columns=calc_EMD_delay(E,tau)
-		P=_xr.DataArray(dims=['time','delay'],
-					 coords={'time':index,
+		P=_xr.DataArray(dims=['t','delay'],
+					 coords={'t':index,
 							 'delay':columns})
 		
 		# populate dataarray one columns at a time.  #TODO Is there a way to do this without a for loop?
@@ -1213,6 +539,11 @@ def convertToTimeLaggedSpace_new(s,E,tau):
 			P.loc[:,ii]=si[index+ii].values
 			
 		Plist.append(P)
+			
+	if fuse==True:
+		P=_xr.concat(Plist,dim='delay')
+		P['delay']=_np.arange(P.shape[1])
+		Plist=[P]
 		
 	# return P for a single input or a list of P for multiple inputs
 	if _np.shape(Plist)[0]==1:
@@ -1221,201 +552,26 @@ def convertToTimeLaggedSpace_new(s,E,tau):
 		return Plist
 		
 
-
-
-@deprecated
 def createMap(PA1,PA2,knn,weightingMethod='exponential'):
 	"""
+	Creates an SMI map from PA1 to PA2.  
 	
-	Examples
-	--------
-	Example 1::
-			
-			
-			
-		import numpy as np
-		import matplotlib.pyplot as plt
-		import pandas as pd
+	Parameters
+	----------
+	PA1 : xarray.core.dataarray.DataArray
+		Input signal, s1A, converted to time lagged state space
+	PA2 : xarray.core.dataarray.DataArray
+		Input signal, s2A, converted to time lagged state space
+	knn : None or int
+		Number of nearest neighbors.  Default (None) is E+1.
+	weightingMethod : str
+		'exponential' - (Default).  Exponential weighting of nearest neighbors.  
 		
-		N=100
-		s=createTentMap(N=N)
-		sx=s[:N//2]
-		sy=s[N//2:]
-		
-		s=_pd.Series(s)
-		sx=_pd.Series(sx)
-		sy=_pd.Series(sy)
-		
-		E=3
-		knn=E+1
-		tau=1
-		
-		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
-		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
-		Py.index=Py.index+N//2
-		
-		keys,weights=createMap(Px,Py,knn=knn)
-		
-		index=N//2+14
-		plt.figure()
-		plt.plot(sx,label='Training data',color='k')
-		plt.plot([sx.index[-1],sx.index[-1]+1],[sx.iloc[-1],sy.iloc[0]],color='k')
-		plt.plot(sy,label='Test data',color='blue')
-		plt.plot(Py.loc[index].index.values+index,Py.loc[index].values,'r',marker='x',label='Points in question',linewidth=2)
-		for j,i in enumerate(keys.loc[index]):
-			print(i)
-			if j==0:
-				label='nearest neighbors'
-			else:
-				label=''
-			plt.plot(Px.loc[i].index.values+i,Px.loc[i].values,'g',marker='.',label=label,linewidth=2)
-	
-		fig = plt.figure()
-		ax = fig.add_subplot(111, projection='3d')
-		ax.plot(Px[-2].values,Px[-1].values,Px[0].values,linestyle='',marker='.')
-		ax.plot([Py.loc[index,-2]],[Py.loc[index,-1]],[Py.loc[index,-0]],linestyle='',marker='x',color='r')
-		
-		coordinates, indices, radii=findNearestNeighbors(Px.values,Py.values,numberOfNearestPoints=knn)
-		i=np.where(Py.index==index)[0][0]
-		ax.plot(coordinates[i,:,0],coordinates[i,:,1],coordinates[i,:,2],linestyle='',marker='o',mfc='none',color='g')
-		ax.set_xlabel('x1')
-		ax.set_ylabel('x2')
-		ax.set_zlabel('x3')
-		
-
-# 		soln=[]
-# 		for i,ind in enumerate(keys.loc[index]):
-# 			print(ind)
-# 			soln.append(Px.loc[ind].values)
-# 		soln=np.array(soln)
-# 		w=weights.loc[index]
-# 		reconstruction=np.matmul(w,soln)
-# 		plt.plot(Py.loc[index].index.values+index,reconstruction,color='m',linestyle='--',marker='o',label='reconstruction',linewidth=3,mfc='none')
-	
-		plt.title('Nearest neighbors: N=%d, E=%d, tau=%d'%(N,E,tau))
-		plt.xlim(0,60)
-		plt.legend()
-		plt.savefig('createMap_N_%d_E_%d_tau_%d.png'%(N,E,tau))
-		
-# 		plt.plot(reconstruct(sx,keys,weights),color='orange')
-		
-		
-	Example 2 ::
-		
-		import numpy as np
-		import matplotlib.pyplot as plt
-		import pandas as pd
-		
-		N=200
-		s=createTentMap(N=N)
-		sx=s[:N//2]
-		sy=s[N//2:]
-		
-		s=_pd.Series(s)
-		sx=_pd.Series(sx)
-		sy=_pd.Series(sy,index=s.index[N//2:])
-		
-		
-		E=4
-		knn=E+1
-		tau=2
-		
-		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
-		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
-# 		Py.index=Py.index+N//2
-		
-		keys,weights=createMap(Px,Py,knn=knn)
-		
-		index=54*2
-		plt.figure()
-		plt.plot(sx,label='Training data',color='k')
-		plt.plot([sx.index[-1],sx.index[-1]+1],[sx.iloc[-1],sy.iloc[0]],color='k')
-		plt.plot(sy,label='Test data',color='blue')
-		plt.plot(Py.loc[index].index.values+index,Py.loc[index].values,'r',marker='x',label='Points in question',linewidth=2)
-		for j,i in enumerate(keys.loc[index]):
-			print(i)
-			if j==0:
-				label='nearest neighbors'
-			else:
-				label=''
-			plt.plot(Px.loc[i].index.values+i,Px.loc[i].values,'g',marker='.',label=label,linewidth=2)
-	
-		plt.title('Nearest neighbors: N=%d, E=%d, tau=%d'%(N,E,tau))
-		plt.xlim(0,110)
-		plt.legend()
-		plt.savefig('createMap_N_%d_E_%d_tau_%d.png'%(N,E,tau))
-	
-	
-	Example 3 ::
-		
-		## Example where the map is created between the same data set.
-		
-		import numpy as np
-		import matplotlib.pyplot as plt
-		import pandas as pd
-		
-		N=100
-		s=createTentMap(N=N)
-		
-		E=4
-		knn=E+1
-		tau=1
-		
-		P=convertToStateSpace(s,E=E,tau=tau)[0]
-		
-		keys,weights=createMap(P,P,knn=knn)
-		
-		index=44*2
-		plt.figure()
-		plt.plot(s,label='Data',color='k')
-		plt.plot(P.loc[index].index.values+index,P.loc[index].values,'r',marker='x',label='Points in question',linewidth=2)
-		for j,i in enumerate(keys.loc[index]):
-			if j==0:
-				continue
-			print(i)
-			if j==0:
-				label='nearest neighbors'
-			else:
-				label=''
-			plt.plot(P.loc[i].index.values+i,P.loc[i].values,'g',marker='.',label=label,linewidth=2)
-	
-		plt.title('Self map.  Nearest neighbors: N=%d, E=%d, tau=%d'%(N,E,tau))
-		plt.xlim(-1,N)
-		plt.legend()
-		plt.savefig('createMap_N_%d_E_%d_tau_%d_selfMap.png'%(N,E,tau))
-	
-	
-	Example 4 ::
-		
-		N=2000-1
-		x,y,z=solveLorentz(N=N,plot='all')
-		s1A=[_pd.Series(x[:1000]),_pd.Series(y[:1000])]
-		s1B=[_pd.Series(x[1000:]),_pd.Series(y[1000:])]
-		
-		E=3
-		tau=1
-		
-		P1A=convertToTimeLaggedSpace(s1A, E=E, tau=tau)
-		P1B=convertToTimeLaggedSpace(s1B, E=E, tau=tau)
-		
-		keys,weights = createMap(P1A,P1B,knn=2*E+1)
-	
-	"""
-	
-	coordinates, indices, radii=findNearestNeighbors(PA1.values,PA2.values,numberOfNearestPoints=knn)
-	keysOfNearestNeighbors=_pd.DataFrame(indices+PA1.index[0],index=PA2.index)
-	radii=_pd.DataFrame(radii,index=PA2.index)
-	
-	# temporary code.  if a perfect match occurs (i.e. radii=0), then an error will occur.  This should take care of that.  
-	radii[radii==0]=_np.nan
-	
-	weights=calcWeights(radii,method=weightingMethod)
-	
-	return keysOfNearestNeighbors,weights
-
-
-def createMap_new(PA1,PA2,knn,weightingMethod='exponential'):
-	"""
+	Returns
+	-------
+	edm_map : dict with keys ('keys' and 'weights')
+		edm_map['keys'] contains the keys (indices) associated with the map
+		edm_map['weights'] contains the weights associated with the map
 	
 	Examples
 	--------
@@ -1426,7 +582,7 @@ def createMap_new(PA1,PA2,knn,weightingMethod='exponential'):
 		import pandas as pd
 		
 		N=100
-		s=createTentMap(N=N)
+		s=tentMap(N=N)
 		sx=s[:N//2]
 		sy=s[N//2:]
 		
@@ -1434,51 +590,42 @@ def createMap_new(PA1,PA2,knn,weightingMethod='exponential'):
 		knn=E+1
 		tau=2
 		
-		PA1,PA2=convertToTimeLaggedSpace_new([sx,sy],E=E,tau=tau)
+		PA1,PA2=convertToTimeLaggedSpace([sx,sy],E=E,tau=tau)
 		
-		keys,weights=createMap_new(PA1,PA2,knn=knn)
+		edm_map=createMap(PA1,PA2,knn=knn)
 		
 		index=N//2+5
 		index=8
 		fig,ax=plt.subplots()
 		sx.plot(ax=ax,label='Training data',color='k')
 		sy.plot(ax=ax,label='Test data',color='blue')
-		plt.plot(PA2.sel(time=index).delay.values+PA2.sel(time=index).time.values+N//2+1,PA2.sel(time=index).values,'r',marker='x',label='Points in question',linewidth=2)
-		for j,i in enumerate(keys.sel(time=index).values):
+		plt.plot(PA2.sel(t=index).delay.values+PA2.sel(t=index).t.values+N//2+1,PA2.sel(t=index).values,'r',marker='x',label='Points in question',linewidth=2)
+		for j,i in enumerate(edm_map['keys'].sel(t=index).values):
 			print(j,i)
 			if j==0:
 				label='nearest neighbors'
 			else:
 				label=''
-			plt.plot( 	PA1.sel(time=i).time+PA1.sel(time=i).delay+1,
-						PA1.sel(time=i).values,'g',marker='.',label=label,linewidth=2)
+			plt.plot( 	PA1.sel(t=i).t+PA1.sel(t=i).delay+1,
+						PA1.sel(t=i).values,'g',marker='.',label=label,linewidth=2)
 
-	
 	"""
 	
 	coordinates, indices, radii=findNearestNeighbors(PA1.values,PA2.values,numberOfNearestPoints=knn)
-# 	keysOfNearestNeighbors=_pd.DataFrame(indices+PA1.time[0].values,index=PA2.time.values)
-	keysOfNearestNeighbors=_xr.DataArray(indices+PA1.time[0].values,
-									  dims=['time','shift'],
-									  coords={'time':PA2.time.values,
+	keysOfNearestNeighbors=_xr.DataArray(indices+PA1.t[0].values,
+									  dims=['t','shift'],
+									  coords={'t':PA2.t.values,
 											   'shift':_np.arange(knn)})
 	
-	# temporary code.  if a perfect match occurs (i.e. radii=0), then an error will occur.  This should take care of that.  
-	radii[radii==0]=_np.nan
-	
+	radii[radii==0]=_np.nan # temporary code.  if a perfect match occurs (i.e. radii=0), then an error will occur.  This should take care of that.  
 	radii=_xr.DataArray(radii,
-									  dims=['time','shift'],
-									  coords={'time':PA2.time.values,
+									  dims=['t','shift'],
+									  coords={'t':PA2.t.values,
 											   'shift':_np.arange(knn)})
-# 	radii=_pd.DataFrame(radii,index=PA2.index)
+	weights=calcWeights(radii,method=weightingMethod)
 	
-	weights=calcWeights_new(radii,method=weightingMethod)
+	return {'keys':keysOfNearestNeighbors,'weights':weights}
 	
-	return keysOfNearestNeighbors,weights
-	
-	
-
-
 
 def findNearestNeighbors(X,Y,numberOfNearestPoints=1,plot=False):
 	"""
@@ -1519,8 +666,8 @@ def findNearestNeighbors(X,Y,numberOfNearestPoints=1,plot=False):
 		
 		E=2
 		tau=2
-		A=convertToTimeLaggedSpace_new(y,E=E,tau=tau)
-		offset=A.time[0].values
+		A=convertToTimeLaggedSpace(y,E=E,tau=tau)
+		offset=A.t[0].values
 		A=A.values
 		B=p.reshape(1,-1)
 		knn=6
@@ -1565,8 +712,6 @@ def findNearestNeighbors(X,Y,numberOfNearestPoints=1,plot=False):
 	return points, indices, radii
 
 
-
-
 def printTime(string,start):
 	""" print time since start """
 	if string!='':
@@ -1574,7 +719,7 @@ def printTime(string,start):
 	print('%.3fs'%((_time.time()-start)))
 
 
-def reconstruct_new(sx,keys,weights,time_basis=None, sy=None,plot=False):
+def reconstruct(sx,edm_map,time_basis=None, sy=None,plot=False):
 	"""
 	Performs EDM reconstruction on sx using mapping information (keys,weights)
 	Note that this is only SMI reconstruction if sx is not the same signal used to create the map (keys,weights).  See the SMIReconstruction function below for details.
@@ -1604,325 +749,107 @@ def reconstruct_new(sx,keys,weights,time_basis=None, sy=None,plot=False):
 		
 		# standard two signal example
 		N=100
-		s=createTentMap(N=N)
-		sx,sy,s=splitData_new(s)
+		s=tentMap(N=N)
+		sx,sy,s=splitData(s)
 		
 		E=3
 		knn=E+1
 		tau=2
-		Px,Py=convertToTimeLaggedSpace_new([sx,sy],E=E,tau=tau)
+		Px,Py=convertToTimeLaggedSpace([sx,sy],E=E,tau=tau)
 		
-		keys,weights=createMap_new(Px,Py,knn=knn)
-		sy_recon=reconstruct_new(sx,keys,weights,sy=sy,plot=True)
+		edm_map=createMap(Px,Py,knn=knn)
+		sy_recon=reconstruct(	sx,
+								    edm_map,
+									sy=sy,
+									plot=True)
 		
 		
 	Example 2::
 		
 		# standard two signal example where I've changed the time basis on the second signal
 		N=100
-		s=createTentMap(N=N)
-		sx,sy,s=splitData_new(s)
-		sy['time']=_np.arange(N//2+10,N+10)
+		s=tentMap(N=N)
+		sx,sy,s=splitData(s)
+		sy['t']=_np.arange(N//2+10,N+10)
 		
 		E=3
 		knn=E+1
 		tau=2
-		Px,Py=convertToTimeLaggedSpace_new([sx,sy],E=E,tau=tau)
+		Px,Py=convertToTimeLaggedSpace([sx,sy],E=E,tau=tau)
 		
-		keys,weights=createMap_new(Px,Py,knn=knn)
-		sy_recon=reconstruct_new(sx,keys,weights,time_basis=Py.time+sy.time[0],sy=sy,plot=True)
-		
-	"""
-	# check input type
-	if type(sx) == _np.ndarray:
-		sx=_xr.DataArray(sx)
-	elif type(sx) not in [_pd.core.series.Series, _xr.core.dataarray.DataArray]:
-		raise Exception('Improper data type of input')
-		
-	# perform reconstruction
-	time=keys.time.values
-	shape=keys.shape
-	temp=sx.sel(time=keys.values.reshape(-1)).values.reshape(shape)
-	sy_recon=_xr.DataArray((temp*weights.values).sum(axis=1),
- 				 dims=['time'],
- 				 coords={'time':time})
-	
-	# restore time basis
-	if type(time_basis)==type(None):
-		sy_recon['time']=keys.time+sx.time[-1]+1
-	else:
-		sy_recon['time']=time_basis
-		
-	if plot==True:
-		fig,ax=_plt.subplots()
-		sx.plot(ax=ax,color='k',label='x')
-		if type(sy)!=type(None):
-			sy.plot(ax=ax,color='b',label='y actual')
-		sy_recon.plot(ax=ax,color='g',label='y reconstruction')
-		ax.legend()
-	
-	return sy_recon
-
-
-@deprecated
-def reconstruct(sx,keys,weights):
-	"""
-	
-	Examples
-	--------
-	Example 1::
-		
-		N=100
-		s=createTentMap(N=N)
-		s=_pd.Series(s)
-		sx=s[:N//2]
-		sy=s[N//2:]
-		
-		E=3
-		knn=E+1
-		tau=1
-		
-		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
-		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
-		
-		keys,weights=createMap(Px,Py,knn=knn)
-		v=reconstruct(sx,keys,weights)
-		
-		index=64
-# 		E=keys.shape[1]
-		plt.figure()
-		plt.plot(sx,'k',label='Training data')
-		plt.plot(sy,'b',label='Test data')
-		i=np.arange(index-E+1,index+1)
-		plt.plot(i,sy.loc[i],'r',marker='',linewidth=2)
-		plt.plot(index,sy.loc[index],'r',marker='x',label='Point in question')
-		count=0
-		for j in keys.loc[index]:
-			print(j)
-			if count==0:
-				label='Nearest neighbors'
-			else:
-				label=''
-			
-			i=np.arange(j-E+1,j+1)
-			plt.plot(i,sx.loc[i],'g',marker='',linewidth=2)
-			plt.plot(j,sx.loc[j],'g',marker='.',label=label)
-			count+=1
-			
-			
-		i=np.arange(index-E+1,index+1)
-	# 	plt.plot(i,v.loc[i],'m',marker='',linewidth=2)
-		plt.plot(index,v.loc[index],'m',marker='o',mfc='none',
-				label='Reconstruction',linestyle='')
-	# 	plt.plot()
-	
-# 		plt.plot(v,'m',label='Reconstruction')
-		plt.legend()
-		plt.xlim(0,70)
-		plt.title('Reconstruction, single pt.\nN=%d, E=%d, tau=%d'%(N,E,tau))
-		plt.savefig('reconstruction_N_%d_E_%d_tau_%d.png'%(N,E,tau))
-		
-		
-		plt.figure()
-		plt.plot(sx,'k',label='Training data')
-		plt.plot(sy,'b',label='Test data')
-		plt.plot(v,'m',label='Reconstruction',linestyle='--')
-		plt.legend()
-		plt.title('Reconstruction, all\nN=%d, E=%d, tau=%d'%(N,E,tau))
-		plt.xlim(45,100)
-		plt.savefig('reconstruction2_N_%d_E_%d_tau_%d.png'%(N,E,tau))
-		
-	Example 2::
-		
-		
-		N=200
-		s=createTentMap(N=N)
-		sx=s[:N//2]
-		sy=s[N//2:]
-		
-		E=4
-		knn=E+1
-		tau=2
-		
-		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
-		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
-		
-		keys,weights=createMap(Px,Py,knn=knn)
-		v=reconstruct(sx,keys,weights)
-		
-		index=54*2
-		plt.figure()
-		plt.plot(sx,'k',label='Training data')
-		plt.plot(sy,'b',label='Test data')
-		i=np.arange(index-((E-1)*tau),index+1,tau)
-		plt.plot(i,sy.loc[i],'r',marker='',linewidth=2)
-		plt.plot(index,sy.loc[index],'r',marker='x',label='Point in question')
-		count=0
-		for j in keys.loc[index]:
-			print(j)
-			if count==0:
-				label='Nearest neighbors'
-			else:
-				label=''
-			
-			i=np.arange(j-((E-1)*tau),j+1,tau)
-			plt.plot(i,sx.loc[i],'g',marker='',linewidth=2)
-			plt.plot(j,sx.loc[j],'g',marker='.',label=label)
-			count+=1
-			
-			
-		i=np.arange(index-((E-1)*tau),index+1,tau)
-		plt.plot(index,v.loc[index],'m',marker='o',mfc='none',
-				label='Reconstruction',linestyle='')
-		plt.legend()
-		plt.xlim(0,110)
-		plt.title('Reconstruction, single pt.\nN=%d, E=%d, tau=%d'%(N,E,tau))
-		plt.savefig('reconstruction_N_%d_E_%d_tau_%d.png'%(N,E,tau))
-		
-		
-		plt.figure()
-		plt.plot(sx,'k',label='Training data')
-		plt.plot(sy,'b',label='Test data')
-		plt.plot(v,'m',label='Reconstruction',linestyle='--')
-		plt.legend()
-		plt.title('Reconstruction, all\nN=%d, E=%d, tau=%d'%(N,E,tau))
-		plt.xlim(90,200)
-		plt.savefig('reconstruction2_N_%d_E_%d_tau_%d.png'%(N,E,tau))
+		edm_map=createMap(Px,Py,knn=knn)
+		sy_recon=reconstruct(	sx,
+									edm_map,
+									time_basis=Py.t+sy.t[0],
+									sy=sy,
+									plot=True)
 		
 		
 	Example 3::
 		
-		## reconstruction using only one set of data (i.e. creating a map to itself)
+		# signal fusion example
+		import matplotlib.pyplot as plt; plt.close('all')
 		
-		N=100
-		s=createTentMap(N=N)
+		N=500
+		ds=lorentzAttractor(N=N,removeFirstNPoints=500)
 		
-		E=4
-		knn=E+1
-		tau=1
-		
-		P=convertToStateSpace(s,E=E,tau=tau)[0]
-		
-		keys,weights=createMap(P,P,knn=knn)
-		v=reconstruct(s,keys,weights)
-		
-		index=71
-		
-		plt.figure()
-		plt.plot(s,'k',label='Data')
-		i=np.arange(index-E+1,index+1)
-		plt.plot(i,s.loc[i],'r',marker='',linewidth=2)
-		plt.plot(index,s.loc[index],'r',marker='x',label='Point in question')
-		
-		count=0
-		for k,j in enumerate(keys.loc[index]):
-			if k==0:
-				continue
-			
-			print(j)
-			if count==0:
-				label='Nearest neighbors'
-			else:
-				label=''
-			
-			i=np.arange(j-E+1,j+1)
-			plt.plot(i,s.loc[i],'g',marker='',linewidth=2)
-			plt.plot(j,s.loc[j],'g',marker='.',label=label)
-			count+=1
-			
-			
-		i=np.arange(index-E+1,index+1)
-		plt.plot(index,v.loc[index],'m',marker='o',mfc='none',
-				label='Reconstruction',linestyle='')
-	
-		plt.legend()
-		plt.title('Reconstruction, single pt.\nN=%d, E=%d, tau=%d'%(N,E,tau))
-		plt.savefig('reconstruction_N_%d_E_%d_tau_%d_sameData.png'%(N,E,tau))
-		
-		
-		plt.figure()
-		plt.plot(s,'k',label='Data')
-		plt.plot(v,'m',label='Reconstruction',linestyle='--')
-		plt.legend()
-		plt.title('Reconstruction, all\nN=%d, E=%d, tau=%d'%(N,E,tau))
-		plt.savefig('reconstruction2_N_%d_E_%d_tau_%d_sameData.png'%(N,E,tau))
-		
-		
-	Example 4 ::
-		
-		import matplotlib.pyplot as plt
-		
-		N=2000-1
-		x,y,z=solveLorentz(N=N)
-		s1A=[_pd.Series(x[:1000]),_pd.Series(y[:1000])]
-		s1B=[_pd.Series(x[1000:]),_pd.Series(y[1000:])]
-		s2A=_pd.Series(z[:1000])
-		s2B=_pd.Series(z[1000:])
+		sx=[ds.x[:N//2],ds.y[:N//2]]
+		sy=[ds.x[N//2:],ds.y[N//2:]]
 		
 		E=3
-		tau=1
+		tau=2
+		knn=E+1	# simplex method
 		
-		P1A=convertToTimeLaggedSpace(s1A, E=E, tau=tau)
-		P1B=convertToTimeLaggedSpace(s1B, E=E, tau=tau)
-		
-		keys,weights = createMap(P1A,P1B,knn=2*E+1)
-		
-		s2B_recon=reconstruct(s2A,keys,weights)
-				
-		plt.figure()
-		plt.plot(s2B,'k',label='Data')
-		plt.plot(s2B_recon,'m',label='Reconstruction',linestyle='--')
-		plt.legend()
-		plt.title('Reconstruction, all\nN=%d, E=%d, tau=%d'%(N,E,tau))
+		## convert to time-lagged space
+		P1A=convertToTimeLaggedSpace(sx,E=E,tau=tau,fuse=True)
+		P1B=convertToTimeLaggedSpace(sy,E=E,tau=tau,fuse=True)
 
+		## Create map from s1A to s1B
+		edm_map=createMap(P1A,P1B,knn)
 		
+		recon=reconstruct(	sx[0], 
+								edm_map,
+								time_basis=P1B.t+sy[0].t[0],
+								sy=sy[0],
+								plot=True)	
+		# time_basis=P1B.t+sy[0].t[0]
+		# sx=sx[0]
+		# sy=sy[0]
 		
 	"""
-	index=keys.index
-	shape=keys.shape
-	s=_pd.DataFrame(sx[keys.values.reshape(-1)].values.reshape(shape),
-				  index=index)
-	v=(s*weights).sum(axis=1)
-	
-	return v
-
-
-
-@deprecated
-def splitData(s):
-	""" 
-	split data, s, in half 
-	
-	
-	Examples
-	--------
-	Example 1::
+	# check input type
+	sx=check_dataArray(sx,resetTimeIndex=True)
 		
-		s_in=pd.Series(np.arange(100))
-		sX,sY,s_out=splitData(s_in)
+	# perform reconstruction
+	t=edm_map['keys'].t.values
+	shape=edm_map['keys'].shape
+	temp=sx.sel(t=edm_map['keys'].values.reshape(-1)).values.reshape(shape)
+	sy_recon=_xr.DataArray((temp*edm_map['weights'].values).sum(axis=1),
+ 				 dims=['t'],
+ 				 coords={'t':t})
+	
+	if plot==True:
+		fig,(ax1,ax2)=_plt.subplots(1,2,sharex=True)
+		sx.plot(ax=ax1,color='k',label='x')
+		sy_recon.plot(ax=ax2,color='g',label='y reconstruction')
+		if type(sy)!=type(None):
+			sy=check_dataArray(sy,resetTimeIndex=True)
+			sy.plot(ax=ax2,color='b',label='y actual')
+			rho=calcCorrelationCoefficient(sy.where(sy_recon.t==sy.t), sy_recon)
+			ax2.set_title('rho=%.3f'%rho)
+		ax2.legend()
+		ax1.legend()
 		
-	Example 2::
-		
-		s_in=np.arange(101)
-		sX,sY,s_out=splitData(s_in)
-	"""
-	s=s.copy()
-	if type(s) == _np.ndarray:
-		s=_pd.Series(s)
-	elif type(s) == _pd.core.series.Series:
-		pass
+	# restore time basis
+	if type(time_basis)==type(None):
+		sy_recon['t']=edm_map['keys'].t+sx.t[-1]+1
 	else:
-		raise Exception('Improper data type of input')
+		sy_recon['t']=time_basis
 		
-	if _np.mod(s.shape[0],2)==1:
-		s=s.iloc[:-1]
-	s.index=_np.arange(0,s.shape[0])
-	sX=s.iloc[0:s.shape[0]//2]
-	sY=s.iloc[s.shape[0]//2:]
-	return sX,sY,s
+	return sy_recon
 
 
-def splitData_new(s,split='half',reset_indices=True):
+def splitData(s,split='half',reset_indices=True):
 	""" 
 	split data, s, into a first and second signal.  By default, this splits s into half. 
 	
@@ -1950,27 +877,18 @@ def splitData_new(s,split='half',reset_indices=True):
 	Example 1::
 		
 		# split data in half but input signal contains an odd number of points
-		s_in=_xr.DataArray(np.arange(100,201))
-		sX,sY,s_out=splitData_new(s_in)
+		s_in=_xr.DataArray(_np.arange(100,201))
+		sX,sY,s_out=splitData(s_in)
 		
 	Example 2::
 		
 		# split data unevenly.  input signal contains an odd number of points
-		s_in=_xr.DataArray(np.arange(100,201))
-		sX,sY,s_out=splitData_new(s_in,split=10)
-		
-	Example 3::
-		
-		# make sure the function works with pandas series (in addition to xarray dataframes)
-		s_in=_pd.Series(np.arange(100,201),index=np.arange(20,121))
-		sX,sY,s_out=splitData_new(s_in,split=10)
+		s_in=_xr.DataArray(_np.arange(100,201))
+		sX,sY,s_out=splitData(s_in,split=10)
 		
 	"""
 	# check input type
-	if type(s) == _np.ndarray:
-		s=_xr.DataArray(s)
-	elif type(s) not in [_pd.core.series.Series, _xr.core.dataarray.DataArray]:
-		raise Exception('Improper data type of input')
+	s=check_dataArray(s)
 		
 	# reset indices
 	if reset_indices==True:
@@ -1996,72 +914,607 @@ def splitData_new(s,split='half',reset_indices=True):
 	return sX,sY,s
 
 
-# def forecast_2(s,T,tau):
-# 	""" 
-# 	Convert input to state space using the embedded dimension, E,
-# 	and time step, tau 
-# 	
-# 	Example
-# 	-------
-# 	Example 1::
-# 		
-# 		s=_pd.Series(_np.arange(0,100))
-# # 		P=convertToStateSpace(s, E=5, tau=1)[0]
-# 		
-# 	Example 2::
-# 		
-# 		s1=_pd.Series(_np.arange(0,100))
-# 		s2=_pd.Series(_np.arange(1000,1100))
-# # 		P1,P2=convertToStateSpace([s1,s2], E=5, tau=1)
-# 		
-# 	Example 3::
-# 		
-# 		s=_pd.Series(_np.arange(0,100))
-# # 		P=convertToStateSpace(s, E=5, tau=5)[0]
-# 		
-# 	Example 4::
-# 		
-# 		
-# 		
-# # 		#s=createTentMap(300,plot=False)
-
-# 		N=1000
-# 		x,y,z=solveLorentz(N=N,plot='all')
-# 		s=pd.Series(x)
-# 		
-# # 		P=convertToStateSpace(s, E=2, tau=1)[0]
-# # 		
-# # 		fig,ax=plt.subplots()
-# # 		ax.plot(s,marker='.')
-# # 		
-# # 		fig,ax=plt.subplots()
-# # 		ax.plot(P.iloc[:,0],P.iloc[:,1],'.',markersize=2)
-# # 		ax.set_xlabel('Dimension 1')
-# # 		ax.set_ylabel('Dimension 2')
-# 		
-# 	"""
-# 	if type(s) != list:
-# 		s=[s]
-# 	out=[]
-# 	for si in s:
-# 		print('asdf')
-# 		index=si.index.values[:-(T-0)*tau]
-# 		columns=_np.arange(0,T+1,tau)#(-(E-1)*tau,1,tau)
-# 		dfs=_pd.DataFrame(index=index,columns=columns)	
-# 		for key,val in dfs.iteritems():
-# 			print(key)
-# 			dfs[key]=si.loc[index+key].values	
-# # 			if key==0:
-# # 				dfs[key]=si.iloc[key-columns.min():si.shape[0]+key].values	
-# # 			else:
-# # 				dfs[key]=si.iloc[key-columns.min():si.shape[0]+key].values	
-# 		out.append(dfs)
-# 	return out
-
-	
-
 ###################################################################################
 #%% Main functions
+
+def forecast(s,E,T,tau=1,knn=None,plot=False,weightingMethod=None):
+	"""
+	Create a map of s[first half] to s[second half] and forecast up to T steps into the future.
+	
+	Parameters
+	----------
+	s : xarray.core.dataarray.DataArray
+		Input signal
+	E : int
+		EDM dimensionality.  2 to 10 are typical values.  
+	T : int
+		Number of time steps into the future to forecast.  1<T<10 is typical.  
+	tau : int
+		EDM time step parameter.  tau>=1.  
+	knn : int
+		Number of nearest neighbors for SMI search.  
+	plot : bool, optional
+		Plot results
+	weightingMethod : NoneType or str
+		None defaults to "exponential" weighting
+		"exponential" weighting
+		
+	Returns
+	----------
+	rho : xarray.core.dataarray.DataArray
+		Pearson correlation value for each value of 0 to T.  
+		
+	Examples
+	--------
+	Example 1::
+	
+		N=1000
+		s=tentMap(N=N)
+		E=3
+		T=10
+		tau=1
+		knn=E+1
+		
+		rho,results,future_actual=forecast(s,E,T,tau,knn,True)
+		
+	"""
+	# check input
+	s=check_dataArray(s)
+
+	# initialize parameters
+	N=s.shape[0]
+	
+	if knn == None or knn=='simplex':
+		knn=E+1
+	elif knn == 'smap':
+		knn=s.shape[0]//2-E+1
+		
+	if weightingMethod==None:
+		weightingMethod='exponential'
+	
+	print("N=%d, E=%d, T=%d, tau=%d, knn=%d, weighting=%s"%(N,E,T,tau,knn,weightingMethod))
+
+	# prep data
+	sX,sY,s=splitData(s)
+	dfX,dfY=convertToTimeLaggedSpace([sX,sY],E,tau)
+
+	# do forecast
+	edm_map=createMap(dfX,dfY,knn,weightingMethod=weightingMethod)
+	results=applyForecast(s,dfY,edm_map,T,plot=False)
+	
+	# contruct actual future data matrix to use with the pearson correlation below
+	future_actual=_xr.DataArray(	_np.zeros(results.shape),
+									 dims=results.dims,
+									 coords=results.coords)
+	for fut in results.future.data:
+		future_actual.loc[:,fut]=dfY.sel(delay=0,t=(future_actual.t.data+fut)).data
+	
+	# calculate pearson correlation for each step into the future
+	rho=_xr.DataArray(dims=['future'],
+					   coords={'future':results.future})
+	for fut in rho.future.data:
+		rho.loc[fut]=calcCorrelationCoefficient(future_actual.sel(future=fut), results.sel(future=fut))
+
+	# optional plot
+	if plot==True:
+		fig,ax=_plt.subplots()
+		rho.plot(ax=ax,marker='.')
+		_finalizeSubplot(	ax,
+							xlabel='Steps into the future',
+							ylabel='Correlation',
+							ylim=[-0.01,1.01],
+							xlim=[0,rho.future.data[-1]],
+							legendOn=False,
+							title="N=%d, E=%d, T=%d, tau=%d, knn=%d, weighting=%s"%(N,E,T,tau,knn,weightingMethod))
+		
+		fig,ax=_plt.subplots(results.future.shape[0],sharex=True)
+		for i,fut in enumerate(results.future.data):
+			future_actual.sel(future=fut).plot(ax=ax[i])
+			results.sel(future=fut).plot(ax=ax[i])
+			ax[i].set_title('')
+			ax[i].set_xlabel('')
+			ax[i].tick_params(axis='both', direction='in')
+			_subtitle(ax=ax[i],string='Steps = %d, rho = %.3f'%(fut,rho.sel(future=fut).data))
+		_finalizeFigure(fig)
+		
+	return rho, results, future_actual
+
+
+def SMIReconstruction(	da_s1A,
+						da_s1B,
+						da_s2A,
+						E,
+						tau,
+						da_s2B=None,
+						knn=None,
+						plot=False,
+						s1Name='s1',
+						s2Name='s2',
+						A='A',
+						B='B',
+						printStepInfo=False):
+	"""
+	SMI reconstruction.  
+	
+	Parameters
+	----------
+	da_s1A : xarray.core.dataarray.DataArray
+		signal s1A (top left)
+	da_s1B : xarray.core.dataarray.DataArray
+		signal s1B (top right)
+	da_s2A : xarray.core.dataarray.DataArray
+		signal s2A (bottom left)
+	E : int
+		dimensionality of time-lagged phase space
+	tau : int
+		time step parameter
+	da_s2B : xarray.core.dataarray.DataArray
+		signal s2B (bottom right)
+	knn : int
+		number of nearest neighbors.  None is default = E+1
+	plot : bool
+		(Optional) plot
+	
+	Returns
+	-------
+	sB2_recon : xarray.core.dataarray.DataArray
+		Reconstructed sB2 signal
+	rho : float
+		Correlation value between sB2 and sB2_reconstruction.  Value is between 0 and where 1 is perfect agreement.  
+
+	Notes
+	-----
+	  * This algorithm is based on https://doi.org/10.1088%2F1361-6595%2Fab0b1f
+	
+	Examples
+	--------
+	Example 1::
+		
+		import pandas as pd
+		import matplotlib.pyplot as plt; plt.close('all')
+		import numpy as np
+		
+		N=10000
+		T=1
+		ds1=lorentzAttractor(N=N,ICs={	'x0':-9.38131377,
+										    'y0':-8.42655716 , 
+											'z0':29.30738524},)
+		t=np.linspace(0,T+T/N,N+1)
+		da_s1A=ds1.x
+		da_s2A=ds1.z
+		
+		
+		ds2=lorentzAttractor(N=N,ICs={	'x0':-9.38131377/2,
+										    'y0':-8.42655716/2 , 
+											'z0':29.30738524/3},)
+		da_s1B=ds2.x
+		da_s2B=ds2.z
+		
+		E=4
+		knn=E+1
+		tau=1
+		
+		sB2_recon,rho=SMIReconstruction(	da_s1A,
+												da_s1B,
+												da_s2A,
+												E, 
+												tau,  
+												da_s2B=da_s2B,
+												plot=True,
+												s1Name='Lorentz-x',
+												s2Name='Lorentz-z',
+												A='IC1',
+												B='IC2')
+		
+		
+	Example 2::
+		
+		## signal fusion case.  Use both x and y to reconstruct z
+		
+		import matplotlib.pyplot as plt; plt.close('all')
+		
+		N=2000
+		ds1=lorentzAttractor(N=N)
+				
+		da_s1A=[ds1.x[:N//2],ds1.y[:N//2]]
+		da_s1B=[ds1.x[N//2:],ds1.y[N//2:]]
+		da_s2A=ds1.z[:N//2]
+		da_s2B=ds1.z[N//2:]
+				
+		E=3
+		tau=1
+		
+		da_s1A=ds1.x[:N//2]
+		da_s1B=ds1.x[N//2:]
+		da_s2A=ds1.z[:N//2]
+		da_s2B=ds1.z[N//2:]
+						
+		sB2_recon,rho=SMIReconstruction(	da_s1A=da_s1A, 
+												da_s2A=da_s2A, 
+												da_s1B=da_s1B, 
+												E=E, 
+												tau=tau, 
+												da_s2B=da_s2B, 
+												plot=True,
+												s1Name='x only',
+												s2Name='z',
+												A='IC1',
+												B='IC2')	
+
+
+		da_s1A=[ds1.x[:N//2],ds1.y[:N//2]]
+		da_s1B=[ds1.x[N//2:],ds1.y[N//2:]]
+		da_s2A=ds1.z[:N//2]
+		da_s2B=ds1.z[N//2:]
+				
+		sB2_recon,rho=SMIReconstruction(	da_s1A=da_s1A, 
+												da_s2A=da_s2A, 
+												da_s1B=da_s1B, 
+												E=E, 
+												tau=tau, 
+												da_s2B=da_s2B, 
+												plot=True,
+												s1Name='x and y fusion',
+												s2Name='z',
+												A='IC1',
+												B='IC2')		
+				
+	"""
+	
+	# reset the index to integers 
+	if type(da_s1A)==list:
+		for da_temp in da_s1A:
+			da_temp['t']=_np.arange(da_temp.t.shape[0])
+	else:
+		da_s1A['t']=_np.arange(da_s1A.t.shape[0])
+	if type(da_s1B)==list:
+		for da_temp in da_s1B:
+			da_temp['t']=_np.arange(da_temp.t.shape[0])
+	else:
+		da_s1B['t']=_np.arange(da_s1B.t.shape[0])
+	da_s2A['t']=_np.arange(da_s2A.t.shape[0])
+	try:
+		da_s2B['t']=_np.arange(da_s2B.t.shape[0])
+	except:
+		pass
+		
+	# define number of nearest neighbors if not previously defined
+	if type(knn)==type(None):
+		knn=E+1	# simplex method
+		
+	if printStepInfo==True:
+		print("E = %d, \ttau = %d, \tknn = %d"%(E,tau,knn),end='')
+		
+	## convert to time-lagged space
+	if type(da_s1A)==list:
+		fuse=True
+	else:
+		fuse=False
+	P1A=convertToTimeLaggedSpace(da_s1A, E, tau, fuse=fuse)
+	P1B=convertToTimeLaggedSpace(da_s1B, E, tau, fuse=fuse)
+	# P2A=convertToTimeLaggedSpace(da_s2A, E, tau)
+
+	## Create map from s1A to s1B
+	edm_map=createMap(P1A,P1B,knn)
+	
+	## apply map to s2A to get reconstructed s2Bs.s
+	s2B_recon=reconstruct(da_s2A,edm_map)
+	s2B_recon['t']=P1A.t
+	
+	## calc rho
+	rho=calcCorrelationCoefficient(da_s2B[(E-1)*tau:],s2B_recon)	
+	if printStepInfo==True:
+		print(", \trho = %.3f"%rho)
+	
+	## optional plot
+	if (plot==True or plot=='all') and type(da_s2B) != type(None):
+	
+		## sanity check map by reconstructing s1B from s1A
+		if fuse==True:
+			s1B_recon=reconstruct(da_s1A[0],edm_map)
+		else:
+			s1B_recon=reconstruct(da_s1A,edm_map)
+		s1B_recon['t']=P1A.t
+		
+		if fuse==True:
+			rho_s1B=calcCorrelationCoefficient(da_s1B[0][(E-1)*tau:],s1B_recon)
+		else:
+			rho_s1B=calcCorrelationCoefficient(da_s1B[(E-1)*tau:],s1B_recon)
+
+		fig=_plt.figure()
+		ax1 = _plt.subplot(221)
+		ax2 = _plt.subplot(222, sharex = ax1)
+		ax3 = _plt.subplot(223, sharex = ax1)
+		ax4 = _plt.subplot(224, sharex = ax2)
+		ax=[ax1,ax2,ax3,ax4]
+		
+		if fuse==True:
+			da_s1A[0].plot(ax=ax[0],label='original')
+			da_s1B[0].plot(ax=ax[1],label='original')
+		else:
+			da_s1A.plot(ax=ax[0],label='original')
+			da_s1B.plot(ax=ax[1],label='original')
+		s1B_recon.plot(ax=ax[1],label='recon')
+		_subtitle(ax[1], 'rho=%.3f'%(rho_s1B))
+		da_s2A.plot(ax=ax[2],label='original')
+		da_s2B.plot(ax=ax[3],label='original')
+		s2B_recon.plot(ax=ax[3],label='recon')
+		_subtitle(ax[3], 'rho=%.3f'%(rho))
+		ax[1].legend()
+		ax[3].legend()
+		_finalizeFigure(fig,figSize=[6,4])
+	
+	return s2B_recon,rho
+	
+
+def ccm(	s1A,
+			s1B,
+			s2A,
+			E,
+			tau,
+			s2B=None,
+			knn=None,
+			plot=False,
+			removeOffset=False):
+	
+	"""
+	Cross correlation map
+	
+	Parameters
+	----------
+	s1A : xarray.core.dataarray.DataArray
+		signal s1A (top left)
+	s1B : xarray.core.dataarray.DataArray
+		signal s1B (top right)
+	s2A : xarray.core.dataarray.DataArray
+		signal s2A (bottom left)
+	E : int
+		dimensionality of time-lagged phase space
+	tau : int
+		time step parameter
+	s2B : xarray.core.dataarray.DataArray
+		signal s2B (bottom right)
+	knn : int
+		number of nearest neighbors.  None is default = E+1
+	plot : bool
+		(Optional) plot
+	
+	Examples
+	--------
+	
+	Example1::
+		
+		#TODO.  The results of this example looks identical??  Error?  Investigate.
+		# lorentz equations
+		N=1000
+		ds=lorentzAttractor(N=N,plot=False)
+		x=ds.x
+		z=ds.z
+		
+		# add noise
+		x+=_np.random.normal(0,x.std()/1,N)
+		
+		# prep data
+		s1A=x[0:N//2]
+		s1B=x[N//2:N]
+		s2A=x[0:N//2]
+		s2B=x[N//2:N]
+		
+		# call function
+		E=3
+		tau=1
+		knn=None
+		rho=ccm(s1A,s1B,s2A,s2B=s2B,E=E,tau=tau,plot=True,knn=knn)
+		
+	"""
+	
+	# check data input
+	s1A=check_dataArray(s1A,resetTimeIndex=False)
+	s2A=check_dataArray(s2A,resetTimeIndex=False)
+	s1B=check_dataArray(s1B,resetTimeIndex=False)
+	s2B=check_dataArray(s2B,resetTimeIndex=False)
+	
+	# define number of nearest neighbors if not previously defined
+	if type(knn)==type(None):
+		knn=E+1	# simplex method
+		
+	# remove offset
+	if removeOffset==True:
+		s1A=s1A.copy()-s1A.mean()
+		s1B=s1B.copy()-s1B.mean()
+		s2A=s2A.copy()-s2A.mean()
+		s2B=s2B.copy()-s2B.mean()
+		
+	# convert to time-lagged space
+	P1A=convertToTimeLaggedSpace(s1A, E, tau)
+	P1B=convertToTimeLaggedSpace(s1B, E, tau)	
+	P2A=convertToTimeLaggedSpace(s2A, E, tau)
+	P2B=convertToTimeLaggedSpace(s2B, E, tau)	
+	
+	## A to B
+	edm_map=createMap(P1A.copy(),P1B.copy(),knn=knn)
+	s2B_recon=reconstruct(s2A.copy(),edm_map)
+	rho_1to2=calcCorrelationCoefficient(s2B[(E-1)*tau:],s2B_recon,plot=False)	
+	
+ 	## B to A
+	edm_map=createMap(P2A.copy(),P2B.copy(),knn)
+	s1B_recon=reconstruct(s1A.copy(),edm_map)
+	rho_2to1=calcCorrelationCoefficient(s1B[(E-1)*tau:],s1B_recon,plot=False)	
+	
+	if plot==True:
+		fig,ax=_plt.subplots(1,2,sharex=True,sharey=True)
+		ax[1].plot(s1B[(E-1)*tau:],s1B_recon,linestyle='',marker='.')
+		ax[0].plot(s2B[(E-1)*tau:],s2B_recon,linestyle='',marker='.')
+		ax[0].set_aspect('equal')
+		ax[1].set_aspect('equal')
+		ax[0].plot([s2B.min().data,s2B.max().data],[s2B.min().data,s2B.max().data]) 
+		ax[1].plot([s1B.min().data,s1B.max().data],[s1B.min().data,s1B.max().data])  
+		ax[0].set_title('s1 to s2 CCM')
+		ax[1].set_title('s2 to s1 CCM')
+		
+	return rho_1to2, rho_2to1
+
+
+def SMIParameterScan(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False,numberCPUs=_cpu_count()-1):
+	"""
+	Parameter scan for SMIReconstruction()
+	
+	Parameters
+	----------
+	s1A : xarray.core.dataarray.DataArray
+		signal s1A (top left)
+	s1B : xarray.core.dataarray.DataArray
+		signal s1B (top right)
+	s2A : xarray.core.dataarray.DataArray
+		signal s2A (bottom left)
+	ERange : numpy.ndarray of dtype int
+		E values to scan through
+	tauRange : numpy.ndarray of dtype int
+		tau values to scan through
+	s2B : xarray.core.dataarray.DataArray
+		signal s2B (bottom right)
+	plot : bool
+		(Optional) plot
+	numberCPUs : int
+		Number of cpus to dedicate for this scan.  Default is the total number minus 1.  
+	
+	Returns
+	----------
+	results : xarray.core.dataarray.DataArray
+		Pearson correlation results for each value of E and tau.  2D array with coordinates E and tau.  
+		
+	Examples
+	--------
+	Example 1 ::
+	
+		import numpy as np
+		
+		N=10000
+		dt=0.025
+		
+		# solve Lorentz equations with one set of ICs
+		ds_A=lorentzAttractor(N=N,dt=dt)
+		s1A=ds_A.x
+		s2A=ds_A.z
+		
+		# solve Lorentz equations with a second set of ICs
+		ds_B=lorentzAttractor(	N=N,
+								dt=dt,
+								ICs={	'x0':-9.38131377/2,
+									    'y0':-8.42655716/2 , 
+										'z0':29.30738524/3})
+		s1B=ds_B.x
+		s2B=ds_B.z
+		
+		# perform reconstruction with a parameter scan of E and tau 
+		ERange=np.arange(2,12+1,1)
+		tauRange=np.arange(1,100+1,2)
+		results=SMIParameterScan(s1A=s1A,s2A=s2A,s1B=s1B, s2B=s2B,ERange=ERange,tauRange=tauRange,plot=True)
+		
+		fig=_plt.gcf()
+		fig.savefig("SMIReconstruction_example_results.png",dpi=150)
+		
+	"""
+	# check input signals
+	s1A=check_dataArray(s1A)
+	s2A=check_dataArray(s2A)
+	s1B=check_dataArray(s1B)
+	if type(s2B)!= type(None):
+		s2B=check_dataArray(s2B)
+		
+	# SMIReconstruction function, designed for parallel processing.
+	def doStuff(E,tau):
+		out2,rho=SMIReconstruction(	da_s1A=s1A,
+										da_s2A=s2A, 
+										da_s1B=s1B,
+										E=E,
+										tau=tau,
+										da_s2B=s2B,
+										plot=True)
+		return E, tau, rho
+	
+	# Create unique list of each pair of (E,tau)
+	X,Y=_np.meshgrid(ERange,tauRange)
+	X=X.reshape(-1)
+	Y=Y.reshape(-1)
+	
+	# Do SMI scan and format results in a dataarray
+	results = _Parallel(n_jobs=numberCPUs)(_delayed(doStuff)(E,tau) for E,tau in zip(X,Y))  
+	results = _pd.DataFrame(results,columns=['E','tau','rho'])
+	results= _xr.DataArray(	results.rho.values.reshape(tauRange.shape[0],ERange.shape[0]).transpose(),
+							dims=['E','tau'],
+							coords={'E':ERange,'tau':tauRange})
+
+	# optional plot
+	if plot==True:
+		fig,ax=_plt.subplots()
+		results.plot(ax=ax)
+		results.idxmax(dim='E').plot(ax=ax,label='max E(tau)')
+		_plt.legend()
+		
+	return results
+
+
+def determineDimensionality(s,T,tau=1,Elist=_np.arange(1,10+1),method="simplex",weightingFunction='exponential',plot=False):
+	"""
+	Uses forecasting to determine the dimensionality of the input data
+	
+	Parameters
+	----------
+	s : xarray.core.dataarray.DataArray
+		input signal
+	T : int
+		Steps into the future to step
+	tau : int
+		time step
+	Elist : numpy.ndarray
+		Values of the dimensionality, E, in which to run the analysis
+	method : str
+		'simplex' - simplex means knn=E+1
+	weightingFunction : str
+		'exponentional' - default
+	plot : bool
+		Plots results
+	
+	Examples
+	--------
+	
+	Example 1 ::
+		
+		N=2000
+		s=tentMap(N=N)
+		T=10
+		tau=1
+		Elist=_np.arange(1,8+1)
+		determineDimensionality(s,T,tau,Elist,plot=True)
+		
+	"""
+	# check input
+	s=check_dataArray(s)
+	
+	# Do forecast() for each value of E and 0 to T.  
+	results= _xr.DataArray(	dims=['T','E'],
+							coords={'T':_np.arange(T+1),'E':Elist})
+	for i,Ei in enumerate(Elist):
+		knn=Ei+1
+		results.loc[:,Ei]=forecast(s,Ei,T,tau,knn,False)		
+	results=results.transpose('E','T')
+
+	# optional plot
+	if plot==True:
+		fig,ax=_plt.subplots(1,sharex=True)
+		
+		for E in results.E:
+			results.sel(E=E).plot(ax=ax,label='E=%d'%E,marker='.')
+		ax.set_ylabel('rho')
+		ax.legend()
+		ax.set_title('Forecasting results, N=%d, method=%s, tau=%d'%(len(s),method,tau))
+	
+	return results
+
+
+#%% Under development
+
 
 def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):	
 	"""
@@ -2072,13 +1525,115 @@ def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):
 		
 		import pandas as pd
 		import matplotlib.pyplot as plt; plt.close('all')
-		import johnspythonlibrary2 as jpl2
 		import numpy as np
 		import xarray as xr
 		
 		N=100000
 		dt=0.05
-		x,y,z=solveLorentz(N=N,dt=dt,removeMean=True,normalize=True, removeFirstNPoints=1000)
+		ds=lorentzAtltractor(N=N,dt=dt,removeMean=True,normalize=True, removeFirstNPoints=1000)
+		x=ds.x
+		y=ds.z
+		
+		y_noisy=y.copy()+np.random.normal(0,1.0,size=y.shape)
+		
+		if False:
+			fig,ax=_plt.subplots()
+			y_noisy.plot(ax=ax)
+			y.plot(ax=ax)
+			
+		E=2
+		tau=1
+		m=100	
+		y_orig=y
+		denoise_signal(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
+		
+	"""
+	
+	print('under development. #TODO cleanup code.  #TODO optimize code.  #TODO generalize code for general inputs.  #TODO breakup code into useful subfunctions')
+	
+	# check input type
+	x=check_dataArray(x)
+	y_noisy=check_dataArray(y_noisy)
+
+	dt=float((x.t[1:].values-x.t[:-1].values).mean())
+		
+	# convert signals to time lagged state space
+	Px,Py_noisy=convertToTimeLaggedSpace([x,y_noisy], E, tau)
+		
+	# create grid
+	bin_centers=_np.linspace(Px.min(),Px.max(),m+2)[1:-1]
+	temp1,temp2=_np.meshgrid(bin_centers,bin_centers,indexing='ij')
+	Mpoints=_np.concatenate((temp1.reshape(-1,1),temp2.reshape(-1,1)),axis=1)
+	
+	# for each value of x(t), find where it fits into the grid
+	_,indices,_=findNearestNeighbors(Mpoints,Px.values,1,plot=False)
+	indices=indices.reshape(-1)
+
+	if False:
+		unique_indices,unique_indices_inverse=_np.unique(indices,return_inverse=True)
+		fig,ax=_plt.subplots(2)
+		x.plot(ax=ax[0])
+		ax[1].plot(unique_indices_inverse)
+	
+	# bin data
+	M1=_xr.DataArray(_np.zeros((m,m)),coords=[bin_centers,bin_centers],
+					dims={'p1':bin_centers,'p2':bin_centers})
+	Mcount=M1.copy()
+	# TODO figure out how to do this function without this for-loop
+	for i,ii in enumerate(indices):
+		t=Px.t[i].data
+		M1.loc[Mpoints[ii,0],Mpoints[ii,1]]=M1.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+Py_noisy.sel(t=t,delay=0).data
+		Mcount.loc[Mpoints[ii,0],Mpoints[ii,1]]=Mcount.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+1
+		
+		
+	# average each bin
+	M=M1/Mcount
+	
+	# reconstruct signal
+	y_filt=_np.zeros(Py_noisy.shape[0])
+	# TODO figure out how to do this function without this for-loop
+	for i,ii in enumerate(indices):
+		t=Px.t[i].data
+		#print(i,ii,t)
+		y_filt[t-1]=M.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1])
+		
+	y_filt=_xr.DataArray(y_filt,
+					   dims=['t'],
+						 coords={'t':Py_noisy.t*dt+float(x.t[0])})
+	
+	if plot==True:
+		fig,ax=_plt.subplots()
+		y_noisy.plot(ax=ax,label='y+noise',linewidth=2)
+		if type(y_orig)!=type(None):
+			y_orig.plot(ax=ax, label='y (original)',linewidth=2)
+		y_filt.plot(ax=ax,label='y recon.')
+		ax.legend()
+		x_orig=convertToTimeLaggedSpace(x,E=E,tau=tau).sel(delay=0)
+		rho=calcCorrelationCoefficient(y_orig[1:], y_filt)
+		ax.set_title('rho=%.3f'%rho)
+		
+	return y_filt
+	
+
+
+
+def denoise_signal2(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):	
+	"""
+	
+	Examples
+	--------
+	Example 1::
+		
+		import pandas as pd
+		import matplotlib.pyplot as plt; plt.close('all')
+		import numpy as np
+		import xarray as xr
+		
+		N=100000
+		dt=0.05
+		ds=lorentzAttractor(N=N,dt=dt,removeMean=True,normalize=True, removeFirstNPoints=1000)
+		x=ds.x
+		y=ds.z
 		
 		y_noisy=y.copy()+np.random.normal(0,1.0,size=y.shape)
 		
@@ -2090,11 +1645,12 @@ def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):
 		E=2
 		tau=1
 		m=99		
-		denoise_signal(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y)
+		y_orig=y
+		denoise_signal2(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
 		
 	"""
 	
-	print('under development')
+	print('under development. #TODO cleanup code.  #TODO optimize code.  #TODO generalize code for general inputs.  #TODO breakup code into useful subfunctions')
 	
 	# check input type
 	x=check_dataArray(x)
@@ -2113,10 +1669,11 @@ def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):
 # 	elif type(y_noisy) not in [_xr.core.dataarray.DataArray]:
 # 		raise Exception('Improper data type of input')
 		
-	dt=(x.t[1]-x.t[0]).data
+
+	dt=float((x.t[1:].values-x.t[:-1].values).mean())
 		
 	# convert signals to time lagged state space
-	Px,Py_noisy=convertToTimeLaggedSpace_new([x,y_noisy], E, tau)
+	Px,Py_noisy=convertToTimeLaggedSpace([x,y_noisy], E, tau)
 		
 	# prep for binning data
 	bin_centers=_np.linspace(Px.min(),Px.max(),m+2)[1:-1]
@@ -2126,16 +1683,28 @@ def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):
 	_,indices,_=findNearestNeighbors(Mpoints,Px.values,1,plot=False)
 	indices=indices.reshape(-1)
 
+	if False:
+		unique_indices,unique_indices_inverse=_np.unique(indices,return_inverse=True)
+		fig,ax=_plt.subplots(2)
+		x.plot(ax=ax[0])
+		ax[1].plot(unique_indices_inverse)
+	
 	# bin data
 	M1=_xr.DataArray(_np.zeros((m,m)),coords=[bin_centers,bin_centers],
 					dims={'p1':bin_centers,'p2':bin_centers})
 	Mcount=M1.copy()
+	def func(j,i):
+# 		print(i,j)
+		M1.loc[Mpoints[j,0],Mpoints[j,1]]=M1.sel(p1=Mpoints[j,0],p2=Mpoints[j,1]).data+Py_noisy.sel(t=Px.t[i].data,delay=0).data
+	vfunc = _np.vectorize(func)
+	vfunc(indices,_np.arange(0,indices.shape[0]))
+	
 	# TODO figure out how to do this function without this for-loop
 	for i,ii in enumerate(indices):
-		t=Px.time[i].data
+		t=Px.t[i].data
 		# print(i,ii,t)
 # 		M.loc[Mpoints[ii,0],Mpoints[ii,1]]=M.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+vals[i,0,0]
-		M1.loc[Mpoints[ii,0],Mpoints[ii,1]]=M1.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+Py_noisy.sel(time=t,delay=0).data
+		M1.loc[Mpoints[ii,0],Mpoints[ii,1]]=M1.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+Py_noisy.sel(t=t,delay=0).data
 		Mcount.loc[Mpoints[ii,0],Mpoints[ii,1]]=Mcount.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+1
 		
 	# average each bin
@@ -2145,13 +1714,13 @@ def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):
 	y_filt=_np.zeros(Py_noisy.shape[0])
 	# TODO figure out how to do this function without this for-loop
 	for i,ii in enumerate(indices):
-		t=Px.time[i].data
+		t=Px.t[i].data
 		#print(i,ii,t)
 		y_filt[t-1]=M.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1])
 		
 	y_filt=_xr.DataArray(y_filt,
-					   dims=['time'],
-						 coords={'time':calc_EDM_time(x.shape[0],E,tau,dt)-dt})
+					   dims=['t'],
+						 coords={'t':Py_noisy.t*dt+float(x.t[0])})
 	
 	if plot==True:
 		fig,ax=_plt.subplots()
@@ -2160,476 +1729,59 @@ def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):
 			y_orig.plot(ax=ax, label='y (original)',linewidth=2)
 		y_filt.plot(ax=ax,label='y recon.')
 		ax.legend()
+		x_orig=convertToTimeLaggedSpace(x,E=E,tau=tau).sel(delay=0)
+		rho=calcCorrelationCoefficient(y_orig[1:], y_filt)
+		ax.set_title('rho=%.3f'%rho)
 		
 	return y_filt
 	
-	
-
-def forecast(s,E,T,tau=1,knn=None,plot=False,weightingMethod=None,showTime=False):
-	
-	"""
-	Create a map of s[first half] to s[second half] and forecast up to T steps into the future.
-	
-	Examples
-	--------
-	Example 1::
-	
-		N=1000
-		s=createTentMap(N=N)
-		E=3
-		T=10
-		tau=1
-		knn=E+1
-		
-		forecast(s,E,T,tau,knn,True)
-	"""
-	#TODO start at T=0 instead of T=1
-
-	N=s.shape[0]
-	
-	if knn == None or knn=='simplex':
-		knn=E+1
-	elif knn == 'smap':
-# 	elif method == 'smap':
-		knn=s.shape[0]//2-E+1
-		
-	if weightingMethod==None:
-		weightingMethod='exponential'
-	
-	print("N=%d, E=%d, T=%d, tau=%d, knn=%d, weighting=%s"%(N,E,T,tau,knn,weightingMethod))
-	
-	start = _time.time()
-	
-	if showTime: printTime('Step 1 - Test and training data sets',start)
-# 	if type(sy)==type(None):
-	sX,sY,s=splitData(s)
-# 	else:
-# 		sX=sx.copy()
-# 		sY=sy.copy()
-		
-	if showTime: printTime('Step 2 - Convert to state space',start)
-	dfX,dfY=convertToStateSpace([sX,sY],E,tau)
-# 	dfY=convertToStateSpace(sY,E,tau)
-		
-# 	if showTime: printTime('Step 3 - Find nearest neighbors',start)
-# 	coordinates, indices, radii=findNearestNeighbors(dfX.values,dfY.values,knn)
-# 	keysOfNearestNeighbors=_pd.DataFrame(indices+dfX.index[0],index=dfY.index)
-# 	radii=_pd.DataFrame(radii,index=dfY.index)
-		
-	if showTime: printTime('step 3&4 - Create map and weights',start)
-# 	if weightingFunction=='default':
-# 		weightingFunction='exponential'
-	keys,weights=createMap(dfX,dfY,knn,weightingMethod=weightingMethod)
-		
-	# reconstruct
-# 	s_recon=reconstruct(s,keys,weights)
-		
-	if showTime: printTime('step 6 - Forecasting',start)
-
-	dfFutureForecast,dfFutureActual=applyForecast(s,dfY,keys,weights,T)
-# 	dfFutureForecast,dfFutureActual=forecast_2([s_recon,s.loc[s_recon.index]],T,tau)
-# 	s_forecast=convertToStateSpace(s_recon,T,tau)[0]
-	
-# 	dfTActual,dfTGuess=forecast(sx,dfY,keys,weights,T=T)
-				
-	if showTime: printTime('step 6 - Calculate correlation coefficient, rho',start)
-	dfRho=_pd.DataFrame(calcCorrelationCoefficient(dfFutureActual,dfFutureForecast,plot=False),index=dfFutureActual.columns.values)
-
-	if plot==True:
-		fig,ax=_plt.subplots()
-		ax.plot(dfRho)
-		_finalizeSubplot(	ax,
-							xlabel='Steps into the future',
-							ylabel='Correlation',
-							ylim=[-0.01,1.01],
-							xlim=[0,dfRho.index.max()+1],
-							legendOn=False,
-							title="N=%d, E=%d, T=%d, tau=%d, knn=%d, weighting=%s"%(N,E,T,tau,knn,weightingMethod))
-		
-# 		dfRho.plot()
-	
-	if showTime: printTime('done!',start)
-	
-	dic=dict({ 	'dfX':dfX,
-				'dfY':dfY,
-				'dfRho':dfRho,
-				'dfFutureForecast':dfFutureForecast,
-				'dfFutureActual':dfFutureActual,
-				'keys':keys,
-# 				'radii':radii,
-				'weights':weights})
-		
-	return dic
-
-
-
-
-def SMIReconstruction(	s1A,
-						s2A,
-						s1B,
-						E,
-						tau,
-						knn=None,
-						s2B=None,
-						plot=False,
-						s1Name='s1',
-						s2Name='s2',
-						A='A',
-						B='B',
-						printStepInfo=False):
-	"""
-	
-	Parameters
-	----------
-	s1A : pandas series
-		Signal 1 (from source 1) and first half (e.g. A)
-	s2A : pandas series
-		Signal 2 (from source 2) and first half (e.g. A)
-	s1B : pandas series
-		Signal 1 (from source 1) and second half (e.g. B)
-	s2B : pandas series
-		Signal 2 (from source 2) and second half (e.g. B)
-		Optional signal.  Is used to calculate rho if provided.  
-	tau : int
-		time step parameter
-	knn : int
-		number of nearest neighbors.  None is default = E+1
-	plot : bool
-		(Optional) plot
-	
-	
-	Returns
-	-------
-	sB2_recon : pandas series
-		Reconstructed sB2 signal
-	rho : float
-		Correlation value between sB2 and sB2_reconstruction.  Value is between 0 and where 1 is perfect agreement.  
-
-
-	Notes
-	-----
-	  * This algorithm is based on https://doi.org/10.1088%2F1361-6595%2Fab0b1f
-	
-	
-	Examples
-	--------
-	Example 1::
-		
-		import pandas as pd
-		import matplotlib.pyplot as plt; plt.close('all')
-		import johnspythonlibrary2 as jpl2
-		import numpy as np
-		
-		N=10000
-		T=1
-		x,y,z=solveLorentz(N=N,T=T)
-		t=np.linspace(0,T+T/N,N+1)
-		s1A=pd.Series(x,index=t)
-		s2A=pd.Series(z,index=t)
-		
-		x,y,z=solveLorentz(N=N,T=T,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3])
-		s1B=pd.Series(x,index=t)
-		s2B=pd.Series(z,index=t)
-		
-		E=4
-		knn=E+1
-		tau=1
-		
-		sB2_recon,rho=SMIReconstruction(	s1A, 
-											s2A, 
-											s1B, 
-											E, 
-											tau, 
-											s2B=s2B, 
-											plot=True,
-											s1Name='Lorentz-x',
-											s2Name='Lorentz-z',
-											A='IC1',
-											B='IC2')
-		
-		fig=plt.gcf()
-		ax=fig.get_axes()
-		ax[0].set_xlim([0.2,0.25])
-		ax[1].set_xlim([0.2,0.25])
-		
-		
-	Example 2::
-		
-		## signal fusion case.  Use both x and y to reconstruct z
-		
-		import matplotlib.pyplot as plt; plt.close('all')
-		
-		N=2000
-		x,y,z=solveLorentz(N=N-1)
-		s1A=[_pd.Series(x[:N//2]),_pd.Series(y[:N//2])]
-		s1B=[_pd.Series(x[N//2:]),_pd.Series(y[N//2:])]
-		s2A=_pd.Series(z[:N//2])
-		s2B=_pd.Series(z[N//2:])
-		
-		E=3
-		tau=1
-
-		sB2_recon,rho=SMIReconstruction(	s1A, 
-									s2A, 
-									s1B, 
-									E, 
-									tau, 
-									s2B=s2B, 
-									plot=True,
-									s1Name='x and y fusion',
-									s2Name='z',
-									A='IC1',
-									B='IC2')		
-		
-		sB2_recon,rho=SMIReconstruction(	_pd.Series(x[:N//2]), 
-									s2A, 
-									_pd.Series(x[N//2:]), 
-									E, 
-									tau, 
-									s2B=s2B, 
-									plot=True,
-									s1Name='x only',
-									s2Name='z',
-									A='IC1',
-									B='IC2')
-		
-		
-		
-		
-	"""
-	if type(s1A) != list:
-		s1A = [s1A]
-	if type(s1B) != list:
-		s1B = [s1B]
-		
-	# make sure data is in pandas series format
-	if type(s1A[0]) != _pd.core.series.Series:
-		raise Exception('s1A should be in Pandas series format')
-	if type(s2A) != _pd.core.series.Series:
-		raise Exception('s2A should be in Pandas series format')
-	if type(s1B[0]) != _pd.core.series.Series:
-		raise Exception('s1B should be in Pandas series format')
-	if type(s2B) != None:
-		if type(s2B) != _pd.core.series.Series:
-			raise Exception('s2B should be in Pandas series format')
-			
-	# make a copy of the index
-	index_1=s1A[0].copy().index.values
-	index_2=s2A.copy().index.values
-	
-	# reset the index to integers (this ensures all indices are the same and prevents issues with combining Series with possibly different indices in the future)
-	for i in range(len(s1A)):
-		s1A[i].index=_np.arange(0,s1A[i].shape[0],dtype=int)
-		s1B[i].index=_np.arange(0,s1B[i].shape[0],dtype=int)
-	s2A.index=_np.arange(0,s2A.shape[0],dtype=int)
-	if type(s2B) != None:
-		s2B.index=_np.arange(0,s2B.shape[0],dtype=int)
-	
-	# define number of nearest neighbors if not previously defined
-	if type(knn)==type(None):
-		knn=E+1	# simplex method
-		
-	if printStepInfo==True:
-		print("E = %d, \ttau = %d, \tknn = %d"%(E,tau,knn),end='')
-		
-	## remove offset
-	for i in range(len(s1A)):
-		s1A[i]=s1A[i].copy()-s1A[i].mean()
-		s1B[i]=s1B[i].copy()-s1B[i].mean()
-	s2A=s2A.copy()-s2A.mean()
-	if type(s2B)!=type(None):
-		s2B=s2B.copy()-s2B.mean()
-		
-	## convert to time-lagged space
-	P1A=convertToTimeLaggedSpace(s1A, E, tau)
-	P1B=convertToTimeLaggedSpace(s1B, E, tau)
-
-	## Create map from s1A to s1B
-	keys,weights=createMap(P1A,P1B,knn)
-	
-	## apply map to s2A to get reconstructed s2B
-	s2B_recon=reconstruct(s2A,keys,weights)
-	
-	## calc rho
-	rho=calcCorrelationCoefficient(s2B[(E-1)*tau:],s2B_recon)	
-	if printStepInfo==True:
-		print(", \trho = %.3f"%rho)
-	
-	## optional plot
-	if (plot==True or plot=='all') and type(s2B)!=type(None):
-	
-		## sanity check map by reconstructing sA2 from sA1
-		if len(s1A)==1:
-			s1B_recon=reconstruct(s1A[0],keys,weights)
-			rho_s1B=calcCorrelationCoefficient(s1B[0][(E-1)*tau:],s1B_recon)
-
-		
-# 		## optional sanity checks 
-# 		if plot=='all':
-# 			keys,weights=createMap(P1A,P1A,knn)
-# 			s1A_recon=reconstruct(s1A,keys,weights)
-# 			s2A_recon=reconstruct(s2A,keys,weights)
-# 			rho_s1A=calcCorrelationCoefficient(s1A[(E-1)*tau:],s1A_recon)
-# 			rho_s2A=calcCorrelationCoefficient(s2A[(E-1)*tau:],s2A_recon)
-		
-		fig=_plt.figure()
-		ax1 = _plt.subplot(221)
-		ax2 = _plt.subplot(222, sharex = ax1)
-		ax3 = _plt.subplot(223, sharex = ax1)
-		ax4 = _plt.subplot(224, sharex = ax2)
-		ax=[ax1,ax2,ax3,ax4]
-		
-		for i in range(len(s1A)):
-			ax[0].plot(index_1,s1A[i],label='original_%d'%i)
-# 		if plot=='all':
-# 			ax[0].plot(index_1[(E-1)*tau:],s1A_recon,label='reconstructed')
-# 			_finalizeSubplot(ax[0],subtitle='%s %s, rho=%.3f'%(s1Name,A,rho_s1A),legendOn=False,title='E = %d, tau = %d, knn = %d, N = %d'%(E, tau, knn,s1A.shape[0]),ylabel='Training data')
-# 		if len(s1A)
-		_finalizeSubplot(ax[0],subtitle='%s %s'%(s1Name,A),legendOn=(len(s1A)>1),title='E = %d, tau = %d, knn = %d, N = %d'%(E, tau, knn,s2A.shape[0]),ylabel='Training data')
-			
-		for i in range(len(s1B)):
-			ax[1].plot(index_1,s1B[i],label='original_%d'%i)
-		if len(s1A)==1:
-			ax[1].plot(index_1[(E-1)*tau:],s1B_recon,label='reconstructed')
-			_finalizeSubplot(ax[1],subtitle='%s %s, rho=%.3f'%(s1Name,B,rho_s1B),legendLoc='lower right')
-		else:
-			_finalizeSubplot(ax[1],subtitle='%s %s'%(s1Name,B),legendLoc='lower right')
-		
-		ax[2].plot(index_2,s2A,label='original')
-# 		if plot=='all':
-# 			ax[2].plot(index_2[(E-1)*tau:],s2A_recon,label='reconstructed')
-# 			_finalizeSubplot(ax[2],subtitle='%s %s, rho=%.3f'%(s2Name,A,rho_s2A),legendLoc='lower right')
-# 		else:
-		_finalizeSubplot(ax[2],subtitle='%s %s'%(s2Name,A),legendLoc='lower right',legendOn=False)
-		
-		ax[3].plot(index_2,s2B,label='original')
-		ax[3].plot(index_2[(E-1)*tau:],s2B_recon,label='reconstructed')
-		_finalizeSubplot(ax[3],subtitle='%s %s, rho=%.3f'%(s2Name,B, rho),legendLoc='lower right',xlabel='Time')
-		_finalizeFigure(fig,figSize=[6,4])
-	
-	return s2B_recon,rho
-	
-
-
-def ccm(	s1A,
-			s1B,
-			s2A,
-			s2B,
-			E,
-			tau,
-			knn=None,
-			plot=False,
-			removeOffset=False):
-	
-	"""
-	
-	Examples
-	--------
-	
-	Example1::
-		
-		# lorentz equations
-		N=1000
-		x,y,z=solveLorentz(N=N-1,plot=False)
-		
-		# add noise
-		x+=_np.random.normal(0,x.std()/1,x.shape[0])
-		
-		# prep data
-		A=x[0:N//2]
-		B=x[N//2:N]
-		s1A=_pd.Series(A)
-		s1B=_pd.Series(B)
-		
-		# call function
-		rho=ccm(s1A,s1B,E=3,tau=1,plot=True)
-		
-			
-	"""
-	
-	
-	# make sure data is in pandas series format
-	if type(s1A) != _pd.core.series.Series:
-		raise Exception('s1A should be in Pandas series format')
-	if type(s1B) != _pd.core.series.Series:
-		raise Exception('s1B should be in Pandas series format')
-	if type(s2A) != _pd.core.series.Series:
-		raise Exception('s2A should be in Pandas series format')
-	if type(s2B) != _pd.core.series.Series:
-		raise Exception('s2B should be in Pandas series format')
-	
-	# define number of nearest neighbors if not previously defined
-	if type(knn)==type(None):
-		knn=E+1	# simplex method
-		
-	# reset the index to integers (this ensures all indices are the same and prevents issues with combining Series with possibly different indices in the future)
-	s1A.index=_np.arange(0,s1A.shape[0],dtype=int)
-	s1B.index=_np.arange(0,s1B.shape[0],dtype=int)
-	s2A.index=_np.arange(0,s2A.shape[0],dtype=int)
-	s2B.index=_np.arange(0,s2B.shape[0],dtype=int)
-		
-	# remove offset
-	if removeOffset==True:
-		s1A=s1A.copy()-s1A.mean()
-		s1B=s1B.copy()-s1B.mean()
-		s2A=s2A.copy()-s2A.mean()
-		s2B=s2B.copy()-s2B.mean()
-		
-	# convert to time-lagged space
-	P1A=convertToTimeLaggedSpace(s1A, E, tau)
-	P1B=convertToTimeLaggedSpace(s1B, E, tau)	
-	P2A=convertToTimeLaggedSpace(s2A, E, tau)
-	P2B=convertToTimeLaggedSpace(s2B, E, tau)	
-	
-# 	fig,ax=plt.subplots(1,2,sharex=True,sharey=True)
-		
-	## A to B
-	keys,weights=createMap(P1A.copy(),P1B.copy(),knn)
-	s2B_recon=reconstruct(s2A.copy(),keys,weights)
-	rho_1to2=calcCorrelationCoefficient(s2B[(E-1)*tau:],s2B_recon,plot=False)	
-	
- 	## B to A
-	keys,weights=createMap(P2A.copy(),P2B.copy(),knn)
-	s1B_recon=reconstruct(s1A.copy(),keys,weights)
-	rho_2to1=calcCorrelationCoefficient(s1B[(E-1)*tau:],s1B_recon,plot=False)	
-	
-	
-	if plot==True:
-		fig,ax=_plt.subplots(1,2,sharex=True,sharey=True)
-		ax[1].plot(s1B[(E-1)*tau:],s1B_recon,linestyle='',marker='.')
-		ax[0].plot(s2B[(E-1)*tau:],s2B_recon,linestyle='',marker='.')
-		ax[0].set_aspect('equal')
-		ax[1].set_aspect('equal')
-		ax[0].plot([0,1],[0,1])  # TODO.  make this plot from min to max instead of 0 to 1
-		ax[1].plot([0,1],[0,1])  # TODO.  make this plot from min to max instead of 0 to 1
-		ax[0].set_title('s1 to s2 CCM')
-		ax[1].set_title('s2 to s1 CCM')
-		
-	return rho_1to2, rho_2to1
-
-
-
-###################################################################################
-#%% exterior functions - functions that call the main functions
 
 
 def eccm(s1,s2,E,tau,lagRange=_np.arange(-8,6.1,2),plot=False,s1Name='s1',s2Name='s2',title=''):
-	
+	#TODO needs docstring
 	print('work in progress.  not correct yet')
+	"""
+	
+	Examples
+	--------
+	
+	Examples 1::
+		
+		# This example is from Ye2015
+		
+		import numpy as _np
+		
+		N=10000
+		lagRange=(_np.arange(-8,8.1,1)).astype(int)
+		E=2
+		tau=1
+			
+		for tau_d in [0,2,4]:
+			s1,s2=twoSpeciesWithBidirectionalCausality(N=N,tau_d=tau_d,plot=False,params={'Ax':3.78,'Ay':3.77,'Bxy':0.07-0.00,'Byx':0.08-0.00})
+		
+			s1=s1[2000:3000]#.reset_index('t',drop=True)
+			s2=s2[2000:3000]#.reset_index('t',drop=True)
+			
+			results=eccm(s1=s1,s2=s2,E=E,tau=tau,lagRange=lagRange,plot=True,title='tau_d = %d'%tau_d, s1Name='x',s2Name='y')
+		
+
+	"""
+	
+	
 	N=s1.shape[0]
 	
 	results=_pd.DataFrame(index=lagRange)
 # 	tau_d=0
 	for lag in lagRange:
-		print(lag)
+		# print(lag)
 # 		lag=-1
 		
 		if lag>0:
-			s1_temp=s1[lag:].reset_index(drop=True)
-			s2_temp=s2[:N-lag].reset_index(drop=True)
+			s1_temp=s1[lag:]#.reset_index('t',drop=True)
+			s2_temp=s2[:N-lag]#.reset_index('t',drop=True)
 		elif lag<0:
  			s1_temp=s1[:lag]
- 			s2_temp=s2[-lag:].reset_index(drop=True)
+ 			s2_temp=s2[-lag:]#.reset_index('t',drop=True)
 		else:
 			s1_temp=s1.copy()
 			s2_temp=s2.copy()
@@ -2658,7 +1810,8 @@ def eccm(s1,s2,E,tau,lagRange=_np.arange(-8,6.1,2),plot=False,s1Name='s1',s2Name
 			
 # 		print(s1A.shape,s1B.shape,s2A.shape,s2B.shape)
 		
-		rho1,rho2=ccm(s1A,s1B,s2A,s2B,E,tau,plot=False)
+# 		rho1,rho2=ccm(s1A,s1B,s2A,E,tau,s2B,E+1,False)
+		rho1,rho2=ccm(s1A=s1A,s1B=s1B,s2A=s2A,E=E,tau=tau,s2B=s2B,knn=E+1,plot=False)
 # 		s1=s1
 # 		rho_12=ccm(s1,s2,E=E,tau=tau,plot=False)
 		results.at[-lag,'12']=rho1
@@ -2677,27 +1830,6 @@ def eccm(s1,s2,E,tau,lagRange=_np.arange(-8,6.1,2),plot=False,s1Name='s1',s2Name
 		
 	return results
 	
-	
-def example_Ye2015():
-	
-	import numpy as _np
-	
-	N=10000
-# 	tau_d=0
-	lagRange=(_np.arange(-8,8.1,1)).astype(int)
-	E=2
-	tau=1
-# 	tau_d=0
-		
-	for tau_d in [0,2,4]:
-		print(tau_d)
-		
-		s1,s2=twoSpeciesWithBidirectionalCausality(N=N,tau_d=tau_d,plot=False,params={'Ax':3.78,'Ay':3.77,'Bxy':0.07-0.00,'Byx':0.08-0.00})
-	
-		s1=s1[2000:3000].reset_index(drop=True)
-		s2=s2[2000:3000].reset_index(drop=True)
-		
-		results=eccm(s1=s1,s2=s2,E=E,tau=tau,lagRange=lagRange,plot=True,title='tau_d = %d'%tau_d, s1Name='x',s2Name='y')
 	
 
 def ccmScan(s1,s2,E,tau,Nrange,plot=False,s1Name='s1',s2Name='s2'):
@@ -2755,258 +1887,7 @@ def ccmScan(s1,s2,E,tau,Nrange,plot=False,s1Name='s1',s2Name='s2'):
 
 
 
-# def SMIParameterScan(sA1,sA2,sB1,ERange,tauRange,sB2=None,plot=False):
-# 	print('work in progress')
-# 	
-# 	"""
-# 	
-# 	Examples
-# 	--------
-# 	Example 1 ::
-# 		
-# 		import pandas as pd
-# 		import numpy as np
-# 		
-# 		N=2000
-# 		dt=0.05
-# 		x,y,z=solveLorentz(N=N,dt=dt)
-# 		sA1=pd.Series(x)
-# 		sB1=pd.Series(z)
-# 		
-# 		x,y,z=solveLorentz(N=N,dt=dt,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3])
-# 		sA2=pd.Series(x)
-# 		sB2=pd.Series(z)
-# 		
-# 		ERange=np.arange(2,12+1,1)
-# 		tauRange=np.arange(1,41+1)
-# 		df=SMIParameterScan(sA1,sA2,sB1,ERange,tauRange,sB2=sB2,plot=True)
-# 		
-# 		ymax,xmax=_np.where(df.max().max()==df)
-# 		tau_max=int(df.columns[xmax].values)
-# 		E_max=int(df.index[ymax].values)
-# 		
-# 		SMIReconstruction(sA1, sA2, sB1, E_max, tau_max,sB2=sB2,plot=True)
-# 		
-# 	"""
-# 	
-# 	
-# 	
-# 	dfResults=_pd.DataFrame()
-# 	for i,E in enumerate(ERange):
-# 		for j,tau in enumerate(tauRange):
-# 			print(E,tau)
-# 	
-# 			sB2_recon,rho=SMIReconstruction(sA1, sA2, sB1, E, tau,sB2=sB2,plot=False)
-# 			dfResults.at[E,tau]=rho
-# 			
-# 	dfResults.index=ERange
-# 	dfResults.columns=tauRange
-# 	
-# 	if plot==True:
-# 		correlationHeatmap(tauRange,ERange,dfResults,xlabel='tau',ylabel='E')
-# 		
-# 	return dfResults
 
-
-# def SMIParameterScan2(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False):
-# 	print('work in progress') #TODO move away from Pools for multiprocessing
-# 	
-# 	"""
-# 	s1A : pandas series
-# 		Signal 1 (from source 1) and first half (e.g. A)
-# 	s2A : pandas series
-# 		Signal 2 (from source 2) and first half (e.g. A)
-# 	s1B : pandas series
-# 		Signal 1 (from source 1) and second half (e.g. B)
-# 	s2B : pandas series
-# 		Signal 2 (from source 2) and second half (e.g. B)
-# 		Optional signal.  Is used to calculate rho if provided.  
-# 	tau : int
-# 		time step parameter
-# 	knn : int
-# 		number of nearest neighbors.  None is default = E+1
-# 	plot : bool
-# 		(Optional) plot
-# 	
-# 	
-# 	Examples
-# 	--------
-# 	Example 1 ::
-# 		
-# 		### note that this example cannot be run with "F9" in spyder.  Put it a script (if __name__=='__main__': etc) and run it with "F5" instead.
-# 		
-# 		if __name__ == '__main__':
-# 			import pandas as pd
-# 			import numpy as np
-# 			
-# 			N=10000
-# 			dt=0.025
-# 			
-# 			# solve Lorentz equations with one set of ICs
-# 			x,y,z=solveLorentz(N=N,dt=dt)
-# 			s1A=pd.Series(x)
-# 			s2A=pd.Series(z)
-# 			
-# 			# solve Lorentz equations with a second set of ICs
-# 			x,y,z=solveLorentz(N=N,dt=dt,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3])
-# 			s1B=pd.Series(x)
-# 			s2B=pd.Series(z)
-# 			
-# 			# perform reconstruction with a parameter scan of E and tau 
-# 			ERange=np.arange(2,13+1,1)
-# 			tauRange=np.arange(1,100+1)
-# 			df=SMIParameterScan2(s1A=s1A,s2A=s2A,s1B=s1B, s2B=s2B,ERange=ERange,tauRange=tauRange,plot=True)
-# 			
-# 			fig=_plt.gcf()
-# 			fig.savefig("SMIReconstruction_example_results.png",dpi=150)
-# 			
-# 			# plot best result
-# 			ymax,xmax=_np.where(df.max().max()==df)
-# 			tau_max=int(df.columns[xmax].values)
-# 			E_max=int(df.index[ymax].values)
-# 			SMIReconstruction(s1A=s1A,s2A=s2A,s1B=s1B, s2B=s2B, E=E_max, tau=tau_max,plot=True)
-# 			
-# 		
-# 	"""
-# 	# the pathos Pool function seems to be more compatible with "F5" operation than multiprocessing.Pool.  Neither can do "F9" operation.
-# 	from pathos.multiprocessing import ProcessingPool as Pool
-# 	from pathos.multiprocessing import cpu_count
-# # 	from multiprocessing import Pool,cpu_count
-
-# 	# initialize pool
-# 	pool = Pool(processes=cpu_count()-1) 
-# # 	pool.restart() # I don't know why I have to restart() the pool, but it often won't work without this command
-# 	
-# 	# wrapper function for multiprocessing
-# 	def getResults(E,tau):
-# 		print("E = %d, \ttau = %d"%(E,tau),end='')
-# 		_,rho=SMIReconstruction(s1A=s1A,s2A=s2A,s1B=s1B,E=E,tau=tau,knn=None,s2B=s2B,plot=False)
-# 		print(", \trho = %.3f"%rho)
-# 		return E, tau, rho
-# 		
-# 	# launch pool
-# 	X,Y=_np.meshgrid(ERange,tauRange) # generate each unique combination of E and tau
-# 	results=pool.amap(getResults,X.reshape(-1),Y.reshape(-1))
-# 	pool.close() # Indicate that no more data will be put on this queue by the current process. The background thread will quit once it has flushed all buffered data to the pipe
-# 	pool.join() # wait until every process has finished
-# 		
-# 	# get results from pool
-# 	results=results.get()
-# 	
-# 	# assign results to a dataframe
-# 	dfResults=_pd.DataFrame()
-# 	for result in results:
-# 		E,tau,rho=result
-# 		dfResults.at[E,tau]=rho
-# 		
-# 	if plot==True:
-# 		print('Plotting results')
-# 		Z=_pd.DataFrame(results.rho.values.reshape((tauRange.shape[0],ERange.shape[0])).transpose(),columns=tauRange,index=ERange)
-# 		correlationHeatmap(Z.index.values,Z.columns.values,Z,xlabel='tau',ylabel='E')
-# 		
-# 	print('Done!')
-# 	return dfResults
-
-
-	
-
-def SMIParameterScan3(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False,numberCPUs=_cpu_count()-1):
-	"""
-	
-	Examples
-	--------
-	Example 1 ::
-	
-		import pandas as pd
-		import numpy as np
-		
-		N=10000
-		dt=0.025
-		
-		# solve Lorentz equations with one set of ICs
-		x,y,z=solveLorentz(N=N,dt=dt)
-		s1A=pd.Series(x)
-		s2A=pd.Series(z)
-		
-		# solve Lorentz equations with a second set of ICs
-		x,y,z=solveLorentz(N=N,dt=dt,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3])
-		s1B=pd.Series(x)
-		s2B=pd.Series(z)
-		
-		# perform reconstruction with a parameter scan of E and tau 
-		ERange=np.arange(2,13+1,1)
-		tauRange=np.arange(1,100+1,1)
-		df=SMIParameterScan3(s1A=s1A,s2A=s2A,s1B=s1B, s2B=s2B,ERange=ERange,tauRange=tauRange,plot=True)
-		
-		fig=_plt.gcf()
-		fig.savefig("SMIReconstruction_example_results.png",dpi=150)
-		
-		# plot best result
-		ymax,xmax=_np.where(df.max().max()==df)
-		tau_max=int(df.columns[xmax].values)
-		E_max=int(df.index[ymax].values)
-		SMIReconstruction(s1A=s1A,s2A=s2A,s1B=s1B, s2B=s2B, E=E_max, tau=tau_max,plot=True)
-			
-		
-	"""
-
-	
-	def doStuff(E,tau):
-		out2,rho=SMIReconstruction(s1A, s2A, s1B,E=E,tau=tau,s2B=s2B,plot=False)
-		return E, tau, rho[0]
-	
-	X,Y=_np.meshgrid(ERange,tauRange)
-	X=X.reshape(-1)
-	Y=Y.reshape(-1)
-	
-	results = _Parallel(n_jobs=numberCPUs)(_delayed(doStuff)(E,tau) for E,tau in zip(X,Y))  
-	results = _pd.DataFrame(results,columns=['E','tau','rho'])
-	
-		
-	if plot==True:
-		print('Plotting results')
-		Z=_pd.DataFrame(results.rho.values.reshape((tauRange.shape[0],ERange.shape[0])).transpose(),columns=tauRange,index=ERange)
-		correlationHeatmap(Z.index.values,Z.columns.values,Z,xlabel='tau',ylabel='E')
-	
-	return results
-
-
-def determineDimensionality(s,T,tau=1,Elist=_np.arange(1,10+1),method="simplex",weightingFunction='exponential',plot=False):
-	"""
-	
-	Examples
-	--------
-	
-	Example 1 ::
-		
-		N=2000
-		s=createTentMap(N=N)
-		T=10
-		tau=1
-		Elist=_np.arange(1,8+1)
-		
-		determineDimensionality(s,T,tau,Elist,plot=True)
-	"""
-	
-	dfResults=_pd.DataFrame()
-	for i,Ei in enumerate(Elist):
-		knn=Ei+1
-		dic=forecast(s,Ei,T,tau,knn,False)
-		dfResults[Ei]=dic['dfRho'].iloc[:,0]
-		
-	dfResults=dfResults.transpose()
-
-	if plot==True:
-		dimensionHeatmap(dfResults,xlabel='T',ylabel='E')
-		
-		fig,ax=_plt.subplots()
-		for i,(key,val) in enumerate(dfResults.iterrows()):
-			print(key)
-			ax.plot(val,label='E=%d'%key,marker='.')
-		_finalizeSubplot(ax,xlabel='T',ylabel='rho')
-		ax.set_title('N=%d, method=%s, tau=%d'%(len(s),method,tau))
-	
-	return dfResults
 
 
 ###################################################################################
@@ -3014,372 +1895,89 @@ def determineDimensionality(s,T,tau=1,Elist=_np.arange(1,10+1),method="simplex",
 
 def example_sugihara1990():
 	"""
-	Forecasting example from Sugihara's 1990 paper.
-	This function runs through a few cases and shows many of the intermediate
-	steps in order to help better understand how the forecasting actually works.
-
+	Forecasting example from Sugihara's 1990 paper.  See references.  
+	
+	References
+	----------
+	 * https://www.nature.com/articles/344734a0
 
 	"""
-	#TODO add a tau>1 case
-	
 	import matplotlib.pyplot as plt
-	import johnspythonlibrary2 as jpl2
-	import numpy as np
 
-	N=100
-	s=createTentMap(N=N)
-	sx=s[:N//2]
-	sy=s[N//2:]
+	N=1000
+	s=tentMap(N=N)
+	
+	#Figure 1a
+	fig,ax=plt.subplots()
+	s.plot(ax=ax)
+	ax.set_ylim([-1,1])
+	ax.set_title('Figure 1a')
 
+	# forecasting
+	E=3
+	T=10
+	rho,future_forecast,future_actual=forecast(s,E=E,T=T,plot=False)
 	
-	if True:
-		# input signal data
-		fig,ax=plt.subplots()
-		ax.plot(sx,label='A',marker='x',markersize=4)
-		ax.plot(sy,label='B',marker='+',markersize=4)
-		jpl2.Plot.finalizeSubplot(	ax,
-									xlabel='Time',
-									ylabel=r'$\Delta$x',
-									title='Input signal, split in half (A and B)')
-		fig.savefig('sugihara1990_figure1_inputdata.png')
-		
-	if True:
-		# E=2 state space
-		E=2
-		tau=1
-		
-		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
-		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
-		
-		fig,ax=plt.subplots()
-		ax.plot(Px[0],Px[-1],linestyle='',marker='x',label='A')
-		ax.plot(Py[0],Py[-1],linestyle='',marker='+',markerfacecolor='none',label='B')
+	#Figure 1b
+	fig,ax=plt.subplots()
+	ax.plot([-1,0.5],[-1,0.5],linestyle='-',color='k')
+	ax.plot(future_actual.sel(future=2),future_forecast.sel(future=2),linestyle='',marker='^',ms=2)
+	ax.set_xlim([-1,0.5])
+	ax.set_ylim([-1,0.5])
+	ax.set_xlabel('Observed')
+	ax.set_ylabel('Predicted (forecast)')
+	ax.set_title('Figure 1b')
 	
-		jpl2.Plot.finalizeSubplot(	ax,
-							xlabel='x(t)',
-							ylabel='x(t-1)',
-							title='E=2, time-lagged space')
-		fig.savefig('sugihara1990_figure2_E2_timelagspace.png')
+	#Figure 1c
+	fig,ax=plt.subplots()
+	ax.plot([-1,0.5],[-1,0.5],linestyle='-',color='k')
+	ax.plot(future_actual.sel(future=5),future_forecast.sel(future=5),linestyle='',marker='^',ms=2)
+	ax.set_xlim([-1,0.5])
+	ax.set_ylim([-1,0.5])
+	ax.set_xlabel('Observed')
+	ax.set_ylabel('Predicted (forecast)')
+	ax.set_title('Figure 1c')
 		
-		
-	if True:
-		
-		E=3
-		tau=1
-		
-		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
-		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
-		
-		from mpl_toolkits.mplot3d import Axes3D
-		
-		fig = plt.figure()
-		ax = fig.add_subplot(111, projection='3d')
-		ax.scatter(xs=Px[0].values.astype(np.float32),ys=Px[-1].values.astype(np.float32),zs=Px[-2].values.astype(np.float32),marker='x',label='A',linewidths=1.5)
-		ax.scatter(xs=Py[0].values.astype(np.float32),ys=Py[-1].values.astype(np.float32),zs=Py[-2].values.astype(np.float32),marker='+',edgecolor='tab:blue',label='B',linewidths=2)
-		ax.set_xlabel('x(t)')
-		ax.set_ylabel('x(t-1)')
-		ax.set_zlabel('x(t-2)')
-		ax.view_init(elev=27., azim=18.)
-		ax.legend()
-		ax.set_title('E=3, time-lagged space')
-		fig.savefig('sugihara1990_figure2_E3_timelagspace.png')
-		
-		
-	E=2
-	knn=E+1
-	tau=1
-	
-	Px=convertToStateSpace(sx,E=E,tau=tau)[0]
-	Py=convertToStateSpace(sy,E=E,tau=tau)[0]
-	keys,weights=createMap(Px,Py,knn=knn)
-	
-	if True:
-		
-		fig,ax=plt.subplots()
-		ax.plot(Px[0],Px[-1],linestyle='',marker='x',label='A')
-		ax.plot(Py[0],Py[-1],linestyle='',marker='+',markerfacecolor='none',label='B')
-		
-		key=70 #55 52
-		ax.plot(Py.loc[key][0],Py.loc[key][-1],'tab:red',marker='o',markersize=10,markeredgewidth=3,linewidth=2,label='Point in question',linestyle='',markerfacecolor='none')
-		for i in range(knn):
-			k=keys.loc[key,i]
-			label=''
-			if i==0:
-				label='E+1 neareast neighbors'
-			ax.plot(Px.loc[k][0],Px.loc[k][-1],'tab:orange',marker='s',markersize=7,markeredgewidth=2,linewidth=2,label=label,markerfacecolor='none',linestyle='')
-			
-# 			Px[]
-		jpl2.Plot.finalizeSubplot(	ax,
-							xlabel='x(t)',
-							ylabel='x(t-1)',
-							title='E=2, time-lagged space.  Point in question with E+1 nearest neighbors.')
-		fig.savefig('sugihara1990_figure3_nearestneighbors_timelagspace.png')
+	#Figure 1d
+	fig,ax=plt.subplots()
+	rho.plot(ax=ax,marker='s')
+	ax.set_xlim([0,10])
+	ax.set_ylim([0,1.1])
+	ax.set_xlabel('Predicted time')
+	ax.set_ylabel('Correlation coefficient (rho)')
+	ax.set_title('Figure 1d')
 		
 	
-	if True:
-		
-		fig,ax=plt.subplots()
-		ax.plot(sx,linestyle='-',marker='s',label='A',markersize=3)
-		ax.plot(sy,linestyle='-',marker='o',label='B',markersize=3)
-		
-		key=70 #112 115
-		ax.plot([key-1,key],[sy.loc[key-1],sy.loc[key]],'tab:red',marker='o',markersize=5,markeredgewidth=1.5,linewidth=1.5,label='Point in question',linestyle='-',markerfacecolor='none')
-		for i in range(knn):
-			k=keys.loc[key,i]
-			label=''
-			if i==0:
-				label='E+1 neareast neighbors'
-			ax.plot([k-1,k],[sx.loc[k-1],sx.loc[k]],'tab:orange',marker='s',markersize=5,markeredgewidth=1.5,linewidth=1.5,label=label,markerfacecolor='none',linestyle='-')
-
-		jpl2.Plot.finalizeSubplot(	ax,
-									xlabel='Time',
-									ylabel=r'$\Delta$x',
-									title='E=2, time-domain. Point in question with E+1 nearest neighbors.',
-									xlim=[0,80])
-									
-		fig.savefig('sugihara1990_figure3_nearestneighbors_time_z.png')
-		
-	if True:
-		dic_recon=forecast(s,E=E,T=10,plot=True)
-		fig=plt.gcf()		
-		fig.savefig('sugihara1990_figure4_forecast_analysis.png')
-		
-		
-		
-		fig,ax=plt.subplots()
-		ax.plot(sx,linestyle='-',marker='s',label='A',markersize=3)
-		ax.plot(sy,linestyle='-',marker='o',label='B',markersize=3)
-		
-		key=70 #112 115
-		ax.plot([key-1,key],[sy.loc[key-1],sy.loc[key]],'tab:red',marker='o',markersize=5,markeredgewidth=1.5,linewidth=1.5,label='Point in question',linestyle='-',markerfacecolor='none')
-
-		for i in range(knn):
-			k=keys.loc[key,i]
-			label=''
-			label2=''
-			if i==0:
-				label='E+1 neareast neighbors'
-				label2='Data for forecast'
-			ax.plot([k-1,k],[sx.loc[k-1],sx.loc[k]],'tab:orange',marker='s',markersize=5,markeredgewidth=1.5,linewidth=1.5,label=label,markerfacecolor='none',linestyle='-')
-			ax.plot([k+1],[s.loc[k+1]],'tab:green',marker='s',markersize=5,markeredgewidth=2,linewidth=1.5,label=label2,markerfacecolor='none',linestyle='')
-
-		dfFutureForecast=dic_recon['dfFutureActual']
-		
-		for i in [1]:#dfFutureForecast.columns.values:
-			ax.plot(key+i,dfFutureForecast.at[key,i],linestyle='',marker='o',color='lime',markerfacecolor='none',markeredgewidth=2,markersize=5)
-
-		jpl2.Plot.finalizeSubplot(	ax,
-									xlabel='Time',
-									ylabel=r'$\Delta$x',
-									title='Forecast 1 step.',
-									xlim=[0,80])
-									
-		fig.savefig('sugihara1990_figure4_forecast_1.png')
-		
-		fig,ax=plt.subplots()
-		ax.plot(sx,linestyle='-',marker='s',label='A',markersize=3)
-		ax.plot(sy,linestyle='-',marker='o',label='B',markersize=3)
-		
-		key=70 #112 115
-		ax.plot([key-1,key],[sy.loc[key-1],sy.loc[key]],'tab:red',marker='o',markersize=5,markeredgewidth=1.5,linewidth=1.5,label='Point in question',linestyle='-',markerfacecolor='none')
-
-		for i in range(knn):
-			k=keys.loc[key,i]
-			label=''
-			label2=''
-			if i==0:
-				label='E+1 neareast neighbors'
-				label2='Data for forecast'
-			ax.plot([k-1,k],[sx.loc[k-1],sx.loc[k]],'tab:orange',marker='s',markersize=5,markeredgewidth=1.5,linewidth=1.5,label=label,markerfacecolor='none',linestyle='-')
-# 			ax.plot([k+1],[s.loc[k+1]],'tab:green',marker='s',markersize=5,markeredgewidth=2,linewidth=1.5,label=label2,markerfacecolor='none',linestyle='')
-
-		dfFutureForecast=dic_recon['dfFutureActual']
-		
-		for i in dfFutureForecast.columns.values:
-			c='lime'
-			label=''
-			if i==0:
-				c='tab:purple'
-				label='Reconstruction'
-			elif i==1:
-				label='Forecast'
-			ax.plot(key+i,dfFutureForecast.at[key,i],linestyle='',marker='o',color=c,markerfacecolor='none',markeredgewidth=2,markersize=5,label=label)
-		
-		jpl2.Plot.finalizeSubplot(	ax,
-									xlabel='Time',
-									ylabel=r'$\Delta$x',
-									title='Forecast 10 steps.',
-									xlim=[0,80])
-									
-		fig.savefig('sugihara1990_figure4_forecast_10.png')
-		
-		
-		
-	if True:
-		
-		E=4
-		knn=E+1
-		tau=1
-		
-		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
-		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
-		keys,weights=createMap(Px,Py,knn=knn)
-		
-		dic_recon=forecast(s,E=E,T=10,plot=True)
-		
-		fig,ax=plt.subplots()
-		ax.plot(sx,linestyle='-',marker='s',label='A',markersize=3)
-		ax.plot(sy,linestyle='-',marker='o',label='B',markersize=3)
-		
-		key=70 #112 115
-		ax.plot(np.arange(key-E+1,key+1),sy.loc[key-E+1:key],'tab:red',marker='o',markersize=5,markeredgewidth=1.5,linewidth=1.5,label='Point in question',linestyle='-',markerfacecolor='none')
-
-		for i in range(knn):
-			k=keys.loc[key,i]
-			label=''
-			label2=''
-			if i==0:
-				label='E+1 neareast neighbors'
-				label2='Data for forecast'
-			ax.plot(np.arange(k-E+1,k+1),sx.loc[k-E+1:k],'tab:orange',marker='s',markersize=5,markeredgewidth=1.5,linewidth=1.5,label=label,markerfacecolor='none',linestyle='-')
-			ax.plot([k+1],[s.loc[k+1]],'tab:green',marker='s',markersize=5,markeredgewidth=2,linewidth=1.5,label=label2,markerfacecolor='none',linestyle='')
-
-		dfFutureForecast=dic_recon['dfFutureActual']
-		
-		for i in [1]:#dfFutureForecast.columns.values:
-			ax.plot(key+i,dfFutureForecast.at[key,i],linestyle='',marker='o',color='lime',markerfacecolor='none',markeredgewidth=2,markersize=5)
-
-		jpl2.Plot.finalizeSubplot(	ax,
-									xlabel='Time',
-									ylabel=r'$\Delta$x',
-									title='E=4.  Forecast 1 step.',
-									xlim=[0,80])
-									
-		fig.savefig('sugihara1990_figure5_forecast_1_E4.png')
-		
-		
-	if True:
-		
-		
-		N=1000
-		s=createTentMap(N=N)
-		sx=s[:N//2]
-		sy=s[N//2:]
-
-		fig,ax=plt.subplots()
-		
-		ERange=np.arange(2,10)
-			
-		for E in ERange:
-			knn=E+1
-			tau=1
-			
-			Px=convertToStateSpace(sx,E=E,tau=tau)[0]
-			Py=convertToStateSpace(sy,E=E,tau=tau)[0]
-			keys,weights=createMap(Px,Py,knn=knn)
-			
-			dic_recon=forecast(s,E=E,T=10,plot=False)
-			
-			ax.plot(dic_recon['dfRho'],label='E=%d'%E,marker='.')
-		
-		jpl2.Plot.finalizeSubplot(ax,	
-									xlabel='T (Forecast steps into the future)',
-									ylabel='Correlation',
-									title='Scan of E and forecast steps (T). \nN=%d, knn=%s, tau=%d'%(N,'E+1',tau))
-	
-		fig.savefig('sugihara1990_figure6_forecast_E_and_T_scan.png')
-
-
-
-	if True:
-		
-		import matplotlib.pyplot as plt
-			
-		N=100
-		s=createTentMap(N=N)
-		sx=s[:N//2]
-		sy=s[N//2:]
-		
-			
-		E=3
-		knn=E+1
-		tau=2
-		
-		Px=convertToStateSpace(sx,E=E,tau=tau)[0]
-		Py=convertToStateSpace(sy,E=E,tau=tau)[0]
-		keys,weights=createMap(Px,Py,knn=knn)
-		
-
-		dic_recon=forecast(s,E=E,T=10,plot=False)
-		fig=plt.gcf()		
-# 		fig.savefig('sugihara1990_figure4_forecast_analysis.png')
-		
-		
-		dfFutureForecast=dic_recon['dfFutureActual']
-		
-		fig,ax=plt.subplots()
-		ax.plot(sx,linestyle='-',marker='s',label='A',markersize=3)
-		ax.plot(sy,linestyle='-',marker='o',label='B',markersize=3)
-		
-		key=70 #112 115
-		ax.plot([key-4,key-2,key],[sy.loc[key-4],sy.loc[key-2],sy.loc[key]],'tab:red',marker='o',markersize=5,markeredgewidth=1.5,linewidth=1.5,label='Point in question',linestyle='-',markerfacecolor='none')
-
-		for i in range(knn):
-			k=keys.loc[key,i]
-			label=''
-			label2=''
-			if i==0:
-				label='E+1 neareast neighbors'
-				label2='Data for forecast'
-			ax.plot([k-4,k-2,k],[sx.loc[k-4],sx.loc[k-2],sx.loc[k]],'tab:orange',marker='s',markersize=5,markeredgewidth=1.5,linewidth=1.5,label=label,markerfacecolor='none',linestyle='-')
-			ax.plot([k+1],[s.loc[k+1]],'tab:green',marker='s',markersize=5,markeredgewidth=2,linewidth=1.5,label=label2,markerfacecolor='none',linestyle='')
-
-		dfFutureForecast=dic_recon['dfFutureActual']
-		
-		for i in [1]:#dfFutureForecast.columns.values:
-			ax.plot(key+i,dfFutureForecast.at[key,i],linestyle='',marker='o',color='lime',markerfacecolor='none',markeredgewidth=2,markersize=5)
-
-		jpl2.Plot.finalizeSubplot(	ax,
-									xlabel='Time',
-									ylabel=r'$\Delta$x',
-									title='E=3. Tau=2. Forecast 1 step.',
-									xlim=[0,80])
-									
-		fig.savefig('sugihara1990_figure7_forecast_1_E3_tau2.png')
-		
-		
 		
 def example_lorentzAttractor_reconstruction():
 	
 
 	import matplotlib.pyplot as plt
 	import numpy as np
-	import johnspythonlibrary2 as jpl2
 	
 	if True:
 		N=500
 		dt=0.2
-		x,y,z=solveLorentz(N=N,plot=True,dt=dt,removeFirstNPoints=1200)
+		ds=lorentzAttractor(N=N,plot=True,dt=dt,removeFirstNPoints=1200)
+		ds['t']=np.arange(ds.t.shape[0])
+		x=ds.x
+		y=ds.y
+		z=ds.z
 		
-		N+=1
-		x=x[N//2:]
-		y=y[N//2:]
-		z=z[N//2:]
 		if True:
 			fig=plt.gcf()
 			fig.get_axes()[0].set_xlim(N//2,N)
 			fig.savefig('lorentzReconstruction_figure1_time.png')
 		
 		if True:
-			_,_,_=solveLorentz(N=N,plot='all',dt=dt)
+			_=lorentzAttractor(N=N,plot='all',dt=dt)
 			fig=plt.gcf()
 			fig.savefig('lorentzReconstruction_figure1_statespace.png')
 	
-		N=N//2
-		s1A=_pd.Series(x[:N//2])
-		s1B=_pd.Series(x[N//2:])
-		s2A=_pd.Series(z[:N//2])
-		s2B=_pd.Series(z[N//2:])
+		s1A=x[:N//2]
+		s1B=x[N//2:]
+		s2A=z[:N//2]
+		s2B=z[N//2:]
 		
 		if True:
 			fig,ax=plt.subplots(2,2)
@@ -3388,24 +1986,24 @@ def example_lorentzAttractor_reconstruction():
 			ax[1,0].plot(np.arange(0,N//2),s2A,label='Original')
 			ax[1,1].plot(np.arange(N//2,N),s2B,label='Original')#,color='tab:blue')
 			
-			jpl2.Plot.finalizeSubplot(	ax[0,0],
+			_finalizeSubplot(	ax[0,0],
 										subtitle='x A (first half)',
 										legendOn=False,
 										xlim=[0,N//2-1],
 										ylabel='x',
 										title='A')
-			jpl2.Plot.finalizeSubplot(	ax[0,1],
+			_finalizeSubplot(	ax[0,1],
 										subtitle='x B (second half)',
 										legendOn=False,
 										xlim=[N//2,N],
 										title='B')
-			jpl2.Plot.finalizeSubplot(	ax[1,0],
+			_finalizeSubplot(	ax[1,0],
 										subtitle='z A (first half)',
 										legendOn=False,
 										xlabel='Time',
 										xlim=[0,N//2-1],
 										ylabel='z',)
-			jpl2.Plot.finalizeSubplot(	ax[1,1],
+			_finalizeSubplot(	ax[1,1],
 										subtitle='z B (second half)',
 										legendOn=False,
 										xlabel='Time',
@@ -3424,18 +2022,14 @@ def example_lorentzAttractor_reconstruction():
 			
 			for E, tau in zip([3,4],[1,2]):
 				print(E,tau)
-	# 			E=3
-	# 			tau=1
 				
 				P1A=convertToTimeLaggedSpace(s1A.copy(), E=E, tau=tau)
 				P1B=convertToTimeLaggedSpace(s1B.copy(), E=E, tau=tau)
 				
-				keys,weights = createMap(P1A,P1B,knn=4)
+				edm_map = createMap(P1A,P1B,knn=4)
 				
-				s1B_recon=reconstruct(s1A,keys,weights)
-				s2B_recon=reconstruct(s2A,keys,weights)
-	# 				s1B_recon_rho=calcCorrelationCoefficient(s1B[E-1:],s1B_recon)
-				
+				s1B_recon=reconstruct(s1A,edm_map,plot=False,sy=s1B)
+				s2B_recon=reconstruct(s2A,edm_map,plot=False,sy=s2B)
 				
 				fig0, ax0 = plt.subplots(2, 2, gridspec_kw={'width_ratios': [5, 1]},sharey=False)
 				s1A.plot(ax=ax0[0,0],linewidth=0.5,marker='.',markersize=3)
@@ -3445,222 +2039,46 @@ def example_lorentzAttractor_reconstruction():
 				ax0[0,1].plot(s1B[0:20],linewidth=0.5,marker='.',markersize=3,color='blue') #s1A.index[-1]+1+np.arange(0,index+10)
 				ax0[1,1].plot(s2B[0:20],linewidth=0.5,marker='.',markersize=3,color='blue') #s1A.index[-1]+1+np.arange(0,index+10),
 				
-	# 				y1=P1B.loc[index]
 				x1=np.arange(index-E*(tau)+(tau-1),index,tau)+1
 				print(x1)
-				y1=s1B.loc[x1].values
+				y1=s1B.loc[x1+s1B.t[0].data].values
 				ax0[0,1].plot(x1,y1,linewidth=1.5,color='r',marker='o',markerfacecolor='none')
 				ax0[0,1].plot(x1[-1],y1[-1],linewidth=1.5,color='r',marker='s',markerfacecolor='none',markeredgewidth=2)
 				
-# 				ax0[0,1].plot(x1,y1,linewidth=1.5,color='r',marker='o',markerfacecolor='none')
-				ax0[1,1].plot(x1[-1],s2B.loc[x1].values[-1],linewidth=1.5,color='r',marker='s',markerfacecolor='none',markeredgewidth=2)
+				ax0[1,1].plot(x1[-1],s2B.loc[x1+s2B.t[0].data].values[-1],linewidth=1.5,color='r',marker='s',markerfacecolor='none',markeredgewidth=2)
 				
-				
-				z=keys.loc[index]
-				for i,(key,val) in enumerate(z.iteritems()):
-	# 					print(key)
-	# 					print(val)
+				z=edm_map['keys'].loc[index]
+				for temp in z:
+					val=temp.data
 					x2=np.arange(val-E*(tau)+(tau-1),val,tau)+1
 					y2=s1A.loc[x2].values
 					ax0[0,0].plot(x2,y2,linewidth=1.5,color='tab:orange',marker='o',markerfacecolor='none')
 					ax0[0,0].plot(x2[-1],y2[-1],linewidth=1.5,color='tab:orange',marker='s',markerfacecolor='none',markeredgewidth=2)
 					
-# 					ax0[0,0].plot(x2,y2,linewidth=1.5,color='tab:orange',marker='o',markerfacecolor='none')
 					ax0[1,0].plot(x2[-1],s2A.loc[x2].values[-1],linewidth=1.5,color='tab:orange',marker='s',markerfacecolor='none',markeredgewidth=2)
 					
 					
-				ax0[1,1].plot(x1[-1],s2B_recon.loc[x1[-1]],linestyle='',marker='d',color='green',markerfacecolor='none',markeredgewidth=2)
+				ax0[1,1].plot(x1[-1],s2B_recon.loc[x1[-1]+s2B.t[0].data],linestyle='',marker='d',color='green',markerfacecolor='none',markeredgewidth=2)
 					
-				jpl2.Plot.finalizeSubplot(	ax0[0,0],
-# 											xlabel='time',
+				_finalizeSubplot(	ax0[0,0],
 											ylabel='x',
 											legendOn=False,
 											ylim=[-17,17])
-				jpl2.Plot.finalizeSubplot(	ax0[0,1],
-# 											xlabel='time',
-	# 										ylabel='x',
+				_finalizeSubplot(	ax0[0,1],
 											legendOn=False,
 											ylim=[-17,17])
-				jpl2.Plot.finalizeSubplot(	ax0[1,0],
+				_finalizeSubplot(	ax0[1,0],
  											xlabel='time',
 											ylabel='x',
 											legendOn=False,
 											ylim=[8,44])
-				jpl2.Plot.finalizeSubplot(	ax0[1,1],
+				_finalizeSubplot(	ax0[1,1],
  											xlabel='time',
-	# 										ylabel='x',
 											legendOn=False,
 											ylim=[8,44])
-				jpl2.Plot.finalizeFigure(fig0, figSize=[6.5,4.1])
+				_finalizeFigure(fig0, figSize=[6.5,4.1])
 				fig0.savefig('lorentz_recon_example_E_%d_tau_%d.png'%(E,tau),dpi=150)
-				
-			
-			
-			
-			
-			
-			
-		E=3
-		tau=1
-		
-		P1A=convertToTimeLaggedSpace(s1A, E=E, tau=tau)
-		P1B=convertToTimeLaggedSpace(s1B, E=E, tau=tau)
-		
-		keys,weights = createMap(P1A,P1B,knn=E+1)
-		
-		s1B_recon=reconstruct(s1A,keys,weights)
-		s1B_recon_rho=calcCorrelationCoefficient(s1B[E-1:],s1B_recon)
-		
-		
-		
-			
-		
-		if True:
-			ax[0,1].plot(np.arange(N//2+E-1,N),s1B_recon,color='tab:blue',label='Reconstruction')
-			jpl2.Plot.finalizeSubplot(	ax[0,1],
-										subtitle='x B (second half). rho=%.3f'%s1B_recon_rho,
-										legendOn=True,
-										xlim=[N//2,N],
-										title='B',
-										legendLoc='lower right')
-			fig.suptitle('For each point in x_B, use x_A to predict (reconstruct) x_B.\nThis provides a map from x_A to x_B with a near perfect reconstruction.\nE=%d, tau=%d, N=%d'%(E,tau,N//2))
-			fig.savefig('lorentzReconstruction_figure3_createMap.png')
-			
-			
-			
-		
-		s2B_recon=reconstruct(s2A,keys,weights)
-		s2B_recon_rho=calcCorrelationCoefficient(s2B[E-1:],s2B_recon)
-		if True:
-			ax[1,1].plot(np.arange(N//2+E-1,N),s2B_recon,color='tab:blue',label='Reconstruction')
-			jpl2.Plot.finalizeSubplot(	ax[1,1],
-										subtitle='z B (second half). rho=%.3f'%s2B_recon_rho,
-										legendOn=True,
-										xlim=[N//2,N],
-										xlabel='Time',
-										legendLoc='lower right')
-			fig.suptitle('Apply this same map to z_A to predict (reconstruct) z_B.\n The correlation for z_B_recon is almost as good as x_B_recon.\nE=%d, tau=%d, N=%d'%(E,tau,N//2))
-			fig.savefig('lorentzReconstruction_figure4_applyMap2.png')
-			
-			
-			
-	if True:
-		
-		import pandas as pd
-		import numpy as np
-		import matplotlib.pyplot as plt
-		E=3
-		tau=1
-		
-		N=40000
-		dt=0.005
-		
-		# solve Lorentz equations with one set of ICs
-		xA,yA,zA=solveLorentz(N=N,dt=dt,
-					removeMean=True,
-					normalize=True,)
-		s1A=pd.Series(xA)
-		s2A=pd.Series(zA)
-		
-		# solve Lorentz equations with a second set of ICs
-		xB,yB,zB=solveLorentz(N=N,dt=dt,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3],
-					removeMean=True,
-					normalize=True,)
-		s1B=pd.Series(xB)
-		s2B=pd.Series(zB)
-		
-		out=SMIReconstruction(s1A,s2A,s1B,E=E,tau=tau,s2B=s2B,plot=False)
-		
-		from mpl_toolkits.mplot3d import Axes3D
-		import matplotlib as _mpl
-		_mpl.rcParams.update({'figure.autolayout': False})
-# 		fig = _plt.figure()
-
-		fig = plt.figure(constrained_layout=True)
-		
-		from matplotlib.gridspec import GridSpec
-		gs = GridSpec(4, 4, figure=fig)
-		ax1 = fig.add_subplot(gs[0:2, 0:2], projection='3d')
-		ax2 = fig.add_subplot(gs[ 0:2,2:4], projection='3d')
-		ax3 = fig.add_subplot(gs[2, 0:4])
-		ax4 = fig.add_subplot(gs[3, 0:4],sharex=ax3)
-		ax1.plot(xA[0:8000],yA[0:8000],zs=zA[0:8000],linewidth=0.5)
-# 		ax.set_xlabel('x')
-# 		ax.set_ylabel('y')
-# 		ax.set_zlabel('z')	
-		ax1.set_xticklabels([''])
-		ax1.set_yticklabels([''])
-		ax1.set_zticklabels([''])	
-		ax2.set_xticklabels([''])
-		ax2.set_yticklabels([''])
-		ax2.set_zticklabels([''])
-		
-		tau=10
-# 		ax = fig.add_subplot(322, projection='3d')
-		ax2.plot(xA[tau*2::tau][0:1000],xA[tau:-tau:tau][0:1000],zs=xA[:-2*tau:tau][0:1000],linewidth=0.5)
-		
-		ax3.plot(xB,label='x',linewidth=2)
-		ax4.plot(zB,label='original',linewidth=2)
-		ax4.plot(out[0],label='reconst.',linewidth=1.5,linestyle='-')
-		
-		jpl2.Plot.finalizeSubplot(ax3,
-									xlabel='',
-									xtickLabels=[''],
-									ylabel='',
-									subtitle='x',
-									ytickLabels=[''],
-									legendOn=False,
-									)
-		jpl2.Plot.finalizeSubplot(ax4,
-									xlabel='Time',
-									xtickLabels=[''],
-									ytickLabels=[''],
-									ylabel='',
-									legendOn=True,
-									subtitle='z',
-									xlim=[0,5000],
-									legendLoc='upper right')
-		jpl2.Plot.subTitle(ax1, 'a)',xy=(0.1,0.9),horizontalalignment='left')
-		jpl2.Plot.subTitle(ax2, 'b)',xy=(0.1,0.9),horizontalalignment='left')
-		jpl2.Plot.subTitle(ax3, 'c)',xy=(0.015,0.95),horizontalalignment='left')
-		jpl2.Plot.subTitle(ax4, 'd)',xy=(0.015,0.95),horizontalalignment='left')
-		
-		for i in range(5):
-			jpl2.Plot.finalizeFigure(fig,figSize=[4,4])
-		
-			
-	if True:
-		
-		import pandas as pd
-		import numpy as np
-		
-		N=3000
-		dt=0.025
-		
-		# solve Lorentz equations with one set of ICs
-		x,y,z=solveLorentz(N=N,dt=dt)
-		s1A=pd.Series(x)
-		s2A=pd.Series(z)
-		
-		# solve Lorentz equations with a second set of ICs
-		x,y,z=solveLorentz(N=N,dt=dt,IC=[-9.38131377/2, -8.42655716/2 , 29.30738524/3])
-		s1B=pd.Series(x)
-		s2B=pd.Series(z)
-		
-		# perform reconstruction with a parameter scan of E and tau 
-		ERange=np.arange(2,13+1,1)
-		tauRange=np.arange(1,100+1)
-		df=SMIParameterScan2(s1A=s1A,s2A=s2A,s1B=s1B, s2B=s2B,ERange=ERange,tauRange=tauRange,plot=True)
-		fig=plt.gcf()
-		ax=fig.get_axes()
-		ax[0].set_title('Scan E and tau for an optimal solution.\nN=%d'%(N))
-		fig.savefig('lorentzReconstruction_figure5_EAndTauScan.png')
-		
-		return df
-	
-	
-		
-	
+					
 	
 def example_sugihara2012():
 	
@@ -3701,10 +2119,10 @@ def example_sugihara2012():
 			
 			x,y=function(N,rx=3.8,ry=3.5,Bxy=0.02,Byx=0.1,IC=[0.2,0.4],plot=False)
 			
-			s1A=pd.Series(x[:N//2])
-			s1B=pd.Series(x[N//2:])
-			s2A=pd.Series(y[:N//2])
-			s2B=pd.Series(y[N//2:])
+			s1A=x[:N//2]
+			s1B=x[N//2:]
+			s2A=y[:N//2]
+			s2B=y[N//2:]
 			
 			E=2
 			tau=1
@@ -3713,7 +2131,7 @@ def example_sugihara2012():
 			else:
 				plot=False
 			
-			rho_1B, rho_2B = ccm(s1A,s1B,s2A,s2B,E=E,tau=tau,plot=plot)
+			rho_1B, rho_2B = ccm(s1A,s1B,s2A,s2B=s2B,E=E,tau=tau,plot=plot)
 		
 			results.at[N,'rho_2B']=rho_2B
 			results.at[N,'rho_1B']=rho_1B
@@ -3729,15 +2147,15 @@ def example_sugihara2012():
 		
 		x,y=function(N,rx=3.7,ry=3.7,Bxy=0.0,Byx=0.32,IC=[0.2,0.4],plot=False)
 		
-		s1A=pd.Series(x[:N//2])
-		s1B=pd.Series(x[N//2:])
-		s2A=pd.Series(y[:N//2])
-		s2B=pd.Series(y[N//2:])
+		s1A=x[:N//2]
+		s1B=x[N//2:]
+		s2A=y[:N//2]
+		s2B=y[N//2:]
 		
 		E=2
 		tau=1
 		
-		rho_1B, rho_2B = ccm(s1A,s1B,s2A,s2B,E=E,tau=tau,plot=True)
+		rho_1B, rho_2B = ccm(s1A,s1B,s2A,s2B=s2B,E=E,tau=tau,plot=True)
 		
 		
 	## Figure 3B
@@ -3751,15 +2169,15 @@ def example_sugihara2012():
 		
 		for Bxy in np.arange(0,0.421,0.02):
 			for Byx in np.arange(0,0.41,0.02):
-				print(Bxy,Byx)
+				#print(Bxy,Byx)
 				x,y=function(N,rx=3.8,ry=3.5,Bxy=Bxy,Byx=Byx,IC=[0.2,0.4],plot=False)
 								
-				s1A=pd.Series(x[:N//2])
-				s1B=pd.Series(x[N//2:])
-				s2A=pd.Series(y[:N//2])
-				s2B=pd.Series(y[N//2:])
+				s1A=x[:N//2]
+				s1B=x[N//2:]
+				s2A=y[:N//2]
+				s2B=y[N//2:]
 				
-				rho_1B, rho_2B = ccm(s1A,s1B,s2A,s2B,E=E,tau=tau,plot=False)
+				rho_1B, rho_2B = ccm(s1A,s1B,s2A,s2B=s2B,E=E,tau=tau,plot=False)
 				results.at[Bxy,Byx]=rho_1B-rho_2B
 		
 		import xarray as xr
@@ -3775,5 +2193,31 @@ def example_sugihara2012():
 		fig.show()
 
 
-# if __name__=='__main__':
-#  	example_sugihara2012()
+
+def example_Ye2015():
+	
+	import numpy as _np
+	
+	N=10000
+	lagRange=(_np.arange(-8,8.1,1)).astype(int)
+	E=2
+	tau=1
+		
+	for tau_d in [0,2,4]:
+# 		print(tau_d)
+		
+		s1,s2=twoSpeciesWithBidirectionalCausality(N=N,tau_d=tau_d,plot=False,params={'Ax':3.78,'Ay':3.77,'Bxy':0.07-0.00,'Byx':0.08-0.00})
+	
+		s1=s1[2000:3000]#.reset_index('t',drop=True)
+		s2=s2[2000:3000]#.reset_index('t',drop=True)
+		
+		results=eccm(	s1=s1,
+						s2=s2,
+						E=E,
+						tau=tau,
+						lagRange=lagRange,
+						plot=True,
+						title='tau_d = %d'%tau_d, 
+						s1Name='x',
+						s2Name='y')
+	
