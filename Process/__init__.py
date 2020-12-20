@@ -6,3 +6,4 @@ from . import Pandas
 from . import Spectral
 from . import Statistics
 from . import TF
+from . import SigGen
