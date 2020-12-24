@@ -477,7 +477,7 @@ def coupledHarmonicOscillator_nonlinear(	N=500,
 											args={	'f1':45,
 													'f2':150,
 													'm':1,
-													'E':0},
+													'E':0.6},
 											plot=False):
 	"""
 	Solve a coupled harmonic oscillator problem. See reference for details.
