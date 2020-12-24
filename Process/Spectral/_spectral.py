@@ -279,7 +279,8 @@ def fft(	da,
 				
 	"""
 	import xarray as xr
-	from numpy.fft import fft as fft_np
+# 	from numpy.fft import fft as fft_np
+	from scipy.fft import fft as fft_np
 	
 	# check input
 	if type(da) not in [xr.core.dataarray.DataArray,xr.core.dataset.Dataset]:
@@ -301,7 +302,7 @@ def fft(	da,
 	# do fft
 	dt=time[1]-time[0]
 	freq = _fftpack.fftfreq(da.t.shape[0],d=dt)
-	fft_results=xr.DataArray(	fft_np(da),
+	fft_results=xr.DataArray(	fft_np(da.data),
 								dims=['f'],
 								coords={'f':freq})
 	fft_results.attrs["units"] = "au"
@@ -2269,6 +2270,7 @@ def bispectrum(	da,
 	
 	N=da.shape[0]
 	signal=da.data
+# 	print(da)
 	try:
 		index=da.f.copy().data
 	except:
@@ -2292,7 +2294,7 @@ def bispectrum(	da,
 		f_long=np.arange(f.min()*2, 2*(f.max()+(f[1]-f[0])), f[1]-f[0])
 		x_long=np.concatenate(	(np.zeros(N//2)*np.nan,
 								  x,
-								  np.zeros(N//2)*np.nan))
+								  np.zeros(int(np.ceil(N/2)))*np.nan))
 		x_long=xr.DataArray(	x_long,
 				 			    dims=['f'],
 								coords={'f':f_long})
@@ -2333,338 +2335,9 @@ def bispectrum(	da,
 		return b, m1, m2
 
 
-def bicoherenceDeprecated(	sx,
-					windowLength,
-					numberWindows,
-					plot=False,
-					windowFunc='Hann',
-					title=''):
-	"""
-	Bicoherence and bispectrum analysis.  This algorithm is based on [Kim1979].
-	
-	Parameters
-	----------
-	sx : pandas.core.series.Series
-		Signal.  index is time.
-	windowLength : int
-		Length of each data window
-	numberWindows : int
-		Number of data windows
-	plot : bool
-		Optional plot of data
-	windowFunc : str
-		'Hann' uses a Hann window (Default)
-		Otherise, uses no window 
-		
-	Returns
-	-------
-	dfBicoh : pandas.core.frame.DataFrame
-		Bicoherence results.  Index and columns are frequencies.
-	dfBispec : pandas.core.frame.DataFrame
-		Bispectrum results.  Index and columns are frequencies.
-	
-	References
-	----------
-	* Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979). 
-
-	* D.Kong et al Nuclear Fusion 53, 113008 (2013).
-	
-	
-	Examples
-	--------
-	Example set 1::
-		
-		import matplotlib.pyplot as plt
-		import numpy as np
-		import pandas as pd
-		
-		plt.close('all')
-		### Example dataset.  Figure 4 in reference: Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979).
-		
-		### initialize examples
-		numberRecords=64
-		recordLength=128*2
-		N=recordLength
-		M=numberRecords
-		dt=5e-1
-		t=np.arange(0,N*M)*dt
-		fN=1
-		fb=0.220*fN
-		fc=0.375*fN
-		fd=fb+fc
-		fa=fc-fb
-		
-		def randomPhase(n=1,seed=0):
-			np.random.seed(seed)
-			return (np.random.rand(n)-0.5)*np.pi
-		
-		def sigGen(t,f,theta):
-			M=len(theta)
-			N=len(t)//M
-			T,Theta=np.meshgrid(t[0:N],theta)
-			return 1*np.cos(2*np.pi*T*f+Theta)
-		
-		def finalizeAndSaveFig(figName='',figSize=[6,4.5]):
-			fig=plt.gcf(); 
-			fig.axes[1].set_ylim([0,1.1]); 
-			fig.set_size_inches(figSize)
-			if figName!='':
-				fig.savefig(figName,dpi=150)
-				
-		def diagonalOverlay(f1,f0=[fa,fb,fc,fd],ax=None):
-			if type(ax)==type(None):
-				ax=plt.gcf().axes[0]
-			for f in f0:
-				x=f1[f1>=f/2.]
-				y=f-x
-				ax.plot(x,y,'r--',linewidth=0.5)
-			
-		thetab=randomPhase(M,seed=1)
-		thetac=randomPhase(M,seed=2)
-		noise=np.random.normal(0,0.1,(M,N))
-		baseSignal=sigGen(t,fb,thetab)+sigGen(t,fc,thetac)+noise
-	
-		
-		
-		### Figure 1
-		x2=(baseSignal).flatten()
-		dfBicoh,dfBispec=bicoherence(	pd.Series(x2,index=t),
-						windowLength=recordLength,
-						numberWindows=numberRecords,
-						windowFunc='Hann',
-						plot=True)
-		finalizeAndSaveFig('images/figure1.png')
-		
-		### Figure 3
-		x3=(baseSignal+0.5*sigGen(t,fd,thetab+thetac)).flatten()
-		dfBicoh,dfBispec=bicoherence(	pd.Series(x3,index=t),
-						windowLength=recordLength,
-						numberWindows=numberRecords,
-						windowFunc='Hann',
-						plot=True)
-		diagonalOverlay(dfBicoh.columns.values,f0=[fb,fc,fd])
-		finalizeAndSaveFig('images/figure3.png')
-		
-		
-		### Figure 2
-		thetad=randomPhase(M,seed=3)
-		x2=(baseSignal+0.5*sigGen(t,fd,thetad)).flatten()
-		dfBicoh,dfBispec=bicoherence(	pd.Series(x2,index=t),
-						windowLength=recordLength,
-						numberWindows=numberRecords,
-						windowFunc='Hann',
-						plot=True)
-		finalizeAndSaveFig('images/figure2.png')
-		
-		
-		
-		### Figure 4
-		x4=(baseSignal+1*sigGen(t,fb,thetab)*sigGen(t,fc,thetac)).flatten()
-		dfBicoh,dfBispec=bicoherence(	pd.Series(x4,index=t),
-						windowLength=recordLength,
-						numberWindows=numberRecords,
-						windowFunc='Hann',
-						plot=True)
-		diagonalOverlay(dfBicoh.columns.values)
-		finalizeAndSaveFig('images/figure4.png')
-		
-		### Figure 5
-		x=(baseSignal+0.5*sigGen(t,fd,thetad)+1*sigGen(t,fb,thetab)*sigGen(t,fc,thetac)).flatten()
-		dfBicoh,dfBispec=bicoherence(	pd.Series(x,index=t),
-						windowLength=recordLength,
-						numberWindows=numberRecords,
-						windowFunc='Hann',
-# 						title='Figure 5',
-						plot=True)
-		diagonalOverlay(dfBicoh.columns.values)
-		finalizeAndSaveFig('images/figure5.png')
 
 
-	Example set 2::
-		
-		# work in progress
-		
-# 		plt.close('all')
-# 		
-# 		from scipy.signal import chirp
-# 		### initialize 
-# 		dt=2e-6
-# 		t=np.arange(0,10e-2,dt)
-# # 		y=chirp(t,1e3,t[-1],1e3,method='linear')
-# # 		plt.plot(t,y)
-# 		
-# 		def calcChirpPhase(t,phi,f_i,f_f):
-# 			c=(f_f-f_i)/(t[-1]-t[0])
-# 			phase=phi+2*np.pi*(c/2.0*t**2+f_i*t)
-# 			return phase
-# 			
-# 		phase_a=calcChirpPhase(t,0,1e3,50e3)
-# 		y_a=np.sin(phase_a)
-# # 		phase_b=calcChirpPhase(t,0,3e2,10e3)
-# # 		y_b=np.sin(phase_b)
-# # 		plt.plot(t,y_b)
-# 		y_b=np.sin(2*np.pi*t*2e3)
-# 		plt.plot(t,y_a*y_b)
-# 		
-# 		sx=pd.Series(y_a*y_b,index=t)
-# 		
-# 		bicoherence(sx, windowLength=1000, numberWindows=50,plot=True)
-		
-	"""
-	import numpy as np
-	import matplotlib.pyplot as plt
-	import pandas as pd
-	from mpl_toolkits.axes_grid1 import make_axes_locatable
-	
-	N=windowLength
-	M=numberWindows
-		
-	### subfunctions	
-	def FFT(s,plot=False,shift=False):
-		""" Wrapper for the scipy fft algorithm """
-		N=s.shape[0]
-		dt=s.index[1]-s.index[0]
-		from scipy.fft import fft, fftfreq, fftshift
-		xi=s.values.reshape(-1)
-		xi-=xi.mean()
-		ti=s.index.values-s.index.values[0]
-		
-		if shift==True:
-			X=fftshift(fft(xi)*2/N)
-			f = fftshift(fftfreq(ti.shape[-1]))/dt
-			sX=pd.Series(X,index=f)#.iloc[1:,:]
-		else:
-			X=fft(xi)[0:N//2]*2/N
-			f = fftfreq(ti.shape[-1])[0:N//2]/dt
-			sX=pd.Series(X,index=f)
-			
-		if plot:
-			fig,ax=plt.subplots()
-			ax.semilogy(sX.abs(),marker='.')
-		
-		return sX
-	
-	
-	def plot_2D(dfB,fig,ax,cax,title='Bispectrum'):
-		""" Plot the bispectrum """
-		
-		fx=dfB.columns.values
-		fy=dfB.index.values
-		Fx,Fy=np.meshgrid(fx,fy)
-		draw=ax.pcolormesh(Fx,Fy,dfB.abs().values,vmin=0,vmax=1)
-		plt.colorbar(draw,cax=cax,ax=ax)
-		ax.axis('equal')
-		ax.set_xlabel(r'$f_1$ (Hz)')
-		ax.set_ylabel(r'$f_2$ (Hz)')
-		ax.set_title(title)
-		
-		if True:
-			
-# 			fz=dfB.columns.values
-			zticks=np.arange(0,fx[-1]/1.9,(ax.get_xticks()[1]-ax.get_xticks()[0])/2.)
-# 			zticks=np.linspace(ax.get_xticks()[-1]/2./5,ax.get_xticks()[-1]/2.,5)
-			scalelength=(ax.get_xlim()[1]-ax.get_xlim()[0])*0.015
-			ax.plot([0,ax.get_xticks()[-1]/2.],[0,ax.get_xticks()[-1]/2.],'r',linestyle='-',linewidth=2)
-			for tick in zticks:
-				ax.plot([tick,tick-scalelength],[tick,tick+scalelength],'r',linestyle='-',linewidth=2)
-				ax.text(tick-scalelength,tick+scalelength,'%.2f'%(tick*2),color='r',horizontalalignment='right',verticalalignment='bottom',rotation=-45)
-			ax.text(fx[-1]/4.-10*scalelength,fx[-1]/4.+10*scalelength,r'$f_3$ (Hz)',rotation=45,color='r',horizontalalignment='center',verticalalignment='center')
-
-	### main code
-	
-	# calculate window function
-	if windowFunc=='Hann':
-		n=np.arange(0,N)
-		window=np.sin(np.pi*n/(N-1.))**2
-		window/=np.sum(window)*1.0/N  	# normalize
-	else:
-		window=np.ones(N)
-		window/=np.sum(window)*1.0/N  	# normalize   ???
-		
-	# step in time
-	for i in range(M):
-		
-		# window data
-		index=np.arange(N*(i),N*(i+1),)
-		sxi=(sx.iloc[index]-sx.iloc[index].mean())*window
-		
-		# fft 
-		sXi=FFT(sxi,shift=True,plot=False)
-		
-		# calculate Xk and Xl
-		sXk=sXi[sXi.index>=0]
-		sXl=sXi.copy()
-		Xk,Xl=np.meshgrid(sXk,sXl)
-		
-		# misc parameters for later
-		f=sXi.index.values
-		df=f[1]-f[0]
-		q=f[-1]
-		K=f[f>=0]
-		L=f
-		Kmesh,Lmesh=np.meshgrid(K,L)
-		A,B=np.meshgrid(	np.arange(0,len(K)),
-						    np.arange(0,len(L)))
-		C=A+B
-		
-		# calculate Xkl
-		dfXTemp=sXi.append(pd.DataFrame(np.zeros(N)*np.nan,index=f-f[0]+f[-1]+df))
-		Xkl=dfXTemp.iloc[C.reshape(-1),0].values.reshape(N,N//2)
-
-		# initialize dataframes and mask on first iteration
-		if i==0:
-			
-			# dataframes
-			dfBispec=pd.DataFrame(np.zeros((len(L),len(K))),index=L,columns=K,dtype=complex)
-			dfDenom1=pd.DataFrame(np.zeros((len(L),len(K))),index=L,columns=K,dtype=complex)
-			dfDenom2=pd.DataFrame(np.zeros((len(L),len(K))),index=L,columns=K,dtype=complex)
-			
-			# create mask
-			inRegionA= ((0<=Lmesh) & (Lmesh<=q/2) & (Lmesh<=Kmesh) & (Kmesh<=q-Lmesh))
-			inRegionB= ((-q<=Lmesh) & (Lmesh<=0) & (Kmesh>np.abs(Lmesh)) & (Kmesh<=q))
-			mask=(inRegionA | inRegionB).astype(float)
-			mask[mask==False]=np.nan
-	
-		# main calculations for each time step.
-		dfBispec+=Xl*Xk*np.conjugate(Xkl)#*np.conjugate(Xkl).values
-		dfDenom1+=np.abs(Xl*Xk)**2
-		dfDenom2+=np.abs(Xkl)**2
-		
-	# apply mask and trim frequency domain
-	dfBicoh=dfBispec**2*mask/(dfDenom1*dfDenom2)
-	dfBicoh=dfBicoh[dfBicoh.index<=(q+df)/2]
-	dfBispec=dfBispec*mask/M
-	dfBispec=dfBispec[dfBispec.index<=(q+df)/2]
-					
-	# optional plots
-	if plot==True:
-		
-		fig, ax = plt.subplots(1,2,sharex=False)
-		cax=[]
-		for axi in ax:
-			divider=make_axes_locatable(axi)
-			cax.append(divider.append_axes("right", size="2%", pad=.05))
-		
-		plot_2D(dfBicoh,fig,ax[0],cax[0],title='Bicoherence')
-		
-		cax[1].remove()
-		ax[1].plot(FFT(sx.iloc[0:N]).abs())
-		ax[1].set_title('Power spectrum')
-		ax[1].set_xlabel('Hz')
-		
-		fig.suptitle(title)
-		fig.tight_layout(h_pad=0.25,w_pad=3,pad=0.5) # sets tight_layout and sets the padding between subplots
-			
-			
-		if plot=='all':
-			plot_2D(dfBispec,title='Bispectrum')
-			plt.figure();plt.plot(sx);
-		
-		
-	return dfBicoh,dfBispec
-
-
-def bicoherence(	da,
+def bicoherence_deprecated(	da,
 					windowLength,
 					numberWindows,
 					plot=False,
@@ -2902,16 +2575,20 @@ def bicoherence(	da,
 		
 	# step in time
 	for i in range(M):
-		print(i)
+# 		print(i)
 		# window data
 		index=np.arange(N*(i),N*(i+1),)
 		da_xi=(da[index]-da[index].mean())*window
 		
+		if i==0:
+			p=True
+		else:
+			p=False
 		# fft 
-		da_Xi=fft(da_xi,plot=False,sortFreqIndex=True)
-		
+		da_Xi=fft(da_xi,plot=p,sortFreqIndex=True)
+# 		import sys;sys.exit()
 		# bispectrum
-		b,FiFj,conjFij=bispectrum(da_Xi,returnAll=True)
+		b,FiFj,conjFij=bispectrum(da_Xi,returnAll=True,plot=p)
 		
 		# calculate bicoherence numerator and denominators
 		if i==0:
@@ -2938,7 +2615,7 @@ def bicoherence(	da,
 		b[b==0]=np.nan
 		bicoh*=b
 		bicoh=bicoh[:,bicoh.f2>=0]
-		bicoh=bicoh[bicoh.f1<=0.5,:]
+		bicoh=bicoh[bicoh.f1<=f1.max()/2,:]
 	elif mask=='A':
 		f1=bicoh.coords['f1']
 		f2=bicoh.coords['f2']
@@ -2950,12 +2627,15 @@ def bicoherence(	da,
 		bicoh=bicoh[:,bicoh.f2>=0]
 		bicoh=bicoh[bicoh.f1>=0,:]
 		bicoh=bicoh[bicoh.f1<=f1.max()/2,:]
+	else:
+		raise Exception('Improper mask value encountered : %s'%(str(mask)))
 		
 	bicoh.f1.attrs['units']='Hz'
 	bicoh.f2.attrs['units']='Hz'
 		
 	if plot==True:
-		fig,ax=_plt.subplots(1,2)
+		fig,ax=_plt.subplots(2,1,sharex=False)
+		
 		im=np.abs(bicoh).plot(ax=ax[0],levels=np.linspace(0,1,20+1))
 		ax[0].set_aspect('equal')
 		fig.get_axes()[-1].remove()
@@ -2966,19 +2646,335 @@ def bicoherence(	da,
 				xy=(0.98, .98),
 				horizontalalignment='right',)
 		
-		fft_results=fft(da,trimNegFreqs=True)
+		fft_results=fft_average(da,nperseg=windowLength,noverlap=windowLength//2,trimNegFreqs=True,sortFreqIndex=True)
 		fft_results/=fft_results.sum()
-		np.abs(fft_results).plot(ax=ax[1])
+		np.abs(fft_results).plot(ax=ax[1],yscale='log')
 		_subTitle(ax[1],'FFT')
+		divider2 = make_axes_locatable(ax[1])
+		cax2 = divider2.append_axes("right", size="3%", pad=0.1)
+		cax2.remove()
 		
 		
 		for y0 in drawRedLines:
 			f1=bicoh.coords['f1'].data
 			f2=bicoh.coords['f2'].data
-			ax[0].plot(f2,y0-f2,color='r',linestyle='--',linewidth=0.75)
+			ax[0].plot(f2,y0-f2,color='r',linestyle='--',linewidth=0.5)
 	
-		fig.set_size_inches(8,2)
-		fig.set_size_inches(8,2)
+		fig.set_size_inches(4,4)
+		
+		
+	return bicoh
+			
+
+
+def bicoherence(	da,
+					nperseg,
+					plot=False,
+					windowFunc='hann',
+					title='',
+					mask='A',
+					drawRedLines=[]):
+	"""
+	Bicoherence and bispectrum analysis.  This algorithm is based on [Kim1979].
+	
+	This code appears to be very buggy... #TODO fix
+	
+	http://electricrocket.org/2019/246.pdf
+	
+	Parameters
+	----------
+	sx : pandas.core.series.Series
+		Signal.  index is time.
+	windowLength : int
+		Length of each data window
+	numberWindows : int
+		Number of data windows
+	plot : bool
+		Optional plot of data
+	windowFunc : str
+		'Hann' uses a Hann window (Default)
+		Otherise, uses no window 
+		
+	Returns
+	-------
+	dfBicoh : pandas.core.frame.DataFrame
+		Bicoherence results.  Index and columns are frequencies.
+	dfBispec : pandas.core.frame.DataFrame
+		Bispectrum results.  Index and columns are frequencies.
+	
+	References
+	----------
+	* Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979). 
+
+	* D.Kong et al Nuclear Fusion 53, 113008 (2013).
+	
+	
+	Examples
+	--------
+	Example set 1::
+		
+		import matplotlib.pyplot as plt
+		import numpy as np
+		import pandas as pd
+		
+		plt.close('all')
+		### Example dataset.  Figure 4 in reference: Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979).
+		
+		### initialize examples
+		numberRecords=64
+		recordLength=128*2
+		N=recordLength
+# 		M=numberRecords
+		dt=5e-1
+		t=np.arange(0,N*M)*dt
+		fN=1
+		fb=0.220*fN
+		fc=0.375*fN
+		fd=fb+fc
+		fa=fc-fb
+		
+		def randomPhase(n=1,seed=0):
+			np.random.seed(seed)
+			return (np.random.rand(n)-0.5)*np.pi
+		
+		def sigGen(t,f,theta):
+			M=len(theta)
+			N=len(t)//M
+			T,Theta=np.meshgrid(t[0:N],theta)
+			return 1*np.cos(2*np.pi*T*f+Theta)
+		
+# 		def finalizeAndSaveFig(figName='',figSize=[6,4.5]):
+# 			fig=plt.gcf(); 
+# 			fig.axes[1].set_ylim([0,1.1]); 
+# 			fig.set_size_inches(figSize)
+# 			if figName!='':
+# 				fig.savefig(figName,dpi=150)
+# 				
+# 		def diagonalOverlay(f1,f0=[fa,fb,fc,fd],ax=None):
+# 			if type(ax)==type(None):
+# 				ax=plt.gcf().axes[0]
+# 			for f in f0:
+# 				x=f1[f1>=f/2.]
+# 				y=f-x
+# 				ax.plot(x,y,'r--',linewidth=0.5)
+			
+		thetab=randomPhase(M,seed=1)
+		thetac=randomPhase(M,seed=2)
+		noise=np.random.normal(0,0.1,(M,N))
+		baseSignal=sigGen(t,fb,thetab)+sigGen(t,fc,thetac)+noise
+	
+		import xarray as xr
+		
+		### Figure 1
+		x1=(baseSignal).flatten()
+		da=xr.DataArray(x1,dims=['t'],coords={'t':t})
+		dfBicoh=bicoherence(	da,
+						nperseg=recordLength,
+						windowFunc='Hann',
+						mask='A',
+						plot=True)
+		_plt.gcf().savefig('images/figure1.png')
+		
+		### Figure 2
+		thetad=randomPhase(M,seed=3)
+		x2=(baseSignal+0.5*sigGen(t,fd,thetad)).flatten()
+		da=xr.DataArray(x2,dims=['t'],coords={'t':t})
+		dfBicoh=bicoherence(	da,
+						nperseg=recordLength,
+						windowFunc='Hann',
+						mask='A',
+						plot=True)
+		_plt.gcf().savefig('images/figure2.png')
+		
+		### Figure 3
+		x3=(baseSignal+0.5*sigGen(t,fd,thetab+thetac)).flatten()
+		da=xr.DataArray(x3,dims=['t'],coords={'t':t})
+		dfBicoh=bicoherence(	da,
+						nperseg=recordLength,
+						windowFunc='Hann',
+						plot=True,
+						mask='A',
+# 						drawRedLines=[fb,fc,fd],
+						drawRedLines=[fd])
+		_plt.gcf().savefig('images/figure3.png')
+		
+		### Figure 4
+		x4=(baseSignal+1*sigGen(t,fb,thetab)*sigGen(t,fc,thetac)).flatten()
+		da=xr.DataArray(x4,dims=['t'],coords={'t':t})
+		dfBicoh=bicoherence(	da,
+						nperseg=recordLength,
+						windowFunc='Hann',
+						mask='A',
+						plot=True,
+# 						drawRedLines=[fb,fc,fd,fa],
+						drawRedLines=[fc,fd])
+		_plt.gcf().savefig('images/figure4.png')
+		
+		### Figure 5
+		x5=(baseSignal+0.5*sigGen(t,fd,thetad)+1*sigGen(t,fb,thetab)*sigGen(t,fc,thetac)).flatten()
+		da=xr.DataArray(x5,dims=['t'],coords={'t':t})
+		dfBicoh=bicoherence(	da,
+						nperseg=recordLength,
+									windowFunc='Hann',
+									mask='A',
+									plot=True,
+									drawRedLines=[fc,fd])
+		_plt.gcf().savefig('images/figure5.png')
+
+
+	Example 2 ::
+		
+		N=2e4
+		ds=jpl2.Process.SigGen.coupledHarmonicOscillator(N=N,T=10,
+								args={'k': 1, 'kappa': 10, 'm': 0.0001},plot=True)
+		x1=ds.x1
+		x2=ds.x2
+		recordLength=500
+		dfBicoh=bicoherence(	x1,
+						nperseg=recordLength,
+						windowFunc='Hann',
+						mask='A',
+						plot=True,
+# 						drawRedLines=[73+16],
+						)
+		
+# 	Example 3 ::
+# 		
+# 		t=np.arange(0,10e-3,2e-6)
+# 		f1=1.1234e4
+# 		f2=np.pi*1e4
+# 		f3=f1+f2
+# 		
+# 		np.random.seed()
+# 		
+# 		phi1=2*np.pi*f1*t+np.random.rand()*2*np.pi
+# 		phi2=2*np.pi*f2*t+np.random.rand()*2*np.pi
+# 		phi3=phi1+phi2+np.random.rand()*2*np.pi
+# 		
+# 		y1=np.sin(phi1)
+# 		y2=np.sin(phi2)
+# 		y3=np.sin(phi3)
+# 		y=y1+y2
+# 		
+# 		fig,ax=plt.subplots()
+# # 		ax.plot(t,y1,label='1')
+# # 		ax.plot(t,y2,label='2')
+# # 		ax.plot(t,y3,label='3')
+# 		ax.plot(t,y,label='3')
+# 		ax.legend()
+# 		
+# 		da=_xr.DataArray(y,
+# 					   dims=['t'],
+# 					   coords={'t':t})
+# 		bicoherence(da, 510,9,plot=True)
+
+	"""
+	import numpy as np
+	from mpl_toolkits.axes_grid1 import make_axes_locatable
+	from scipy.signal.spectral import _spectral_helper
+	import pandas as pd
+	import xarray as xr
+	import matplotlib.pyplot as plt
+	
+	if 'time' in da.dims:
+		da=da.rename({'time':'t'})
+	if 't' not in da.dims:
+		raise Exception('Time dimension, t, not present.  Instead, %s found'%(str(da.dims)))
+	
+	
+	dt=da.t.data[1]-da.t.data[0]
+	fsamp=1.0/dt
+	
+	f,t,stft_results=_spectral_helper(	da.data,
+										da.data,
+										fs=1/(da.t.data[1]-da.t.data[0]),
+										window='hann',
+										nperseg=nperseg,
+										noverlap=0,
+										return_onesided=False,
+										mode='stft')
+	
+	print("frequency resolution : %.3f"%(fsamp*t.shape[0]/da.shape[0]))
+	print("nyquist freqency : %.3f"%(fsamp/2))
+		
+	df=pd.DataFrame(stft_results,index=f,columns=t)
+	df.index.name='f'
+	df.columns.name='t'
+	da2=xr.DataArray(df).sortby('f')
+	
+	# TODO(John) Figure out how to vectorize this step
+	# calculate bicoherence numerator and denominators
+	for i,ti in enumerate(da2.t.data):
+		b,FiFj,conjFij=bispectrum(da2.sel(t=ti),returnAll=True,plot=False)
+		
+		if i==0:
+			numerator=FiFj*conjFij
+			denom1=np.abs(FiFj)**2
+			denom2=np.abs(conjFij)**2
+		else:
+			numerator+=FiFj*conjFij
+			denom1+=np.abs(FiFj)**2
+			denom2+=np.abs(conjFij)**2
+			
+	# finish bicoherence calc
+	bicoh=numerator**2/(denom1*denom2)
+	
+	# options
+	if mask=='AB':
+		f1=bicoh.coords['f1']
+		f2=bicoh.coords['f2']
+		
+		a=(f1<=f2)&(f1>=-f2)
+		b=(a*1.0).values
+		b[b==0]=np.nan
+		bicoh*=b
+		bicoh=bicoh[:,bicoh.f2>=0]
+		bicoh=bicoh[bicoh.f1<=f1.max()/2,:]
+	elif mask=='A':
+		f1=bicoh.coords['f1']
+		f2=bicoh.coords['f2']
+		
+		a=(f1<=f2)&(f1>=-f2)
+		b=(a*1.0).values
+		b[b==0]=np.nan
+		bicoh*=b
+		bicoh=bicoh[:,bicoh.f2>=0]
+		bicoh=bicoh[bicoh.f1>=0,:]
+		bicoh=bicoh[bicoh.f1<=f1.max()/2,:]
+	else:
+		raise Exception('Improper mask value encountered : %s'%(str(mask)))
+		
+	bicoh.f1.attrs['units']='Hz'
+	bicoh.f2.attrs['units']='Hz'
+		
+	if plot==True:
+		fig,ax=_plt.subplots(2,1,sharex=False)
+		
+		im=np.abs(bicoh).plot(ax=ax[0],levels=np.linspace(0,1,20+1))
+		ax[0].set_aspect('equal')
+		fig.get_axes()[-1].remove()
+		divider = make_axes_locatable(ax[0])
+		cax = divider.append_axes("right", size="3%", pad=0.1)
+		_plt.colorbar(im, cax=cax)#,label='Bicoherence')
+		_subTitle(ax[0],'Bicoherence',
+				xy=(0.98, .98),
+				horizontalalignment='right',)
+		
+		fft_results=fft_average(da,nperseg=nperseg,noverlap=0,trimNegFreqs=True,sortFreqIndex=True)
+		fft_results/=fft_results.sum()
+		np.abs(fft_results).plot(ax=ax[1],yscale='log')
+		_subTitle(ax[1],'FFT')
+		divider2 = make_axes_locatable(ax[1])
+		cax2 = divider2.append_axes("right", size="3%", pad=0.1)
+		cax2.remove()
+		
+		
+		for y0 in drawRedLines:
+			f1=bicoh.coords['f1'].data
+			f2=bicoh.coords['f2'].data
+			ax[0].plot(f2,y0-f2,color='r',linestyle='--',linewidth=0.5)
+	
+		fig.set_size_inches(4,4)
 		
 		
 	return bicoh
