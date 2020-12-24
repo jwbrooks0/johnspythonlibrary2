@@ -2908,7 +2908,7 @@ def bicoherence(	da,
 		da_xi=(da[index]-da[index].mean())*window
 		
 		# fft 
-		da_Xi=fft(da_xi,plot=False,sortByFFT=True)
+		da_Xi=fft(da_xi,plot=False,sortFreqIndex=True)
 		
 		# bispectrum
 		b,FiFj,conjFij=bispectrum(da_Xi,returnAll=True)
@@ -2962,7 +2962,9 @@ def bicoherence(	da,
 		divider = make_axes_locatable(ax[0])
 		cax = divider.append_axes("right", size="3%", pad=0.1)
 		_plt.colorbar(im, cax=cax)#,label='Bicoherence')
-		_subTitle(ax[0],'Bicoherence')
+		_subTitle(ax[0],'Bicoherence',
+				xy=(0.98, .98),
+				horizontalalignment='right',)
 		
 		fft_results=fft(da,trimNegFreqs=True)
 		fft_results/=fft_results.sum()
