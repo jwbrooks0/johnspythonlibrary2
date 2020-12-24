@@ -466,3 +466,90 @@ def coupledHarmonicOscillator(	N=10000,
 					 'x2':x2})
 	
 	return ds
+
+
+def coupledHarmonicOscillator_nonlinear(	N=500,
+											T=0.1,
+											ICs={	'y1_0':0,
+													'x1_0':1,
+													'y2_0':0,
+													'x2_0':0},
+											args={	'f1':45,
+													'f2':150,
+													'm':1,
+													'E':0},
+											plot=False):
+	"""
+	Solve a coupled harmonic oscillator problem. See reference for details.
+	
+	Examples
+	--------
+	Example1 ::
+		x1,x2=coupledHarmonicOscillator_nonlinear(N=10000,T=1,plot=True).values()
+		nperseg=2000
+		from johnspythonlibrary2.Process.Spectral import fft_average
+		fft_average(x1,plot=True,nperseg=nperseg,noverlap=nperseg//2)
+	
+	References
+	----------
+	https://arxiv.org/pdf/1811.02973.pdf
+
+	"""
+	
+	f1,f2,m,E=args.values()
+	k1=(2*_np.pi*f1)**2*m
+	k2=((2*_np.pi*f2)**2*m-k1)/2
+	args={	'k1':k1,
+			'k2':k2,
+			'm1':m,
+			'm2':m,
+			'E':E}
+	
+	import matplotlib.pyplot as _plt
+	
+	dt=T/N
+	
+	from scipy.integrate import solve_ivp
+	 
+	def ODEs(t,y,*args):
+		y1,x1,y2,x2 = y
+		k1,k2,m1,m2,E=args
+		derivs=	[	-k1*x1/m1+k2*(x2-x1)/m1+E*x1**2/m1,
+					y1,  
+ 					-k1*x2/m2-k2*(x2-x1)/m2,
+					y2]
+		return derivs
+
+	time=_np.arange(0,T,dt)
+	psoln = solve_ivp(	ODEs,
+						t_span=[0,T],
+						y0=_np.array(list(ICs.values())),  # initial conditions
+						args=args.values(),
+						t_eval=time
+					)
+	
+	y1,x1,y2,x2 =psoln.y
+	
+	x1=_xr.DataArray(	x1,
+						dims=['t'],
+						coords={'t':time},
+						attrs={'units':"au",
+								 'standard_name': 'Amplitude'})
+	x1.t.attrs={'units':'au'}
+	x2=_xr.DataArray(	x2,
+						dims=['t'],
+						coords={'t':time},
+						attrs={'units':"au",
+								 'standard_name': 'Amplitude'})
+	x2.t.attrs={'units':'s'}
+	
+	if plot==True:
+		fig,ax=_plt.subplots(2,sharex=True)
+		x1.plot(ax=ax[0],marker='.')
+		x2.plot(ax=ax[1],marker='.')
+		ax[0].set_title('Coupled harmonic oscillator\n'+r'(f1, f2, m, E)='+'(%.3f, %.3f, %.3f,%.3f)'%(f1,f2,m,E)+'\nICs = (%.3f, %.3f, %.3f, %.3f)'%(ICs['y1_0'],ICs['x1_0'],ICs['y2_0'],ICs['x2_0']))
+
+	ds=_xr.Dataset(	{'x1':x1,
+					 'x2':x2})
+	
+	return ds
