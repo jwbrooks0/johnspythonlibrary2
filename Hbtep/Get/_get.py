@@ -866,7 +866,7 @@ def mModeData(	shotno,
 def nModeData(	shotno,
 				tStart=_TSTART,
 				tStop=_TSTOP,
-				sensor='TA',
+				sensor='FB_S4',
 				modeNumbers=[0,-1,-2],
 				plot=False,
 				forceDownload=False):
