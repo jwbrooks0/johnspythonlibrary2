@@ -469,7 +469,7 @@ def coupledHarmonicOscillator(	N=10000,
 
 
 def coupledHarmonicOscillator_nonlinear(	N=500,
-											T=0.1,
+											dt=0.1,
 											ICs={	'y1_0':0,
 													'x1_0':1,
 													'y2_0':0,
@@ -477,15 +477,16 @@ def coupledHarmonicOscillator_nonlinear(	N=500,
 											args={	'f1':45,
 													'f2':150,
 													'm':1,
-													'E':0.6},
-											plot=False):
+													'E':1e5},
+											plot=False,
+											verbose=False):
 	"""
 	Solve a coupled harmonic oscillator problem. See reference for details.
 	
 	Examples
 	--------
 	Example1 ::
-		x1,x2=coupledHarmonicOscillator_nonlinear(N=10000,T=1,plot=True).values()
+		x1,x2=coupledHarmonicOscillator_nonlinear(N=10000,dt=1e-3,plot=True,verbose=True).values()
 		nperseg=2000
 		from johnspythonlibrary2.Process.Spectral import fft_average
 		fft_average(x1,plot=True,nperseg=nperseg,noverlap=nperseg//2)
@@ -499,32 +500,35 @@ def coupledHarmonicOscillator_nonlinear(	N=500,
 	f1,f2,m,E=args.values()
 	k1=(2*_np.pi*f1)**2*m
 	k2=((2*_np.pi*f2)**2*m-k1)/2
-	args={	'k1':k1,
-			'k2':k2,
-			'm1':m,
-			'm2':m,
-			'E':E}
+# 	args={	'k1':k1,
+# 			'k2':k2,
+# 			'm1':m,
+# 			'm2':m,
+# 			'E':E}
 	
 	import matplotlib.pyplot as _plt
 	
-	dt=T/N
+# 	dt
 	
 	from scipy.integrate import solve_ivp
 	 
 	def ODEs(t,y,*args):
 		y1,x1,y2,x2 = y
 		k1,k2,m1,m2,E=args
+		if verbose:
+			print(-k1*x1/m1,+k2*(x2-x1)/m1,E*x1**2/m1)
 		derivs=	[	-k1*x1/m1+k2*(x2-x1)/m1+E*x1**2/m1,
 					y1,  
  					-k1*x2/m2-k2*(x2-x1)/m2,
 					y2]
 		return derivs
 
-	time=_np.arange(0,T,dt)
+	time=_np.arange(0,N)*dt
+	T=time[-1]
 	psoln = solve_ivp(	ODEs,
 						t_span=[0,T],
 						y0=_np.array(list(ICs.values())),  # initial conditions
-						args=args.values(),
+						args=(k1,k2,m,m,E),
 						t_eval=time
 					)
 	
