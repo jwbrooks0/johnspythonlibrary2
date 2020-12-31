@@ -15,7 +15,7 @@ lxml			# processes processing XML and HTML.  required for ezodf
 scipy			# scientific tool library
 sklearn			# machine learning tools
 Pillow			# image processing tools
-glob3			# unix-like filenames.  includes using wildcards * in filepaths.  
+# glob3			# unix-like filenames.  includes using wildcards * in filepaths.  # throws errors when pip install glob3 ...?
 sh			# shell scripting library
 deprecated		# has a decorator for flagging deprecated functions
 # pathos		# multiprocessing sublibrary #TODO I think I'm not longer using this library
@@ -25,6 +25,7 @@ mat73			# loading matlab data (better)
 
 ### Spyder settings - I've also included a few of my favorite settings for my spyder environment.
 # Consider reverting to the default settings first.  I've had issues where it pulls in an old spyder config file from outside the virtualenv.
+# Note that these settings are for a mix of Spyder3 and Spyder4. 
 ### 
 # Preferences->Editor->Display->Source Code->Indention characters->Tabulations
 # Preferences->Editor->Advances->Edit template for new file->  (Then add numpy, pandas, mpl, etc)
@@ -33,6 +34,7 @@ mat73			# loading matlab data (better)
 #    characters entered->1
 # Preferences->Show automatic completions after
 #    keyboard idle (ms)->100
+# Preferences->Syntax Coloring->Scheme->Spyder Dark
 ### Misc.
 # PYTHONPATH - remember to add your personal libraries
 
