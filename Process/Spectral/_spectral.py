@@ -2824,19 +2824,36 @@ def bicoherence(	da,
 
 	Example 2 ::
 		
-		N=2e4
-		ds=jpl2.Process.SigGen.coupledHarmonicOscillator(N=N,T=10,
-								args={'k': 1, 'kappa': 10, 'm': 0.0001},plot=True)
-		x1=ds.x1
-		x2=ds.x2
-		recordLength=500
-		dfBicoh=bicoherence(	x1,
-						nperseg=recordLength,
-						windowFunc='Hann',
-						mask='A',
-						plot=True,
-# 						drawRedLines=[73+16],
-						)
+		from scipy.fftpack import next_fast_len
+		_plt.close('all')
+		from johnspythonlibrary2.Process.SigGen import coupledHarmonicOscillator_nonlinear
+		import polycoherence as plc
+		x1,x2=coupledHarmonicOscillator_nonlinear(	N=int(115*512/2),
+													dt=1/2e3,
+													plot=True,
+													verbose=False,
+													args={	'f1':45,
+															'f2':150,
+															'm':1,
+															'E':3e3},).values()
+		N=x1.shape[0]
+		kw = dict(nperseg=N // 200, noverlap=0, nfft=next_fast_len(N // 2))
+		fs=1/(x1.t.data[1])
+		freq1, freq2, bicoh = plc.polycoherence.polycoherence(x1.data, fs=fs, **kw)
+		import xarray as xr
+		b=xr.DataArray( 	bicoh.real,
+							 dims=['f1','f2'],
+							 coords=[freq1,freq2])
+		_plt.figure();b.plot()
+# 		plc.polycoherence.plot_polycoherence(freq1, freq2, bicoh)
+
+# 		dfBicoh=bicoherence(	x1,
+# 						nperseg=502,
+# 						windowFunc='Hann',
+# 						mask='A',
+# 						plot=True,
+# # 						drawRedLines=[73+16],
+# 						)
 		
 # 	Example 3 ::
 # 		
