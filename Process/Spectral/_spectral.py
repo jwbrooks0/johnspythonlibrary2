@@ -10,6 +10,42 @@ import xarray as _xr
 ###############################################################################
 #%% Fourier methods
 
+def signal_spectral_properties(da,nperseg=None,verbose=True):
+	print('work in progress')
+	
+	# check input
+	if 'time' in da.dims:
+		da=da.rename({'time':'t'})
+	if 't' not in da.dims:
+		raise Exception('Time dimension, t, not present.  Instead, %s found'%(str(da.dims)))
+	
+	# preliminary steps
+	params={}
+	params['dt']=float(da.t[1]-da.t[0])
+	params['f_s']=1.0/params['dt']
+	if type(nperseg) != int:
+		nperseg=da.t.shape[0]
+	
+	# Nyquist frequency (highest frequency)
+	f_nyquist=params['f_s']/2.
+	params['f_nyquist']=f_nyquist
+	if verbose: print("Nyquist freq., %.2f" % f_nyquist)
+	
+	# time window
+	time_window=params['dt']*nperseg
+	params['time_window']=time_window
+	if verbose: print("Time window: %.3e s"%time_window)
+	
+	# lowest frequency to get a full wavelength
+	params['f_min']=1./(nperseg*params['dt'])
+	if verbose: print("Lowest freq. to get 1 wavelength, %.2f" % params['f_min'] )
+
+	# frequency resolution
+	params['f_res']=params['f_s']/nperseg
+	if verbose: print("Frequency resolution, %.2f" % params['f_res'] )
+
+	return params
+
 
 # def fft_max_freq(df_fft,positiveOnly=True):
 #  	"""
@@ -162,11 +198,11 @@ def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
 # 	dfFFT=df.apply(_fftpack.fft,axis=0).set_index(freq)
 	
 	# options
-	if trimNegFreqs==True:
-		dfFFT=dfFFT[dfFFT.index>=0]
 	if normalizeAmplitude==True:
 		N=df.shape[0]
-		dfFFT*=2.0/N
+		dfFFT*=1.0/N # 2/N if negative freqs have already been trimmed
+	if trimNegFreqs==True:
+		dfFFT=dfFFT[dfFFT.index>=0]
 		
 	# optional plot of results
 	if plot==True:
@@ -311,6 +347,9 @@ def fft(	da,
 	fft_results.attrs["long_name"] = 'FFT amplitude'
 	
 	# options
+	if realAmplitudeUnits==True:
+		N=da.t.shape[0]
+		fft_results*=1.0/N #2/N if negative freqs have already been trimmed
 	if trimNegFreqs==True:
 		fft_results=fft_results.where(fft_results.f>=0).dropna(dim='f')
 	if sortFreqIndex == True:
@@ -319,9 +358,6 @@ def fft(	da,
 		fft_results=_np.abs(fft_results)
 	if zeroTheZeroFrequency == True:
 		fft_results.loc[0] = 0	
-	if realAmplitudeUnits==True:
-		N=da.t.shape[0]
-		fft_results*=2.0/N
 	elif normalizeAmplitude==True:
 		fft_results/=fft_results.sum()
 		
@@ -343,7 +379,8 @@ def fft_average(	da,
 					sortFreqIndex=False,
 					returnAbs=False,
 					zeroTheZeroFrequency=False,
-					realAmplitudeUnits=False):
+					realAmplitudeUnits=False,
+					f_units='Hz'):
 	"""
 	Computes an averaged abs(fft) using Welch's method.  This is mostly a wrapper for scipy.signal.welch
 	
@@ -449,19 +486,21 @@ def fft_average(	da,
 		raise Exception('Time dimension needs to be labeled t')
 	
 	
-	# sampling rate
-	dt=time[1]-time[0]
-	fs=1./dt
-	timeWindow=dt*nperseg
-	if verbose: print("Time window: %.3e s"%timeWindow)
-	
-	# lowest frequency to get a full wavelength
-	fLow=1./(nperseg*dt)
-	if verbose: print("Lowest freq. to get 1 wavelength, %.2f" % fLow )
-	
-	# highest frequency
-	nyF=fs/2.
-	if verbose: print("Nyquist freq., %.2f" % nyF)
+# 	# sampling rate
+# 	dt=time[1]-time[0]
+# 	fs=1./dt
+# 	timeWindow=dt*nperseg
+# 	if verbose: print("Time window: %.3e s"%timeWindow)
+# 	
+# 	# lowest frequency to get a full wavelength
+# 	fLow=1./(nperseg*dt)
+# 	if verbose: print("Lowest freq. to get 1 wavelength, %.2f" % fLow )
+# 	
+# 	# highest frequency
+# 	nyF=fs/2.
+# 	if verbose: print("Nyquist freq., %.2f" % nyF)
+
+	signal_spectral_properties(da, nperseg=nperseg,verbose=True)
 	
 	# do fft
 	from scipy.signal import welch
@@ -476,7 +515,7 @@ def fft_average(	da,
 								dims=['f'],
 								coords={'f':freq})
 	fft_results.attrs["units"] = "au"
-	fft_results.f.attrs["units"] = "Hz"
+	fft_results.f.attrs["units"] = f_units
 	fft_results.f.attrs["long_name"] = 'Frequency'
 	fft_results.attrs["long_name"] = 'FFT amplitude'
 	
@@ -485,6 +524,9 @@ def fft_average(	da,
 # 		fft_results=fft_results.sortby('f')
 # 		
 	# options
+	if realAmplitudeUnits==True:
+		N=da.t.shape[0]
+		fft_results*=1.0/N #2/N if negative freqs have already been trimmed
 	if trimNegFreqs==True:
 		fft_results=fft_results.where(fft_results.f>=0).dropna(dim='f')
 	if sortFreqIndex == True:
@@ -493,9 +535,6 @@ def fft_average(	da,
 		fft_results=_np.abs(fft_results)
 	if zeroTheZeroFrequency == True:
 		fft_results.loc[0] = 0	
-	if realAmplitudeUnits==True:
-		N=da.t.shape[0]
-		fft_results*=2.0/N
 	elif normalizeAmplitude==True:
 		fft_results/=fft_results.sum()
 		
@@ -1087,26 +1126,12 @@ def stft(	da,
 			plot=plot,
 			verbose=verbose,
 			logScale=logScale)
-	try:
-		dt=float(da.t[1]-da.t[0])
-	except:
-		raise Exception('time coordinate not formatted correctly')
-	fs=1./dt
+	if 'time' in da.dims:
+		da=da.rename({'time':'t'})
+	if 't' not in da.dims:
+		raise Exception('Time dimension, t, not present.  Instead, %s found'%(str(da.dims)))
 	
-	if verbose:
-		
-		print("Sampling rate: %.3e Hz"%fs)
-		
-		timeWindow=dt*numberSamplesPerSegment
-		print("Width of sliding time window: %.3e s"%timeWindow)
-	
-		# lowest frequency to get at least one full wavelength
-		fLow=1./(numberSamplesPerSegment*dt)
-		print("Lowest freq. to get at least one full wavelength: %.2f" % fLow )
-	
-		# frequency upper limit
-		nyF=fs/2.
-		print("Nyquist freq. (freq. upperlimit): %.2f" % nyF)
+	dt,fs,_,_,_,_=signal_spectral_properties(da,nperseg=numberSamplesPerSegment,verbose=verbose).values()
 	
 	fOut,tOut,zOut=scipystft(	da,
 								fs,
@@ -1619,23 +1644,19 @@ def coherenceAnalysis(	da1,
 	import matplotlib.pyplot as plt
 	import numpy as np
 	
+	if 'time' in da1.dims:
+		da1=da1.rename({'time':'t'})
+	if 'time' in da2.dims:
+		da2=da2.rename({'time':'t'})
+	if 't' not in da1.dims and 't' not in da2.dims:
+		raise Exception('Time dimension, t, not present.  Instead, %s found'%(str(da1.dims)+str(da2.dims)))
+		
 	if removeOffsetAndNormalize == True:
 		da1=(da1.copy()-da1.mean())/da1.std()
 		da2=(da2.copy()-da2.mean())/da2.std()
 	
-	# sampling rate
-	dt=float(da1.t[1]-da1.t[0])
-	fs=1./dt
-	timeWindow=dt*numPointsPerSegment
-	if verbose: print("Time window: %.3e s"%timeWindow)
+	dt,fs,_,_,f_min,_=signal_spectral_properties(da1,nperseg=numPointsPerSegment,verbose=verbose).values()
 	
-	# lowest frequency to get a full wavelength
-	fLow=1./(numPointsPerSegment*dt)
-	if verbose: print("Lowest freq. to get 1 wavelength, %.2f" % fLow )
-	
-	# highest frequency
-	nyF=fs/2.
-	if verbose: print("Nyquist freq., %.2f" % nyF)
 	
 	# coherence analysis 
 	coh = _coherenceComplex(da1,da2, nperseg=numPointsPerSegment,noverlap=noverlap,nfft=numPointsPerSegment*2)
@@ -1653,9 +1674,9 @@ def coherenceAnalysis(	da1,
 		ax1B.set_ylabel(da2.name)
 		
 		f1=fft_average((da1-da1.mean())/da1.std(),nperseg=numPointsPerSegment,verbose=False)
-		np.abs(f1).where(f1.f>=fLow).plot(ax=ax2,label=da1.name,yscale='log')
+		np.abs(f1).where(f1.f>=f_min).plot(ax=ax2,label=da1.name,yscale='log')
 		f2=fft_average((da2-da2.mean())/da2.std(),nperseg=numPointsPerSegment,verbose=False)
-		np.abs(f2).where(f2.f>=fLow).plot(ax=ax2,label=da2.name,yscale='log')
+		np.abs(f2).where(f2.f>=f_min).plot(ax=ax2,label=da2.name,yscale='log')
 		ax2.legend()
 		
 		np.abs(coh).plot(ax=ax3,label='Coherence',marker='',linestyle='-')
@@ -2225,9 +2246,10 @@ def hilbertTransform(da,plot=False):
 
 
 def bispectrum(	da,
-				   firstQuadrantOnly=False,
-				   plot=False,
-				   returnAll=False):
+				firstQuadrantOnly=False,
+				plot=False,
+				returnAll=False,
+				f_units='Hz'):
 	"""
 	work in progress
 	
@@ -2314,8 +2336,16 @@ def bispectrum(	da,
 	b=m1*m2
 	b['f1']=b.f1.data*df
 	b['f2']=b.f2.data*df
-	b.f1.attrs["units"] = "Hz"
-	b.f2.attrs["units"] = "Hz"
+	m1['f1']=m1.f1.data*df
+	m1['f2']=m1.f2.data*df
+	m2['f1']=m2.f1.data*df
+	m2['f2']=m2.f2.data*df
+	b.f1.attrs["units"] = f_units
+	b.f2.attrs["units"] = f_units
+	m1.f1.attrs["units"] = f_units
+	m1.f2.attrs["units"] = f_units
+	m2.f1.attrs["units"] = f_units
+	m2.f2.attrs["units"] = f_units
 	
 	if firstQuadrantOnly==True:
 		b=b[b.f1>=0,b.f2>=0]
@@ -2348,7 +2378,7 @@ def bicoherence_deprecated(	da,
 	"""
 	Bicoherence and bispectrum analysis.  This algorithm is based on [Kim1979].
 	
-	This code appears to be very buggy... #TODO fix
+	This code appears to be correct.  #TODO Verify its operation and then clean it up.
 	
 	http://electricrocket.org/2019/246.pdf
 	
@@ -2673,7 +2703,9 @@ def bicoherence(	da,
 					windowFunc='hann',
 					title='',
 					mask='A',
-					drawRedLines=[]):
+					drawRedLines=[],
+					f_units='Hz',
+					verbose=True):
 	"""
 	Bicoherence and bispectrum analysis.  This algorithm is based on [Kim1979].
 	
@@ -2708,6 +2740,7 @@ def bicoherence(	da,
 
 	* D.Kong et al Nuclear Fusion 53, 113008 (2013).
 	
+	* http://articles.adsabs.harvard.edu/cgi-bin/nph-iarticle_query?bibcode=1995ESASP.371...61K&db_key=AST&page_ind=1&plate_select=NO&data_type=GIF&type=SCREEN_GIF&classic=YES - alternative bicoherence normaliziation
 	
 	Examples
 	--------
@@ -2724,7 +2757,7 @@ def bicoherence(	da,
 		numberRecords=64
 		recordLength=128*2
 		N=recordLength
-# 		M=numberRecords
+		M=numberRecords
 		dt=5e-1
 		t=np.arange(0,N*M)*dt
 		fN=1
@@ -2827,7 +2860,7 @@ def bicoherence(	da,
 		from scipy.fftpack import next_fast_len
 		_plt.close('all')
 		from johnspythonlibrary2.Process.SigGen import coupledHarmonicOscillator_nonlinear
-		import polycoherence as plc
+# 		import polycoherence as plc
 		x1,x2=coupledHarmonicOscillator_nonlinear(	N=int(115*512/2),
 													dt=1/2e3,
 													plot=True,
@@ -2836,15 +2869,15 @@ def bicoherence(	da,
 															'f2':150,
 															'm':1,
 															'E':3e3},).values()
-		N=x1.shape[0]
-		kw = dict(nperseg=N // 200, noverlap=0, nfft=next_fast_len(N // 2))
-		fs=1/(x1.t.data[1])
-		freq1, freq2, bicoh = plc.polycoherence.polycoherence(x1.data, fs=fs, **kw)
-		import xarray as xr
-		b=xr.DataArray( 	bicoh.real,
-							 dims=['f1','f2'],
-							 coords=[freq1,freq2])
-		_plt.figure();b.plot()
+# 		N=x1.shape[0]
+# 		kw = dict(nperseg=N // 200, noverlap=0, nfft=next_fast_len(N // 2))
+# 		fs=1/(x1.t.data[1])
+# 		freq1, freq2, bicoh = plc.polycoherence.polycoherence(x1.data, fs=fs, **kw)
+# 		import xarray as xr
+# 		b=xr.DataArray( 	bicoh.real,
+# 							 dims=['f1','f2'],
+# 							 coords=[freq1,freq2])
+# 		_plt.figure();b.plot()
 # 		plc.polycoherence.plot_polycoherence(freq1, freq2, bicoh)
 
 # 		dfBicoh=bicoherence(	x1,
@@ -2897,11 +2930,14 @@ def bicoherence(	da,
 		da=da.rename({'time':'t'})
 	if 't' not in da.dims:
 		raise Exception('Time dimension, t, not present.  Instead, %s found'%(str(da.dims)))
+
+	dt,fsamp,_,_,_,_=signal_spectral_properties(da,nperseg=nperseg,verbose=verbose).values()
 	
 	
-	dt=da.t.data[1]-da.t.data[0]
-	fsamp=1.0/dt
+# 	dt=da.t.data[1]-da.t.data[0]
+# 	fsamp=1.0/dt
 	
+	# Solve for the STFT results from each time window
 	f,t,stft_results=_spectral_helper(	da.data,
 										da.data,
 										fs=1/(da.t.data[1]-da.t.data[0]),
@@ -2911,8 +2947,8 @@ def bicoherence(	da,
 										return_onesided=False,
 										mode='stft')
 	
-	print("frequency resolution : %.3f"%(fsamp*t.shape[0]/da.shape[0]))
-	print("nyquist freqency : %.3f"%(fsamp/2))
+# 	print("frequency resolution : %.3f"%(fsamp*t.shape[0]/da.shape[0]))
+# 	print("nyquist freqency : %.3f"%(fsamp/2))
 		
 	df=pd.DataFrame(stft_results,index=f,columns=t)
 	df.index.name='f'
@@ -2922,7 +2958,8 @@ def bicoherence(	da,
 	# TODO(John) Figure out how to vectorize this step
 	# calculate bicoherence numerator and denominators
 	for i,ti in enumerate(da2.t.data):
-		b,FiFj,conjFij=bispectrum(da2.sel(t=ti),returnAll=True,plot=False)
+		#print(i,ti)
+		b,FiFj,conjFij=bispectrum(da2.sel(t=ti),returnAll=True,plot=False,f_units=f_units)
 		
 		if i==0:
 			numerator=FiFj*conjFij
@@ -2934,7 +2971,7 @@ def bicoherence(	da,
 			denom2+=np.abs(conjFij)**2
 			
 	# finish bicoherence calc
-	bicoh=numerator**2/(denom1*denom2)
+	bicoh=numerator**2/(denom1.data*denom2.data)
 	
 	# options
 	if mask=='AB':
@@ -2958,41 +2995,50 @@ def bicoherence(	da,
 		bicoh=bicoh[:,bicoh.f2>=0]
 		bicoh=bicoh[bicoh.f1>=0,:]
 		bicoh=bicoh[bicoh.f1<=f1.max()/2,:]
+	elif mask=='none':
+		pass
 	else:
 		raise Exception('Improper mask value encountered : %s'%(str(mask)))
 		
-	bicoh.f1.attrs['units']='Hz'
-	bicoh.f2.attrs['units']='Hz'
-		
+	bicoh.f1.attrs['units']=f_units
+	bicoh.f2.attrs['units']=f_units
+	
 	if plot==True:
-		fig,ax=_plt.subplots(2,1,sharex=False)
 		
-		im=np.abs(bicoh).plot(ax=ax[0],levels=np.linspace(0,1,20+1))
-		ax[0].set_aspect('equal')
-		fig.get_axes()[-1].remove()
-		divider = make_axes_locatable(ax[0])
-		cax = divider.append_axes("right", size="3%", pad=0.1)
-		_plt.colorbar(im, cax=cax)#,label='Bicoherence')
-		_subTitle(ax[0],'Bicoherence',
-				xy=(0.98, .98),
-				horizontalalignment='right',)
+		fig = plt.figure(  )
 		
-		fft_results=fft_average(da,nperseg=nperseg,noverlap=0,trimNegFreqs=True,sortFreqIndex=True)
+		# subplot 1
+		ax1 = plt.subplot(111)
+		ax1.set_aspect('equal')
+		im=np.abs(bicoh).plot(ax=ax1,levels=np.linspace(0,1,20+1),add_colorbar=False)
+
+		# trick to get the subplots to line up correctly
+		divider = make_axes_locatable(ax1)
+		ax2 = divider.append_axes("bottom", size="50%", pad=0.08)
+		cax = divider.append_axes("right", size="5%", pad=0.08)
+		cbar=plt.colorbar( im, ax=ax1, cax=cax, ticks= np.linspace(0,1,6) )
+		cbar.set_label('$b^2$')
+		
+		# subplot 2
+		fft_results=fft_average(da,nperseg=nperseg,noverlap=0,trimNegFreqs=True,sortFreqIndex=True,f_units=f_units)
 		fft_results/=fft_results.sum()
-		np.abs(fft_results).plot(ax=ax[1],yscale='log')
-		_subTitle(ax[1],'FFT')
-		divider2 = make_axes_locatable(ax[1])
-		cax2 = divider2.append_axes("right", size="3%", pad=0.1)
-		cax2.remove()
+		np.abs(fft_results).plot(ax=ax2,yscale='log')
 		
-		
+		# optional, draw red lines
 		for y0 in drawRedLines:
 			f1=bicoh.coords['f1'].data
 			f2=bicoh.coords['f2'].data
-			ax[0].plot(f2,y0-f2,color='r',linestyle='--',linewidth=0.5)
+			ax1.plot(f2,y0-f2,color='r',linestyle='--',linewidth=0.5)
 	
-		fig.set_size_inches(4,4)
-		
+		# finalize
+		_subTitle(ax1,'Bicoherence',
+				xy=(0.98, .98),
+				horizontalalignment='right',)
+		_subTitle(ax2,'FFT')
+		fig.set_size_inches(6,4)
+		ax1.set_title(title)
+		_finalizeFigure(fig)
+			
 		
 	return bicoh
 			
