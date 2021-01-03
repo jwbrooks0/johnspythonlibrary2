@@ -170,7 +170,7 @@ def filtfilt(	da,
 	return daOut
 		
 		
-def gaussian(da,timeFWHM,filterType='high',plot=False):
+def gaussianFilter(da,timeFWHM,filterType='high',plot=False):
 	"""
 	Low and highpass filters using scipy's gaussian convolution filter
 	
