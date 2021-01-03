@@ -260,6 +260,7 @@ def finalizeSubplot(	ax,
 				'numberLegendPoints':2,
 				'handlelength':2,
 				'tickDirection':'out',
+				'originLines':True
 				}
 	
 	# update default input parameters with kwargs
@@ -324,8 +325,9 @@ def finalizeSubplot(	ax,
 		ax[i].tick_params(axis='y', labelcolor=params['yAxisColor'])
 			
 		# add dotted lines along the x=0 and y=0 axes
-		ax[i].axhline(y=0, color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
-		ax[i].axvline(x=0, color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
+		if params['originLines']==True:
+			ax[i].axhline(y=0, color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
+			ax[i].axvline(x=0, color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
 		
 
 		
