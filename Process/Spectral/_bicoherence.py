@@ -1,12 +1,7 @@
 
 
-# import numpy as _np
-# import pandas as _pd
 import matplotlib.pyplot as _plt
-# from scipy import fftpack as _fftpack
-# from johnspythonlibrary2 import Plot as _plot
 from johnspythonlibrary2.Plot import subTitle as _subTitle, finalizeFigure as _finalizeFigure #, finalizeSubplot as _finalizeSubplot
-# import xarray as _xr
 from johnspythonlibrary2.Process.Spectral import fft_average, signal_spectral_properties
 
 
@@ -814,13 +809,14 @@ def bicoherence(	da,
 
 #%% Examples
 def example1(mask='A',fft_scale='linear'):
+	###  Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979).
+	
 	
 	import matplotlib.pyplot as plt
 	import numpy as np
 	import xarray as xr
 	
 	plt.close('all')
-	### Example dataset.  Figure 4 in reference: Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979).
 	
 	### initialize examples
 	numberRecords=64
@@ -832,8 +828,6 @@ def example1(mask='A',fft_scale='linear'):
 	fN=1
 	fa=0.220*fN
 	fb=0.375*fN
-	fc=fa+fb
-	fd=fc-fb
 	nperseg=recordLength
 	
 	def randomPhase(n=1,seed=0):
@@ -863,7 +857,8 @@ def example1(mask='A',fft_scale='linear'):
 					windowFunc='hann',
 					mask=mask,
 					plot=True,
-					fft_scale='linear')
+					fft_scale='linear',
+					title=r'$y(t)=cos(2 \pi f_a t + \theta_a)+cos(2 \pi f_b t + \theta_b)$')
 	_plt.gcf().savefig('images/figure1.png')
 	
 	### Figure 2
@@ -875,7 +870,8 @@ def example1(mask='A',fft_scale='linear'):
 					windowFunc='hann',
 					mask=mask,
 					plot=True,
-					fft_scale='linear')
+					fft_scale='linear',
+					title=r'$y(t)=cos(2 \pi f_a t + \theta_a)+cos(2 \pi f_b t + \theta_b)+\frac{1}{2}cos(2 \pi (f_a+f_b) t + \theta_c)$')
 	_plt.gcf().savefig('images/figure2.png')
 	
 	### Figure 3
@@ -888,7 +884,8 @@ def example1(mask='A',fft_scale='linear'):
 					mask=mask,
 # 						drawRedLines=[fb,fc,fd],
 					drawRedLines=[fa+fb],
-					fft_scale='linear')
+					fft_scale='linear',
+					title=r'$y(t)=cos(2 \pi f_a t + \theta_a)+cos(2 \pi f_b t + \theta_b)+\frac{1}{2}cos(2 \pi (f_a+f_b) t + \theta_a+\theta_b)$')
 	_plt.gcf().savefig('images/figure3.png')
 	
 	### Figure 4
@@ -901,21 +898,23 @@ def example1(mask='A',fft_scale='linear'):
 					plot=True,
 # 						drawRedLines=[fb,fc,fd,fa],
 					drawRedLines=[fa+fb,fb],
-					fft_scale='linear')
+					fft_scale='linear',
+					title=r'$y(t)=cos(2 \pi f_a t + \theta_a)+cos(2 \pi f_b t + \theta_b)+cos(2 \pi f_a t + \theta_a)cos(2 \pi f_b t + \theta_b)$')
 	_plt.gcf().savefig('images/figure4.png')
 	
 	### Figure 5
 	x5=(baseSignal+0.5*sigGen(t,fa+fb,thetac)+1*sigGen(t,fa,thetaa)*sigGen(t,fb,thetab)).flatten()
 	da=xr.DataArray(x5,dims=['t'],coords={'t':t})
 	dfBicoh=bicoherence(	da,
-					nperseg=recordLength,
-								windowFunc='hann',
-								mask=mask,
-								plot=True,
-					drawRedLines=[fa+fb,fb],
-								fft_scale='linear')
+							nperseg=recordLength,
+							windowFunc='hann',
+							mask=mask,
+							plot=True,
+							drawRedLines=[fa+fb,fb],
+							fft_scale='linear',
+							title=r'$y(t)=cos(2 \pi f_a t + \theta_a)+cos(2 \pi f_b t + \theta_b)+cos(2 \pi (f_a+f_b) t + \theta_c)+cos(2 \pi f_a t + \theta_a)cos(2 \pi f_b t + \theta_b)$')
 	_plt.gcf().savefig('images/figure5.png')
 
 #%% main
 if __name__ == '__main__':
-	example1(mask='A',fft_scale='linear')
+	example1(mask='none',fft_scale='linear')
