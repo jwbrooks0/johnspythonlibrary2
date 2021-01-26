@@ -277,8 +277,7 @@ def readOdsToDF(filename, sheetName='Sheet1', header=0):
 def xr_DataArray_to_hdf5(	y, 
  							h5py_file, 
 							var_name='',
-							path='data', 
-							metadata={}):
+							path='data'):
 	"""
 	
 	Examples
@@ -364,6 +363,7 @@ def xr_DataArray_to_hdf5(	y,
 		
 	# copy attributes
 	for i,attr in enumerate(y.attrs):
+		print(attr)
 		f[var_name].attrs.create(	attr,
 								    y.attrs[attr])
 		
