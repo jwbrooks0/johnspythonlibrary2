@@ -13,6 +13,9 @@ except ImportError:
 	print('Warning: ReadWrite/_settings.py file not found.  Have you modified the ReadWrite/_settingsTemplate.py file yet?')
 	LOCALDIRTOSAVEDATA=''
 	
+	
+#################################################
+# %% Pickles
 
 def readFromPickle(filename):
 	"""
@@ -48,6 +51,10 @@ def writeToPickle(data,filename):
 	
 	_pkl.dump(data,open(filename,"wb"))
 	
+
+
+#################################################
+# %% Matlab data
 
 def readMatlab73Data(filename,dataNames=None,returnRaw=False):
 	"""
@@ -126,6 +133,8 @@ def convertMatToDF(filename):
 	return df
 
 
+#################################################
+# %% HBT related
 def backupDFs(func,defaultDir=LOCALDIRTOSAVEDATA,debug=False):
 	"""
 	Decorator for functions that return one or more DataFrames.
@@ -225,7 +234,10 @@ def backupDFs(func,defaultDir=LOCALDIRTOSAVEDATA,debug=False):
 
 
 
-#@backupDFs
+
+#################################################
+# %% ODS files
+
 def readOdsToDF(filename, sheetName='Sheet1', header=0):
 	""" 
 	Convert ods file to pandas dataframe 
@@ -256,3 +268,191 @@ def readOdsToDF(filename, sheetName='Sheet1', header=0):
 						 for col in tab.columns()})
 	
 	return df
+
+
+
+#################################################
+# %% HDF5
+
+def xr_DataArray_to_hdf5(	y, 
+ 							h5py_file, 
+							var_name='',
+							path='data', 
+							metadata={}):
+	"""
+	
+	Examples
+	--------
+	Example 1::
+	
+		# multiple time series data with different time bases
+		t1=np.arange(0,1e-2,1e-6)
+		y1=np.sin(2*np.pi*1e3*t1)
+		y1=xr.DataArray(	y1,
+							dims=['t'],
+							coords=[t1])
+		y1.name='y1'
+		
+		t2=np.arange(0,1e-2,2e-6)
+		y2=np.cos(2*np.pi*1e3*t2)
+		y2=xr.DataArray(	y2,
+							dims=['t'],
+							coords=[t2])
+		y2.name='y2'
+		# t2=np.arange(0,1e-2,2e-6)
+		y3=np.cos(2*np.pi*1e3*t2)
+		y3=xr.DataArray(	y3,
+							dims=['t'],
+							coords=[t2])
+		y3.name='y3'
+		
+		num=int(np.random.rand()*10000)
+		print(num)
+		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
+		f = xr_DataArray_to_hdf5(y1, f ,path='data1')
+		f = xr_DataArray_to_hdf5(y2, f, path='data2')
+		f = xr_DataArray_to_hdf5(y3, f, path='data2')
+		#f.close()
+		
+	Example 2::
+		
+		# 3D dataset with attributes
+		x=np.arange(5)
+		y=np.arange(10)
+		z=np.arange(20)
+		three_d_data=xr.DataArray(	np.random.rand(5,10,20),
+								dims=['x','y','z'],
+								coords=[x,y,z],
+								attrs={	'name':'video1',
+										'comment':'this is an example video',
+										'long_name':'video 1 of data',
+										'units':'au'})
+		
+		
+		num=int(np.random.rand()*10000)
+		print(num)
+		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
+		f = xr_DataArray_to_hdf5(three_d_data, f, var_name='video', path='data1')
+
+	"""
+
+	# make sure the data has a name
+	if var_name=='':
+		if y.name==None:
+			raise Exception('var_name not provided')
+		else:
+			var_name=y.name
+			
+	f = h5py_file
+	
+	# combine path and var_name and initialize the dataset
+	var_name='%s/%s'%(path,var_name)
+	f.create_dataset(var_name, data=y)
+	
+	# create and attach each dimension to the dataset
+	for i,dim_name in enumerate(y.dims):
+	
+		f[var_name].dims[i].label = dim_name
+		try:
+			f['%s/'%path+dim_name]=y[dim_name].values
+		except OSError:
+			print('OSError: The time basis already existed for this group. Skipping...')  
+			pass
+		
+		f['%s/'%path+dim_name].make_scale(dim_name)
+		f[var_name].dims[i].attach_scale(f['%s/'%path+dim_name])
+		
+	# copy attributes
+	for i,attr in enumerate(y.attrs):
+		f[var_name].attrs.create(	attr,
+								    y.attrs[attr])
+		
+	
+	return f
+
+
+def hdf5_to_xr_DataArray(	h5py_file, 
+							var_path):
+	"""
+	
+	Examples
+	--------
+	Example 1::
+	
+		# multiple time series data with different time bases
+		t1=np.arange(0,1e-2,1e-6)
+		y1=np.sin(2*np.pi*1e3*t1)
+		y1=xr.DataArray(	y1,
+							dims=['t'],
+							coords=[t1])
+		y1.name='y1'
+		
+		t2=np.arange(0,1e-2,2e-6)
+		y2=np.cos(2*np.pi*1e3*t2)
+		y2=xr.DataArray(	y2,
+							dims=['t'],
+							coords=[t2])
+		y2.name='y2'
+		# t2=np.arange(0,1e-2,2e-6)
+		y3=np.cos(2*np.pi*1e3*t2)
+		y3=xr.DataArray(	y3,
+							dims=['t'],
+							coords=[t2])
+		y3.name='y3'
+		
+		num=int(np.random.rand()*10000)
+		print(num)
+		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
+		f = xr_DataArray_to_hdf5(y1, f ,path='data1')
+		f = xr_DataArray_to_hdf5(y2, f, path='data2')
+		f = xr_DataArray_to_hdf5(y3, f, path='data2')
+		
+		da1=hdf5_to_xr_DataArray(f,'data1/y1')
+		da2=hdf5_to_xr_DataArray(f,'data2/y2')
+		da3=hdf5_to_xr_DataArray(f,'data2/y3')
+		
+		f.close()
+		
+	Example 2::
+		
+		# 3D dataset with attributes
+		x=np.arange(5)
+		y=np.arange(10)
+		z=np.arange(20)
+		three_d_data=xr.DataArray(	np.random.rand(5,10,20),
+								dims=['x','y','z'],
+								coords=[x,y,z],
+								attrs={	'name':'video1',
+										'comment':'this is an example video',
+										'long_name':'video 1 of data',
+										'units':'au'})
+		
+		
+		num=int(np.random.rand()*10000)
+		print(num)
+		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
+		f = xr_DataArray_to_hdf5(three_d_data, f, var_name='video', path='data1')
+
+		da=hdf5_to_xr_DataArray(f,'data1/video')
+		
+		f.close()
+	
+	"""
+			
+	f = h5py_file
+	
+	data=f[var_path]#[()] 	# note that this allows the attrs to be coppied over
+	
+	# create dimensions and coordinates
+	dims=[]
+	coords=[]
+	for a in f[var_path].dims: # presently, this only grabs the first dim from each dimension
+		#print(a)
+		dims.append(list(a)[0])
+		coords.append(a[0][()])
+		
+	da=_xr.DataArray(	data,
+						dims=dims,
+						coords=coords)
+	
+	return da
