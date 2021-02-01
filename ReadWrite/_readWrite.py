@@ -285,6 +285,9 @@ def np_array_to_mp4(array,file_name):
 		file_name="outputvideo.mp4"
 		np_array_to_mp4(array,file_name=file_name)
 
+	References
+	----------
+	*  http://www.scikit-video.org/stable/io.html
 
 	"""
 	print("work in progress")
