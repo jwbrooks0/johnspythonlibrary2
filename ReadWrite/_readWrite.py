@@ -53,7 +53,7 @@ def writeToPickle(data,filename):
 	
 
 
-#################################################
+##############################################################################
 # %% Matlab data
 
 def readMatlab73Data(filename,dataNames=None,returnRaw=False):
@@ -235,7 +235,7 @@ def backupDFs(func,defaultDir=LOCALDIRTOSAVEDATA,debug=False):
 
 
 
-#################################################
+##############################################################################
 # %% ODS files
 
 def readOdsToDF(filename, sheetName='Sheet1', header=0):
@@ -271,7 +271,29 @@ def readOdsToDF(filename, sheetName='Sheet1', header=0):
 
 
 
-#################################################
+##############################################################################
+# %% Videos
+
+def np_array_to_mp4(array,file_name):
+	"""
+	Examples
+	--------
+	Example 1::
+		
+		array = np.random.random(size=(50, 480, 680, 3)) * 255
+		array = array.astype(np.uint8)
+		file_name="outputvideo.mp4"
+		np_array_to_mp4(array,file_name=file_name)
+
+
+	"""
+	print("work in progress")
+	
+	import skvideo.io
+	skvideo.io.vwrite(file_name, array)
+
+
+##############################################################################
 # %% HDF5
 
 def xr_DataArray_to_hdf5(	y, 
