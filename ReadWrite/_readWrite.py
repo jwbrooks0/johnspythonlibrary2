@@ -275,6 +275,14 @@ def ods_to_pd_DataFrame(filename, sheetName='Sheet1', header=0):
 
 def np_array_to_mp4(array,file_name):
 	"""
+	
+	Parameters
+	----------
+	array : np.ndarray
+		Video data.  Dimensions = (t, y, x, color)
+	file_name : str
+		Name of mp4 file to write the data to
+		
 	Examples
 	--------
 	Example 1:: # black and white
