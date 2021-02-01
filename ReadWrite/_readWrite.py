@@ -5,6 +5,7 @@ import matplotlib.pyplot as _plt
 from functools import wraps as _wraps
 import pickle as _pkl
 import xarray as _xr
+import skvideo.io as _skio
 
 try:
 	import johnspythonlibrary2.ReadWrite._settings as _settings
@@ -17,7 +18,7 @@ except ImportError:
 #################################################
 # %% Pickles
 
-def readFromPickle(filename):
+def pickle_to_any_data(filename):
 	"""
 	Parameters
 	----------
@@ -34,7 +35,7 @@ def readFromPickle(filename):
 	return _pkl.load(open(filename,'rb'))
 
 
-def writeToPickle(data,filename):
+def any_data_to_pickle(data,filename):
 	"""
 	Parameters
 	----------
@@ -56,7 +57,7 @@ def writeToPickle(data,filename):
 ##############################################################################
 # %% Matlab data
 
-def readMatlab73Data(filename,dataNames=None,returnRaw=False):
+def matlab73_to_xr_DataArray(filename,dataNames=None,returnRaw=False):
 	"""
 	Reads matlab 7.3 data
 
@@ -98,7 +99,7 @@ def readMatlab73Data(filename,dataNames=None,returnRaw=False):
 		return _xr.Dataset(das)
 	
 
-def convertMatToDF(filename):
+def mat_to_pd_DataFrame(filename):
 	"""
 	Converts a matlab .mat file to a pandas dataframe
 	
@@ -111,6 +112,7 @@ def convertMatToDF(filename):
 	-------
 	df : pandas dataframe
 		dataframe containing the same data and headers as the .mat file
+		
 	"""
 	
 	# libraries
@@ -238,7 +240,7 @@ def backupDFs(func,defaultDir=LOCALDIRTOSAVEDATA,debug=False):
 ##############################################################################
 # %% ODS files
 
-def readOdsToDF(filename, sheetName='Sheet1', header=0):
+def ods_to_pd_DataFrame(filename, sheetName='Sheet1', header=0):
 	""" 
 	Convert ods file to pandas dataframe 
 	
@@ -256,9 +258,6 @@ def readOdsToDF(filename, sheetName='Sheet1', header=0):
 	-------
 	df : pandas.core.frame.DataFrame
 		dataframe of the ods file
-		
-		
-		
 	
 	"""
 	import ezodf
@@ -292,8 +291,7 @@ def np_array_to_mp4(array,file_name):
 	"""
 	print("work in progress")
 	
-	import skvideo.io
-	skvideo.io.vwrite(file_name, array)
+	_skio.vwrite(file_name, array)
 
 
 ##############################################################################
