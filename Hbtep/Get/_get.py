@@ -7,7 +7,7 @@ import matplotlib.pyplot as _plt
 import os.path as _path
 
 from johnspythonlibrary2.Hbtep.Process import leastSquareModeAnalysis as _leastSquareModeAnalysis
-from johnspythonlibrary2.ReadWrite import readOdsToDF as _readOdsToDF
+from johnspythonlibrary2.ReadWrite import ods_to_pd_DataFrame as _readOdsToDF
 from johnspythonlibrary2.ReadWrite import backupDFs as _backupDFs
 from johnspythonlibrary2.Process.Filters import gaussianFilter_df as _gaussianFilter_df
 from johnspythonlibrary2.Plot import _plot as _plot
