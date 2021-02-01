@@ -277,11 +277,20 @@ def np_array_to_mp4(array,file_name):
 	"""
 	Examples
 	--------
-	Example 1::
+	Example 1:: # black and white
 		
+		import numpy as np
+		array = np.random.random(size=(50, 480, 680, 1)) * 255
+		array = array.astype(np.uint8)
+		file_name="outputvideo_BW.mp4"
+		np_array_to_mp4(array,file_name=file_name)
+		
+	Example 2:: # color
+		
+		import numpy as np
 		array = np.random.random(size=(50, 480, 680, 3)) * 255
 		array = array.astype(np.uint8)
-		file_name="outputvideo.mp4"
+		file_name="outputvideo_color.mp4"
 		np_array_to_mp4(array,file_name=file_name)
 
 	References
@@ -290,7 +299,9 @@ def np_array_to_mp4(array,file_name):
 
 	"""
 	print("work in progress")
-	
+	if not file_name.endswith('.mp4'):
+		file_name+='.mp4'
+		
 	_skio.vwrite(file_name, array)
 
 
