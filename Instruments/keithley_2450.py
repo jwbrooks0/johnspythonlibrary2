@@ -5,26 +5,10 @@ Created on Fri Feb  5 14:48:28 2021
 @author: jwbrooks
 """
 
-# import johnspythonlibrary2 as jpl2
-# import nrl_code as nrl_code
 import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
 import time
-
-# import pymeasure as pym
-
-# from pymeasure.instruments.keithley import Keithley2450
-
-
-
-# from pymeasure.adapters import VXI11Adapter
-
-# # adapter = VXI11Adapter("TCPIP::192.168.0.185::inst0::INSTR")
-# # instr = Keithley2450(adapter, "my_instrument")
-
-# keithley = Keithley2450("TCPIP::192.168.0.185::inst0::INSTR")
-
 import pyvisa as visa
 
 class keithley_2450:
@@ -33,7 +17,6 @@ class keithley_2450:
 		
 		self.address=address
 		self.timeout=timeout
-		
 		self.connect()
 		
 	def connect(self):
