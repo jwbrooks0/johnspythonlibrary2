@@ -13,7 +13,7 @@ import pyvisa
 import sys
 
 			
-class keysight_n5701a:
+class keysight_n5771a:
 	""" 
 	connects to, controls, and downloads data from they Keysight N5710A DC power supply 
 	
