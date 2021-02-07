@@ -17,3 +17,4 @@ from . import Networking
 from . import OS
 from . import PythonMisc
 from . import OptomizeCode
+from . import Instruments
