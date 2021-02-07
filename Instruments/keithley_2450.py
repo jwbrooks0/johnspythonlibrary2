@@ -55,13 +55,13 @@ class keithley_2450:
 		
 		self.k2450.write("sour:volt:ilimit %.3f"%i_limit)
 
-	def IV_sweep(self,v_range,i_max=1,count=5,sleep_time=0.1,plot=False):
+	def IV_sweep(self,v_range,i_max=1,count=5,settling_time=0.1,plot=False):
 		
 		results=np.zeros(len(v_range))
 		
 		for i,v in enumerate(v_range):
 			self.set_voltage(v)
-			time.sleep(sleep_time)
+			time.sleep(settling_time)
 			results[i]=self.read_values(count=count).mean()
 			
 		da=xr.DataArray(	results,
