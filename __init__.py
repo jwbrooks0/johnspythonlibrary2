@@ -18,3 +18,5 @@ from . import OS
 from . import PythonMisc
 from . import OptomizeCode
 from . import Instruments
+from . import Constants
+from . import Plasma
