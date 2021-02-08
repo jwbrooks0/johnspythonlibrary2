@@ -5,15 +5,15 @@ Created on Sun Feb  7 10:26:17 2021
 @author: jwbrooks
 """
 
-import johnspythonlibrary2 as jpl2
-import nrl_code as nrl
-import numpy as np
-import matplotlib.pyplot as plt
+# import johnspythonlibrary2 as jpl2
+# import nrl_code as nrl
+# import numpy as np
+# import matplotlib.pyplot as plt
 import pyvisa
-import sys
+# import sys
 
 			
-class keysight_n5771a:
+class keysight_n5700:
 	""" 
 	connects to, controls, and downloads data from they Keysight N5710A DC power supply 
 	
@@ -25,17 +25,20 @@ class keysight_n5771a:
 		
 	"""
 		
+	debug=False
+	
 	def __init__(	self,
-					address="TCPIP0::192.168.0.246::inst0::INSTR",
+					address="TCPIP0::192.168.0.226::inst0::INSTR",
 					timeout=20000,
 					debug=False):
 		self.address=address
 		self.timeout=timeout
 		self.connect()
-		self.debug=False
+		self.debug=debug
 		
 	def disconnect(self):
 		self.instrument.close()
+		print("Disconnected from '%s' at '%s'" % (self.idn_string, self.address))
 		
 	def connect(self):
 		""" initialize connection with unit """
@@ -45,12 +48,12 @@ class keysight_n5771a:
 		instrument.clear()
 		self.instrument=instrument
 		self.idn_string = self.do_query_string("*IDN?")
-		print("Connected to : '%s'" % self.idn_string)
+		print("Connected to '%s' at '%s'" % (self.idn_string, self.address))
 		
 	def set_voltage(self, voltage):
 		self.do_command(command="VOLT %.3f" % voltage)
 		
-	def turn_on_max_current_protection(self, on=True):
+	def turn_on_overcurrent_protection(self, on=True):
 		if on==True:
 			self.do_command("CURR:PROT:STAT 1")
 		else:
@@ -65,7 +68,7 @@ class keysight_n5771a:
 		else:
 			self.do_command(command="OUTP OFF")
 			
-	def set_measure_volt_and_current(self):
+	def measure_volt_and_current(self):
 		
 		v=self.do_query_string("Meas:Volt?")
 		i=self.do_query_string("Meas:Curr?")
@@ -79,19 +82,11 @@ class keysight_n5771a:
 		self.check_instrument_errors(command)
 		
 	def check_instrument_errors(self, command):
-		while True:
-			error_string = self.instrument.query("Syst:err?")
-			if error_string: # If there is an error string value.
-				if error_string.find("0,", 0, 2) == -1: # Not "No error".
-					print("ERROR: %s, command: '%s'" % (error_string, command))
-					print("Exited because of error.")
-					sys.exit(1)
-				else: # "No error"
-					break
-			else: # :SYSTem:ERRor? STRing should always return string.
-				print("ERROR: :SYSTem:ERRor? STRing returned nothing, command: '%s'"% command)
-				print("Exited because of error.")
-				sys.exit(1)
+		
+		error_string = self.instrument.query("Syst:err?")
+		if "No error" not in error_string:
+			raise Exception("Error '%s' encountered from command '%s'"%(error_string, command))
+			
 				
 	def do_query_string(self,query):
 		""" Send a query, check for errors, return string: """
