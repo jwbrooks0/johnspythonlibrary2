@@ -25,7 +25,7 @@ class agilent_E5061B:
 		_tests/blob/master/instr_tests/instruments/vna/agilent_e5061b.py
 	"""
 
-	def __init__(self, ip, port=5025, sleep_time=2.0):
+	def __init__(self, ip="192.168.0.111", port=5025, sleep_time=2.0):
 		"""
 		Class constructor.
 		Here the socket connection to the instrument is initialized. The
@@ -139,7 +139,7 @@ class agilent_E5061B:
 		self.vna_socket.send(b':SENS1:AVER:COUNT %d\n' % avg_count)
 		self.vna_socket.send(b':SENS1:BAND:RES %d\n' % if_bandwidth)
 
-	def set_sweep(self, f_start=10e6, f_stop=3e9, n_points=1601, power=0):
+	def set_sweep(self, f_start=10e6, f_stop=1e9, n_points=1601, power=0):
 		self.vna_socket.send(b':SENS1:FREQ:STAR %d\n' % f_start)
 		self.vna_socket.send(b':SENS1:FREQ:STOP %d\n' % f_stop)
 		self.vna_socket.send(b':SENS1:SWE:POIN %d\n' % n_points)
