@@ -319,7 +319,8 @@ def np_array_to_mp4(array,file_name):
 def xr_DataArray_to_hdf5(	y, 
  							h5py_file, 
 							var_name='',
-							path='data'):
+							path='data',
+							compression_level=5):
 	"""
 	
 	Examples
@@ -388,7 +389,7 @@ def xr_DataArray_to_hdf5(	y,
 	
 	# combine path and var_name and initialize the dataset
 	var_name='%s/%s'%(path,var_name)
-	f.create_dataset(var_name, data=y)
+	f.create_dataset(var_name, data=y, compression=compression_level)
 	
 	# create and attach each dimension to the dataset
 	for i,dim_name in enumerate(y.dims):
