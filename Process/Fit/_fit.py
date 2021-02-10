@@ -2,9 +2,82 @@
 import numpy as _np
 import pandas as _pd
 import matplotlib.pyplot as _plt
+import xarray as _xr
 
 
-def polyFitData(df,	
+def polyFitData(da,	
+				order=2, 
+				plot=True,
+				verbose=True):
+	""" 
+	Polynomial fit function.  
+	
+	Parameters
+	----------
+	da : xarray dataarray
+		data with dimension
+	order : int
+		order of polynomial fit.  1 = linear, 2 = quadratic, etc.
+	plot : bool
+		Causes a plot of the fit to be generated
+	verbose : bool
+		print additional details
+	
+	Returns
+	-------
+	dfFit : pandas.core.frame.DataFrame with a the fit
+		Dataframe with a single column
+		index = independent variable
+	ffit : numpy.poly1d
+		fit function
+	
+	Example
+	-------
+	::
+		
+		 x=np.arange(0,1,0.1)
+		 y=2*x+1
+		 df=_pd.DataFrame(y,index=x)
+		 polyFitData(df,order=1,plot=True)
+		 
+	"""
+	
+	dim = da.dims[0]
+	coord = da.coords[dim].data
+	
+	coefs=_np.polyfit(	coord, 
+						da.data, 
+						deg=order)
+	try:
+		ffit = _np.poly1d(	coefs)
+	except _np.linalg.LinAlgError:
+		ffit = _np.poly1d(	coefs)
+		
+	da_fit=_xr.DataArray(	ffit(coord),
+							  dims=dim,
+								coords=[coord])
+	if verbose:
+		print("fit coeficients:")
+		print(coefs)
+		
+	if plot==True:
+		
+		x_highres=_np.linspace(coord[0],coord[-1],1000)
+		da_fit_highres=_xr.DataArray(	ffit(x_highres),
+										dims=dim,
+										coords=[_np.linspace(coord[0],coord[-1],1000)])
+		
+		fig,ax=_plt.subplots()
+		da.plot(ax=ax,label='raw',linestyle='',marker='x')
+		da_fit_highres.plot(ax=ax,label='fit')
+		
+		ax.legend()
+		
+	return da_fit, ffit
+
+
+
+def polyFitData_df(df,	
 				order=2, 
 				plot=True,
 				verbose=True):
@@ -62,6 +135,7 @@ def polyFitData(df,
 		ax.legend()
 		
 	return dfFit,ffit
+
 
 
 def _rSquared(y,f):
