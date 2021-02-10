@@ -13,6 +13,8 @@ import pyvisa as visa
 
 class keithley_2450:
 	
+	#TODO add a function that sets the voltage range
+	
 	def __init__(self,address='TCPIP0::192.168.0.185::inst0::INSTR',timeout=20000):
 		
 		self.address=address
@@ -62,8 +64,9 @@ class keithley_2450:
 		for i,v in enumerate(v_range):
 			self.set_voltage(v)
 			time.sleep(settling_time)
-			results[i]=self.read_values(count=count).mean()
-			
+			current=self.read_values(count=count).mean()
+			print(v,current)
+			results[i]=current
 		da=xr.DataArray(	results,
 							  dims='V',
 							  coords=[v_range])
