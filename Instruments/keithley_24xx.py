@@ -11,11 +11,11 @@ import xarray as xr
 import time
 import pyvisa as visa
 
-class keithley_2450:
+class keithley_24xx:
 	
 	#TODO add a function that sets the voltage range
 	
-	def __init__(self,address='TCPIP0::192.168.0.185::inst0::INSTR',timeout=20000):
+	def __init__(self,address='TCPIP0::192.168.0.236::inst0::INSTR',timeout=5000):
 		
 		self.address=address
 		self.timeout=timeout
@@ -24,38 +24,39 @@ class keithley_2450:
 	def connect(self):
 		rm=visa.ResourceManager()
 		print(rm.list_resources())
-		self.k2450=rm.open_resource('TCPIP0::192.168.0.185::inst0::INSTR')
-		print('Connected to : ' + self.k2450.query("*IDN?"))
+		self.instrument=rm.open_resource(self.address)
+		print('Connected to : ' + self.instrument.query("*IDN?"))
 		
-		self.k2450.timeout=self.timeout
+		self.instrument.timeout=self.timeout
 		
-		self.k2450.write("sour:func volt")
+		self.instrument.write("sour:func volt")
 		
 	def disconnect(self):
 		
-		self.k2450.close()
+		self.instrument.close()
 		
 	def set_voltage(self,v):
 		
-		self.k2450.write("sour:volt %d"%v)
+		self.instrument.write("sour:volt %d"%v)
 		
 	def output_on(self):
 		
-		self.k2450.write(':OUTP ON')
+		self.instrument.write(':OUTPut:STATe ON')
+		self.instrument.write(':OUTP:STAT ON')
 		
 	def output_off(self):
 		
-		self.k2450.write(':OUTP OFF')
+		self.instrument.write(':OUTP OFF')
 		
 	def read_values(self,count=1):
 		results=np.zeros(count)
 		for i in range(count):
-			results[i]= np.array(self.k2450.query_ascii_values(':READ?'))
+			results[i]= np.array(self.instrument.query_ascii_values(':READ?'))
 		return results
 
 	def set_current_limit(self,i_limit):
 		
-		self.k2450.write("sour:volt:ilimit %.3f"%i_limit)
+		self.instrument.write("sour:volt:ilimit %.3f"%i_limit)
 
 	def IV_sweep(self,v_range,i_max=1,count=5,settling_time=0.1,plot=False):
 		
@@ -79,14 +80,14 @@ class keithley_2450:
 	
 if __name__=='__main__':
 
-	k2450=keithley_2450()
-	k2450.set_voltage(10)
-	k2450.set_current_limit(.1)
-	k2450.output_on()
-	data=k2450.read_values(10)
-	IV_data=k2450.IV_sweep(np.arange(-10,11),plot=True)
-	k2450.output_off()
-	k2450.disconnect()
+	k24xx=keithley_24xx()
+	k24xx.set_voltage(10)
+	k24xx.set_current_limit(.1)
+	k24xx.output_on()
+	data=k24xx.read_values(10)
+	IV_data=k24xx.IV_sweep(np.arange(-10,11),plot=True)
+	k24xx.output_off()
+	k24xx.disconnect()
 
 # import usb
 
