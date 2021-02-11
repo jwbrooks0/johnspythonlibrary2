@@ -313,8 +313,47 @@ def np_array_to_mp4(array,file_name):
 	_skio.vwrite(file_name, array)
 
 
+
+##############################################################################
+# %% Text files, generic
+
+def str_to_text_file(input_str, filename):
+	text_file = open(filename, "w")
+
+	text_file.write(input_str)
+	
+	text_file.close()
+
+
 ##############################################################################
 # %% HDF5
+
+## proposed hdf5 data structure template for future data
+# Tier 1 (Parent directory) : Experiment # or case
+# Tier 2 : Parameter scan(s)
+# Tier 3 : Instruments/Diagnostics (because datasets with different time bases should not be mixed)
+# Tier 4 : Raw and Processed data
+
+def get_hdf5_tree(hdf5_file_path, text_file_output_name=None):
+	""" Returns entire hdf5 file tree to the screen """
+	import nexusformat.nexus as nx
+	f = nx.nxload(hdf5_file_path)
+	out = f.tree
+	f.close()
+	
+	if type(text_file_output_name) == str:
+		str_to_text_file(out, text_file_output_name )
+		print('wrote data to : %s'%text_file_output_name)
+	
+	return out
+
+
+def hdf5_add_metadata(	hdf5_item, library):
+	""" Add a library as attributes to an hdf5 item (group or dataset) """
+	
+	for key in library.keys():
+		hdf5_item.attrs.create(name=key, data=library[key])
+
 
 def xr_DataArray_to_hdf5(	y, 
  							h5py_file, 
