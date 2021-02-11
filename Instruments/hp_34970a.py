@@ -11,7 +11,7 @@ import numpy as np
 # import matplotlib.pyplot as plt
 import pyvisa as visa
 import socket
-import time
+from time import sleep
 import xarray as xr
 
 ## Working progress
@@ -48,25 +48,61 @@ def under_construction():
 	
 class hp_34970a_prologix:
 	
+	# https://documentation.help/Keysight-34970A-34972A/documentation.pdf
+	
 	def __init__(self, ip='192.168.0.105', gpib_address=b'9'):
 		self.ip = ip
 		self.gpib_address = gpib_address
 		self.connect()
+		sleep(0.1)
 		self.init_gpib_eth()
+		sleep(0.1)
 		self.init_hp34970a()
+		sleep(1)
 		
 	def disconnect(self):
 		self.sock.close()
 		
+	def send_command(self,command, wait_time=0.1):
+		self.sock.send( (command + '\n').encode() )
+		sleep(wait_time)
+		
+	def receive_response(self,num_bytes=100000, max_wait_time=10):
+		response=b''
+		total_time=0
+		wait_interval=0.5
+		while(response[-1:] != b'\n' and total_time<max_wait_time):
+# 			print(total_time, response)
+# 			if total_time>max_wait_time:
+# 				break
+			if total_time>0 and response==b'':
+				break
+			sleep(wait_interval)
+			total_time+=wait_interval
+# 			print(total_time, wait_time)
+			try:
+				response+=self.sock.recv(num_bytes)
+			except:
+				pass
+# 			print(response)
+
+		print('done', response)
+			
+		return response
+	
+	def send_and_receive(self,command,wait_time=0.1,num_bytes=100000):
+		self.send_command(command, wait_time=wait_time)
+		return self.receive_response(num_bytes)
+		
 	def connect(self):
 
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
-		sock.settimeout(0.1)
+		sock.settimeout(.1)
 		sock.connect((self.ip, 1234))
 		
 		# confirm connection by printing connection details
 		sock.send(b"++ver\n")
-		time.sleep(0.1)
+		sleep(1)
 		print(b"Connected to '%s'"%sock.recv(100000))
 		print(sock)
 		
@@ -82,25 +118,57 @@ class hp_34970a_prologix:
 	def init_hp34970a(self):
 		
 		#TODO the commands in this section need to be vetted.
-		self.sock.send(b'*RST\n')
-		self.sock.send(b':ABORt\n')
-		self.sock.send(b':CONFigure:TEMPerature %s,%s,(%s)\n' % (b'TCouple', b'K', b'@102:104'))
-		self.sock.send(b':UNIT:TEMPerature %s\n' % (b'C'))
-		self.sock.send(b':ROUTe:SCAN (%s)\n' % (b'@101:122'))
-		self.sock.send(b':TRIGger:SOURce %s\n' % (b'TIMer'))
-		self.sock.send(b':TRIGger:COUNt %d\n' % (1)) #number of scans
-		self.sock.send(b':TRIGger:TIMer %G\n' % (1.0))
-		self.sock.send(b':FORMat:READing:CHANnel %d\n' % (1))
-		self.sock.send(b':FORMat:READing:ALARm %d\n' % (0))
-		self.sock.send(b':FORMat:READing:UNIT %d\n' % (1))
-		self.sock.send(b':FORMat:READing:TIME:TYPE %s\n' % (b'ABSolute'))
-		self.sock.send(b':FORMat:READing:TIME %d\n' % (1))
+		if True:
+			self.sock.send(b'*RST\n')	# A Factory Reset (*RST command) turns off the units, time, channel, and alarm information
+			self.sock.send(b':ABORt\n')	# stops a scan
+	# 		self.sock.send(b':CONFigure:TEMPerature %s,%s,(%s)\n' % (b'TCouple', b'K', b'@102:104'))
+	# 		self.sock.send(b':CONFigure:VOLT:DC 1,(@101:120') # configures 1V range at channels 101 to 120
+			self.sock.send(b':CONFigure:VOLT:DC AUTO,(@101:122)\n') # configures auto range at channels 101 to 120
+# 			self.sock.send(b':CONFigure:VOLT:DC AUTO,(@101:122') # configures auto range at channels 101 to 120
+	# 		self.sock.send(b':UNIT:TEMPerature %s\n' % (b'C'))
+			self.sock.send(b':ROUTe:SCAN (%s)\n' % (b'@101:122')) # configures channels 101 to 122 to be scanned
+			self.sock.send(b':TRIGger:SOURce %s\n' % (b'TIMer')) # setup a timer to automatically trigger the scan
+			self.sock.send(b':TRIGger:COUNt %d\n' % (1)) #number of scans
+			self.sock.send(b':TRIGger:TIMer %G\n' % (1.0)) # trigger interval in seconds
+			self.sock.send(b':FORMat:READing:CHANnel %d\n' % (1)) # 1 includes channel number in returned data
+			self.sock.send(b':FORMat:READing:ALARm %d\n' % (0)) # 0 removes alarm inforation from returned data
+			self.sock.send(b':FORMat:READing:UNIT %d\n' % (1)) # 1 includes the unit for measured data
+			self.sock.send(b':FORMat:READing:TIME:TYPE %s\n' % (b'ABSolute')) # sets the time format type
+			self.sock.send(b':FORMat:READing:TIME %d\n' % (1)) # 1 includes the time in the returned data
+	# 		self.sock.send(b':SYSTem:TIME %.2d,%.2d,%s\n' % (1)) # print('%.2d.%s'%(a,('%.3f'%a)[2:]))
 		
-	def get_data(self, wait_time=5):
+		else:			
+			self.sock.send(b'*RST\n')	# A Factory Reset (*RST command) turns off the units, time, channel, and alarm information
+			self.sock.send(b':ABORt\n')	# stops a scan
+			self.sock.send(b':CONFigure:TEMPerature %s,%s,(%s)\n' % (b'TCouple', b'K', b'@102:104'))
+	# 		self.sock.send(b':CONFigure:VOLT:DC 1,(@101:120') # configures 1V range at channels 101 to 120
+# 			self.sock.send(b':CONFigure:VOLT:DC AUTO,(@101:122') # configures auto range at channels 101 to 120
+			self.sock.send(b':UNIT:TEMPerature %s\n' % (b'C'))
+			self.sock.send(b':ROUTe:SCAN (%s)\n' % (b'@101:122')) # configures channels 101 to 122 to be scanned
+			self.sock.send(b':TRIGger:SOURce %s\n' % (b'TIMer')) # setup a timer to automatically trigger the scan
+			self.sock.send(b':TRIGger:COUNt %d\n' % (1)) #number of scans
+			self.sock.send(b':TRIGger:TIMer %G\n' % (1.0)) # trigger interval in seconds
+			self.sock.send(b':FORMat:READing:CHANnel %d\n' % (1)) # 1 includes channel number in returned data
+			self.sock.send(b':FORMat:READing:ALARm %d\n' % (0)) # 0 removes alarm inforation from returned data
+			self.sock.send(b':FORMat:READing:UNIT %d\n' % (1)) # 1 includes the unit for measured data
+			self.sock.send(b':FORMat:READing:TIME:TYPE %s\n' % (b'ABSolute')) # sets the time format type
+			self.sock.send(b':FORMat:READing:TIME %d\n' % (1)) # 1 includes the time in the returned data
+	# 		self.sock.send(b':SYSTem:TIME %.2d,%.2d,%s\n' % (1)) # print('%.2d.%s'%(a,('%.3f'%a)[2:]))
 		
+			
+		
+	def _get_data_raw(self, wait_time=10):
+		self.init_hp34970a()
+		self.receive_response() #clear buffer
+		sleep(0.1)
 		self.sock.send(b':READ?\n')
-		time.sleep(wait_time)
-		raw_data=np.array(self.sock.recv(100000).decode('ascii').split(',')).reshape(-1,8)
+		return self.receive_response(max_wait_time=wait_time)
+
+		
+	def get_data(self, wait_time=10):
+		
+		raw_data=self._get_data_raw(wait_time=wait_time)
+		raw_data=np.array(raw_data.decode('ascii').split(',')).reshape(-1,8)
 
 		data=np.zeros(raw_data.shape[0])
 		channels=np.zeros(raw_data.shape[0],dtype=int)
@@ -115,3 +183,13 @@ class hp_34970a_prologix:
 		return data_out
 	
 	
+if __name__ == '__main__':
+	unit = hp_34970a_prologix()
+	print(unit.send_and_receive('++ver'))
+# # 	print(unit.receive_response())
+# 	raw_data=unit._get_data_raw(50)
+# 	print(raw_data)
+# # 	print(unit._get_data_raw(1))
+	unit.get_data().plot()
+	unit.disconnect()
+# 	
