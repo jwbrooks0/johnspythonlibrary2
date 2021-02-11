@@ -13,7 +13,7 @@ import numpy as _np
 import matplotlib.pyplot as _plt
 import xarray as _xr
 
-from johnspythonlibrary2.Constants import ep_0, e, amu, m_Ar, pi, k_b, eV, pi
+from johnspythonlibrary2.Constants import ep_0, e, amu, m_Ar, pi, k_b, eV, pi, m_e
 from johnspythonlibrary2.Process.Fit import polyFitData
 
 ##################################
@@ -39,8 +39,8 @@ def plasma_frequency_from_density(density, mass, plot = False):
 	Example 1::
 		
 		density = 10**_np.arange(13,19,0.01)
-		mass = m_Ar
-		plasma_frequency(density, mass, plot=True)
+		mass = m_e
+		plasma_frequency_from_density(density, mass, plot=True)
 	"""
 	frequency = _xr.DataArray(_np.sqrt(density * e**2 / (mass * ep_0)) * 1/(2*pi),
 							  dims='n',
