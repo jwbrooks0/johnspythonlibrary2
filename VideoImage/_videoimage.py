@@ -105,6 +105,30 @@ def playVideo(da,interval=200):
 
 
 #%% import video or sequence of images
+
+
+def add_time_stamp_to_images(df_file_list):
+	
+	print("work in progress")
+	
+	for i,file_name in df_file_list.iterrows():
+		print(i,file_name)
+		file_name=file_name.values[0]
+		date_and_time=datetime.datetime.strptime(file_name.split('/')[-1][:-4],'%Y%m%d_%H%M%S')
+		dt_string=date_and_time.strftime('%Y %m %d - %H:%M:%S')
+		
+		
+		my_image=Image.open(file_name)
+		image_editable = ImageDraw.Draw(my_image)
+		font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeMono.ttf", 24, encoding="unic")
+
+		image_editable.text((15,15),dt_string, (255,255,255), font=font)
+		if i==0:
+			os.chdir('timestamp')
+		my_image.save(file_name.split('/')[-1])
+		
+		
+		
 def loadSequentialImages(partialFileName):
 	"""
 	Loads sequential images.
@@ -145,19 +169,36 @@ def loadSequentialImages(partialFileName):
 	
 	# load files
 	img=_np.array(Image.open(dfFiles.filepaths.values[0]))
-	image=_np.zeros((img.shape[0],img.shape[1],dfFiles.shape[0]),dtype=img.dtype)
-	for i,(key,val) in enumerate(dfFiles.iterrows()):
-		image[:,:,i]=_np.array(Image.open(val.values[0]))
+	if len(img.shape)==2:
+		image=_np.zeros((img.shape[0],img.shape[1],dfFiles.shape[0]),dtype=img.dtype)
+		for i,(key,val) in enumerate(dfFiles.iterrows()):
+			image[:,:,i]=_np.array(Image.open(val.values[0]))
+			
+			# convert data to xarray DataArray
+			da = xr.DataArray(image, 
+							  dims=['y', 'x','image'],
+			                  coords={
+							   'y': _np.arange(0,img.shape[0],dtype=img.dtype),
+							   'x': _np.arange(0,img.shape[1],dtype=img.dtype),
+							   'image': _np.arange(0,dfFiles.shape[0],dtype=img.dtype)},
+							   )
+	elif len(img.shape)==3:
+		image=_np.zeros((img.shape[0],img.shape[1],img.shape[2],dfFiles.shape[0]),dtype=img.dtype)
+		for i,(key,val) in enumerate(dfFiles.iterrows()):
+			image[:,:,:,i]=_np.array(Image.open(val.values[0]))
+		
+			# convert data to xarray DataArray
+			da = xr.DataArray(image, 
+							  dims=['y', 'x','color','image'],
+			                  coords={
+							   'y': _np.arange(0,img.shape[0],dtype=img.dtype),
+							   'x': _np.arange(0,img.shape[1],dtype=img.dtype),
+							   'color': _np.arange(0,img.shape[2],dtype=img.dtype),
+							   'image': _np.arange(0,dfFiles.shape[0],dtype=img.dtype)},
+							   )
 	
-	# convert data to xarray DataArray
-	da = xr.DataArray(image, 
-					  dims=['x', 'y','image'],
-	                  coords={'x': _np.arange(0,img.shape[0],dtype=img.dtype),
-					   'y': _np.arange(0,img.shape[1],dtype=img.dtype),
-					   'image': _np.arange(0,dfFiles.shape[0],dtype=img.dtype)},
-					   )
 	
-	return da
+	return da, dfFiles
 
 
 def loadSequentialRawImages(	partialFileName,
