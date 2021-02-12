@@ -8,7 +8,7 @@ Created on Mon Feb  8 12:57:14 2021
 # import johnspythonlibrary2 as jpl2
 # import nrl_code as nrl
 import numpy as np
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import pyvisa as visa
 import socket
 from time import sleep
@@ -86,7 +86,7 @@ class hp_34970a_prologix:
 				pass
 # 			print(response)
 
-		print('done', response)
+		#print('done', response)
 			
 		return response
 	
@@ -115,7 +115,7 @@ class hp_34970a_prologix:
 		# Set HP33120A address
 		self.sock.send(b"++addr %s\n"%self.gpib_address)
 		
-	def init_hp34970a(self):
+	def init_hp34970a(self, channels='@201:218'):
 		
 		#TODO the commands in this section need to be vetted.
 		if True:
@@ -123,10 +123,10 @@ class hp_34970a_prologix:
 			self.sock.send(b':ABORt\n')	# stops a scan
 	# 		self.sock.send(b':CONFigure:TEMPerature %s,%s,(%s)\n' % (b'TCouple', b'K', b'@102:104'))
 	# 		self.sock.send(b':CONFigure:VOLT:DC 1,(@101:120') # configures 1V range at channels 101 to 120
-			self.sock.send(b':CONFigure:VOLT:DC AUTO,(@101:122)\n') # configures auto range at channels 101 to 120
+			self.sock.send(b':CONFigure:VOLT:DC AUTO,(%s)\n'%channels.encode()) # configures auto range at channels 101 to 120
 # 			self.sock.send(b':CONFigure:VOLT:DC AUTO,(@101:122') # configures auto range at channels 101 to 120
 	# 		self.sock.send(b':UNIT:TEMPerature %s\n' % (b'C'))
-			self.sock.send(b':ROUTe:SCAN (%s)\n' % (b'@101:122')) # configures channels 101 to 122 to be scanned
+			self.sock.send(b':ROUTe:SCAN (%s)\n' % (channels.encode())) # configures channels 101 to 122 to be scanned
 			self.sock.send(b':TRIGger:SOURce %s\n' % (b'TIMer')) # setup a timer to automatically trigger the scan
 			self.sock.send(b':TRIGger:COUNt %d\n' % (1)) #number of scans
 			self.sock.send(b':TRIGger:TIMer %G\n' % (1.0)) # trigger interval in seconds
@@ -137,7 +137,7 @@ class hp_34970a_prologix:
 			self.sock.send(b':FORMat:READing:TIME %d\n' % (1)) # 1 includes the time in the returned data
 	# 		self.sock.send(b':SYSTem:TIME %.2d,%.2d,%s\n' % (1)) # print('%.2d.%s'%(a,('%.3f'%a)[2:]))
 		
-		else:			
+		if False: # This is backup that works.  Saving here in case of sanity check			
 			self.sock.send(b'*RST\n')	# A Factory Reset (*RST command) turns off the units, time, channel, and alarm information
 			self.sock.send(b':ABORt\n')	# stops a scan
 			self.sock.send(b':CONFigure:TEMPerature %s,%s,(%s)\n' % (b'TCouple', b'K', b'@102:104'))
@@ -190,6 +190,9 @@ if __name__ == '__main__':
 # 	raw_data=unit._get_data_raw(50)
 # 	print(raw_data)
 # # 	print(unit._get_data_raw(1))
-	unit.get_data().plot()
-	unit.disconnect()
+	fig,ax=plt.subplots()
+	ch=1
+	data=unit.get_data()
+	ax.legend()
+# 	unit.disconnect()
 # 	
