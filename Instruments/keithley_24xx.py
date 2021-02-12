@@ -14,6 +14,8 @@ import pyvisa as visa
 class keithley_24xx:
 	
 	#TODO add a function that sets the voltage range
+	#TODO Setting the voltage turns off continous scanning.  I want to leave continuous scanning on.
+	#TODO read_values should return both current and voltage
 	
 	def __init__(self,address='TCPIP0::192.168.0.236::inst0::INSTR',timeout=5000):
 		
@@ -37,7 +39,7 @@ class keithley_24xx:
 		
 	def set_voltage(self,v):
 		
-		self.instrument.write("sour:volt %d"%v)
+		self.instrument.write("sour:volt %.3f"%v)
 		
 	def output_on(self):
 		
