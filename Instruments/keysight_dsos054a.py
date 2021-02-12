@@ -351,7 +351,7 @@ class keysight_dsos054a:
 		self.check_instrument_errors(query)
 		return result
 			
-	def init_connection(self):
+	def init_connection(self): #TODO print a connection confirmation
 		""" initialize connection with unit """
 		rm = pyvisa.ResourceManager()
 		Infiniium = rm.open_resource(self.address)
