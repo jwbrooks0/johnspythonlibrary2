@@ -18,6 +18,7 @@ import matplotlib.pyplot as _plt
 from multiprocessing import cpu_count as _cpu_count
 from joblib import Parallel as _Parallel
 from joblib import delayed  as _delayed
+from scipy.stats import binned_statistic_dd as _binned_statistic_dd
 
 # load my external libraries
 from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot, finalizeFigure as _finalizeFigure, subTitle as _subtitle
@@ -914,8 +915,97 @@ def splitData(s,split='half',reset_indices=True):
 	return sX,sY,s
 
 
+
+
+
+
+
 ###################################################################################
 #%% Main functions
+
+
+def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):	
+	"""
+	
+	Examples
+	--------
+	Example 1::
+		
+		import pandas as pd
+		import matplotlib.pyplot as plt; plt.close('all')
+		import numpy as np
+		import xarray as xr
+		
+		N=100000
+		dt=0.05
+		ds=lorentzAttractor(N=N,dt=dt,removeMean=True,normalize=True, removeFirstNPoints=1000)
+		x=ds.x
+		y=ds.z
+		
+		np.random.seed(0)
+		y_noisy=y.copy()+np.random.normal(0,1.0,size=y.shape)
+		
+		if False:
+			fig,ax=_plt.subplots()
+			y_noisy.plot(ax=ax)
+			y.plot(ax=ax)
+			
+		E=3
+		tau=2
+		m=100
+		y_orig=y
+		denoise_signal(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
+		
+	"""
+	
+	# check input type
+	x=check_dataArray(x)
+	y_noisy=check_dataArray(y_noisy)
+		
+	# convert signals to time lagged state space
+	Px,Py_noisy=convertToTimeLaggedSpace([x,y_noisy], E, tau)
+		
+	# create grid for matrix, M
+	temp=_np.linspace(Px.min(),Px.max(),m+2)
+	temp=_np.linspace(Px.min()-(temp[1]-temp[0]),Px.max()+(temp[1]-temp[0]),m+2)
+	bin_edges=(temp[:-1]+temp[1:])/2
+	#bin_centers=temp[1:-1]
+
+	# add values to E-dimensioned matrix, M
+	bins=[]
+	sample=[]
+	#dims=[]
+	#coords=[]
+	for i in range(E):
+		bins.append(bin_edges)
+		sample.append(Px[:,i].values)
+		#dims.append('x%d'%(i+1))
+		#coords.append(bin_centers)
+	M, _, indices=_binned_statistic_dd( sample,   ## binned_statistic_dd doesn't seem to work with E>=5
+													 values=Py_noisy[:,0].values, 
+													 statistic='mean',
+													 bins=bins, 
+													 expand_binnumbers=True)
+	
+	# use M to filter noisy signal
+	ind=[]
+	for i in range(E):
+		ind.append(indices[i,:]-1)
+	y_filt=_xr.DataArray(M[ind],  
+					 dims='t',
+					 coords= [y_noisy.t.data[:-(E-1)*tau]])
+	
+	if plot==True:
+		rho=calcCorrelationCoefficient(y_orig[:-(E-1)*tau], y_filt)
+		fig,ax=_plt.subplots()
+		y_noisy.plot(ax=ax,label='y+noise')
+		y_orig.plot(ax=ax,label='y original')
+		y_filt.plot(ax=ax,label='y filtered')
+		ax.legend()
+		ax.set_title('rho = %.3f'%rho)
+		
+	return y_filt
+
 
 def forecast(s,E,T,tau=1,knn=None,plot=False,weightingMethod=None):
 	"""
@@ -1516,225 +1606,190 @@ def determineDimensionality(s,T,tau=1,Elist=_np.arange(1,10+1),method="simplex",
 #%% Under development
 
 
-def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):	
-	"""
-	
-	Examples
-	--------
-	Example 1::
-		
-		import pandas as pd
-		import matplotlib.pyplot as plt; plt.close('all')
-		import numpy as np
-		import xarray as xr
-		
-		N=100000
-		dt=0.05
-		ds=lorentzAtltractor(N=N,dt=dt,removeMean=True,normalize=True, removeFirstNPoints=1000)
-		x=ds.x
-		y=ds.z
-		
-		y_noisy=y.copy()+np.random.normal(0,1.0,size=y.shape)
-		
-		if False:
-			fig,ax=_plt.subplots()
-			y_noisy.plot(ax=ax)
-			y.plot(ax=ax)
-			
-		E=2
-		tau=1
-		m=100	
-		y_orig=y
-		denoise_signal(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
-		
-	"""
-	
-	print('under development. #TODO cleanup code.  #TODO optimize code.  #TODO generalize code for general inputs.  #TODO breakup code into useful subfunctions')
-	
-	# check input type
-	x=check_dataArray(x)
-	y_noisy=check_dataArray(y_noisy)
-
-	dt=float((x.t[1:].values-x.t[:-1].values).mean())
-		
-	# convert signals to time lagged state space
-	Px,Py_noisy=convertToTimeLaggedSpace([x,y_noisy], E, tau)
-		
-	# create grid
-	bin_centers=_np.linspace(Px.min(),Px.max(),m+2)[1:-1]
-	temp1,temp2=_np.meshgrid(bin_centers,bin_centers,indexing='ij')
-	Mpoints=_np.concatenate((temp1.reshape(-1,1),temp2.reshape(-1,1)),axis=1)
-	
-	# for each value of x(t), find where it fits into the grid
-	_,indices,_=findNearestNeighbors(Mpoints,Px.values,1,plot=False)
-	indices=indices.reshape(-1)
-
-	if False:
-		unique_indices,unique_indices_inverse=_np.unique(indices,return_inverse=True)
-		fig,ax=_plt.subplots(2)
-		x.plot(ax=ax[0])
-		ax[1].plot(unique_indices_inverse)
-	
-	# bin data
-	M1=_xr.DataArray(_np.zeros((m,m)),coords=[bin_centers,bin_centers],
-					dims={'p1':bin_centers,'p2':bin_centers})
-	Mcount=M1.copy()
-	# TODO figure out how to do this function without this for-loop
-	for i,ii in enumerate(indices):
-		t=Px.t[i].data
-		M1.loc[Mpoints[ii,0],Mpoints[ii,1]]=M1.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+Py_noisy.sel(t=t,delay=0).data
-		Mcount.loc[Mpoints[ii,0],Mpoints[ii,1]]=Mcount.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+1
-		
-		
-	# average each bin
-	M=M1/Mcount
-	
-	# reconstruct signal
-	y_filt=_np.zeros(Py_noisy.shape[0])
-	# TODO figure out how to do this function without this for-loop
-	for i,ii in enumerate(indices):
-		t=Px.t[i].data
-		#print(i,ii,t)
-		y_filt[t-1]=M.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1])
-		
-	y_filt=_xr.DataArray(y_filt,
-					   dims=['t'],
-						 coords={'t':Py_noisy.t*dt+float(x.t[0])})
-	
-	if plot==True:
-		fig,ax=_plt.subplots()
-		y_noisy.plot(ax=ax,label='y+noise',linewidth=2)
-		if type(y_orig)!=type(None):
-			y_orig.plot(ax=ax, label='y (original)',linewidth=2)
-		y_filt.plot(ax=ax,label='y recon.')
-		ax.legend()
-		x_orig=convertToTimeLaggedSpace(x,E=E,tau=tau).sel(delay=0)
-		rho=calcCorrelationCoefficient(y_orig[1:], y_filt)
-		ax.set_title('rho=%.3f'%rho)
-		
-	return y_filt
-	
-
-
-
-def denoise_signal2(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):	
-	"""
-	
-	Examples
-	--------
-	Example 1::
-		
-		import pandas as pd
-		import matplotlib.pyplot as plt; plt.close('all')
-		import numpy as np
-		import xarray as xr
-		
-		N=100000
-		dt=0.05
-		ds=lorentzAttractor(N=N,dt=dt,removeMean=True,normalize=True, removeFirstNPoints=1000)
-		x=ds.x
-		y=ds.z
-		
-		y_noisy=y.copy()+np.random.normal(0,1.0,size=y.shape)
-		
-		if False:
-			fig,ax=_plt.subplots()
-			y_noisy.plot(ax=ax)
-			y.plot(ax=ax)
-			
-		E=2
-		tau=1
-		m=99		
-		y_orig=y
-		denoise_signal2(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
-		
-	"""
-	
-	print('under development. #TODO cleanup code.  #TODO optimize code.  #TODO generalize code for general inputs.  #TODO breakup code into useful subfunctions')
-	
-	# check input type
-	x=check_dataArray(x)
-	y_noisy=check_dataArray(y_noisy)
-# 	if type(x) == _np.ndarray:
-# 		x=_xr.DataArray(x,
-# 						   dims=['time'],
-# 							 coords={'time':_np.arange(0,_np.shape(x)[0])})
-# 	elif type(x) not in [_xr.core.dataarray.DataArray]:
-# 		raise Exception('Improper data type of input')
+# def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):	
+# 	"""
+# 	
+# 	Examples
+# 	--------
+# 	Example 1::
 # 		
-# 	if type(y_noisy) == _np.ndarray:
-# 		y_noisy=_xr.DataArray(y_noisy,
-# 						   dims=['time'],
-# 							 coords={'time':_np.arange(0,_np.shape(y_noisy)[0])})
-# 	elif type(y_noisy) not in [_xr.core.dataarray.DataArray]:
-# 		raise Exception('Improper data type of input')
-		
+# 		import pandas as pd
+# 		import matplotlib.pyplot as plt; plt.close('all')
+# 		import numpy as np
+# 		import xarray as xr
+# 		
+# 		N=100000
+# 		dt=0.05
+# 		ds=lorentzAttractor(N=N,dt=dt,removeMean=True,normalize=True, removeFirstNPoints=1000)
+# 		x=ds.x
+# 		y=ds.z
+# 		
+# 		y_noisy=y.copy()+np.random.normal(0,1.0,size=y.shape)
+# 		
+# 		if False:
+# 			fig,ax=_plt.subplots()
+# 			y_noisy.plot(ax=ax)
+# 			y.plot(ax=ax)
+# 			
+# 		E=2
+# 		tau=1
+# 		m=100	
+# 		y_orig=y
+# 		denoise_signal(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
+# 		
+# 	"""
+# 	
+# 	print('under development. #TODO cleanup code.  #TODO optimize code.  #TODO generalize code for general inputs.  #TODO breakup code into useful subfunctions')
+# 	
+# 	# check input type
+# 	x=check_dataArray(x)
+# 	y_noisy=check_dataArray(y_noisy)
 
-	dt=float((x.t[1:].values-x.t[:-1].values).mean())
-		
-	# convert signals to time lagged state space
-	Px,Py_noisy=convertToTimeLaggedSpace([x,y_noisy], E, tau)
-		
-	# prep for binning data
-	bin_centers=_np.linspace(Px.min(),Px.max(),m+2)[1:-1]
-	# bin_edges=_np.linspace(Px.min(),Px.max(),m)
-	temp1,temp2=_np.meshgrid(bin_centers,bin_centers,indexing='ij')
-	Mpoints=_np.concatenate((temp1.reshape(-1,1),temp2.reshape(-1,1)),axis=1)
-	_,indices,_=findNearestNeighbors(Mpoints,Px.values,1,plot=False)
-	indices=indices.reshape(-1)
+# 	dt=float((x.t[1:].values-x.t[:-1].values).mean())
+# 		
+# 	# convert signals to time lagged state space
+# 	Px,Py_noisy=convertToTimeLaggedSpace([x,y_noisy], E, tau)
+# 		
+# 	# create grid
+# 	bin_centers=_np.linspace(Px.min(),Px.max(),m+2)[1:-1]
+# 	temp1,temp2=_np.meshgrid(bin_centers,bin_centers,indexing='ij')
+# 	Mpoints=_np.concatenate((temp1.reshape(-1,1),temp2.reshape(-1,1)),axis=1) # list of each mxm grid point
+# 	
+# 	# for each value of x(t), find where it fits into the grid
+# 	_,indices,_=findNearestNeighbors(Mpoints,Px.values,1,plot=False)
+# 	indices=indices.reshape(-1)
 
-	if False:
-		unique_indices,unique_indices_inverse=_np.unique(indices,return_inverse=True)
-		fig,ax=_plt.subplots(2)
-		x.plot(ax=ax[0])
-		ax[1].plot(unique_indices_inverse)
-	
-	# bin data
-	M1=_xr.DataArray(_np.zeros((m,m)),coords=[bin_centers,bin_centers],
-					dims={'p1':bin_centers,'p2':bin_centers})
-	Mcount=M1.copy()
-	def func(j,i):
-# 		print(i,j)
-		M1.loc[Mpoints[j,0],Mpoints[j,1]]=M1.sel(p1=Mpoints[j,0],p2=Mpoints[j,1]).data+Py_noisy.sel(t=Px.t[i].data,delay=0).data
-	vfunc = _np.vectorize(func)
-	vfunc(indices,_np.arange(0,indices.shape[0]))
-	
-	# TODO figure out how to do this function without this for-loop
-	for i,ii in enumerate(indices):
-		t=Px.t[i].data
-		# print(i,ii,t)
-# 		M.loc[Mpoints[ii,0],Mpoints[ii,1]]=M.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+vals[i,0,0]
-		M1.loc[Mpoints[ii,0],Mpoints[ii,1]]=M1.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+Py_noisy.sel(t=t,delay=0).data
-		Mcount.loc[Mpoints[ii,0],Mpoints[ii,1]]=Mcount.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+1
-		
-	# average each bin
-	M=M1/Mcount
-	
-	# reconstruct signal
-	y_filt=_np.zeros(Py_noisy.shape[0])
-	# TODO figure out how to do this function without this for-loop
-	for i,ii in enumerate(indices):
-		t=Px.t[i].data
-		#print(i,ii,t)
-		y_filt[t-1]=M.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1])
-		
-	y_filt=_xr.DataArray(y_filt,
-					   dims=['t'],
-						 coords={'t':Py_noisy.t*dt+float(x.t[0])})
-	
-	if plot==True:
-		fig,ax=_plt.subplots()
-		y_noisy.plot(ax=ax,label='y+noise',linewidth=2)
-		if type(y_orig)!=type(None):
-			y_orig.plot(ax=ax, label='y (original)',linewidth=2)
-		y_filt.plot(ax=ax,label='y recon.')
-		ax.legend()
-		x_orig=convertToTimeLaggedSpace(x,E=E,tau=tau).sel(delay=0)
-		rho=calcCorrelationCoefficient(y_orig[1:], y_filt)
-		ax.set_title('rho=%.3f'%rho)
-		
-	return y_filt
-	
+# 	if False:
+# 		unique_indices,unique_indices_inverse=_np.unique(indices,return_inverse=True)
+# 		fig,ax=_plt.subplots(2)
+# 		x.plot(ax=ax[0])
+# 		ax[1].plot(unique_indices_inverse)
+# 	
+# 	# bin data
+# 	M1=_xr.DataArray(_np.zeros((m,m)),coords=[bin_centers,bin_centers],
+# 					dims={'p1':bin_centers,'p2':bin_centers})
+# 	Mcount=M1.copy()
+# 	# TODO figure out how to do this function without this for-loop
+# 	for i,ii in enumerate(indices):
+# 		t=Px.t[i].data
+# 		M1.loc[Mpoints[ii,0],Mpoints[ii,1]]=M1.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+Py_noisy.sel(t=t,delay=0).data
+# 		Mcount.loc[Mpoints[ii,0],Mpoints[ii,1]]=Mcount.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1]).data+1
+# 		
+# 		
+# 	# average each bin
+# 	M=M1/Mcount
+# 	
+# 	# reconstruct signal
+# 	y_filt=_np.zeros(Py_noisy.shape[0])
+# 	# TODO figure out how to do this function without this for-loop
+# 	for i,ii in enumerate(indices):
+# 		t=Px.t[i].data
+# 		#print(i,ii,t)
+# 		y_filt[t-1]=M.sel(p1=Mpoints[ii,0],p2=Mpoints[ii,1])
+# 		
+# 	y_filt=_xr.DataArray(y_filt,
+# 					   dims=['t'],
+# 						 coords={'t':Py_noisy.t*dt+float(x.t[0])})
+# 	
+# 	if plot==True:
+# 		fig,ax=_plt.subplots()
+# 		y_noisy.plot(ax=ax,label='y+noise',linewidth=2)
+# 		if type(y_orig)!=type(None):
+# 			y_orig.plot(ax=ax, label='y (original)',linewidth=2)
+# 			rho=calcCorrelationCoefficient(y_orig[1:], y_filt)
+# 			ax.set_title('rho=%.3f'%rho)
+# 		y_filt.plot(ax=ax,label='y recon.')
+# 		ax.legend()
+# 		x_orig=convertToTimeLaggedSpace(x,E=E,tau=tau).sel(delay=0)
+# 		
+# 	return y_filt
+# 	
+
+
+# def denoise_signal_experimental(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):	
+# 	"""
+# 	
+# 	Examples
+# 	--------
+# 	Example 1::
+# 		
+# 		import pandas as pd
+# 		import matplotlib.pyplot as plt; plt.close('all')
+# 		import numpy as np
+# 		import xarray as xr
+# 		
+# 		N=100000
+# 		dt=0.05
+# 		ds=lorentzAttractor(N=N,dt=dt,removeMean=True,normalize=True, removeFirstNPoints=1000)
+# 		x=ds.x
+# 		y=ds.z
+# 		
+# 		y_noisy=y.copy()+np.random.normal(0,1.0,size=y.shape)
+# 		
+# 		if False:
+# 			fig,ax=_plt.subplots()
+# 			y_noisy.plot(ax=ax)
+# 			y.plot(ax=ax)
+# 			
+# 		E=2
+# 		tau=1
+# 		m=100	
+# 		y_orig=y
+# 		denoise_signal_experimental(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
+# 		
+# 	"""
+# 	
+# 	import scipy as sp
+# 	print('under development. #TODO cleanup code.  #TODO optimize code.  #TODO generalize code for general inputs.  #TODO breakup code into useful subfunctions')
+# 	
+# 	# check input type
+# 	x=check_dataArray(x)
+# 	y_noisy=check_dataArray(y_noisy)
+# 		
+# 	# convert signals to time lagged state space
+# 	Px,Py_noisy=convertToTimeLaggedSpace([x,y_noisy], E, tau)
+# 		
+# 	# create grid
+# 	temp=_np.linspace(Px.min(),Px.max(),m+2)
+# 	temp=_np.linspace(Px.min()-(temp[1]-temp[0]),Px.max()+(temp[1]-temp[0]),m+2)
+# 	bin_edges=(temp[:-1]+temp[1:])/2
+# 	bin_centers=temp[1:-1]
+
+# 	# added values to E-dimensioned matrix, M
+# 	bins=[]
+# 	sample=[]
+# 	dims=[]
+# 	coords=[]
+# 	for i in range(E):
+# 		bins.append(bin_edges)
+# 		sample.append(Px[:,i].values)
+# 		dims.append('x%d'%(i+1))
+# 		coords.append(bin_centers)
+# 	soln, bin_edges_1, indices=sp.stats.binned_statistic_dd( sample, 
+# 															 values=Py_noisy[:,0].values, 
+# 															 statistic='mean',
+# 															 bins=bins, 
+# 															 expand_binnumbers=True)
+# 	M= _xr.DataArray( soln,
+# 						dims=dims,
+# 						coords=coords)
+# 	
+# 	# filter noisy signal
+# 	ind=[]
+# 	for i in range(E):
+# 		ind.append(indices[i,:]-1)
+# 	y_filt=_xr.DataArray(M.data[ind],  
+# 					 dims='t',
+# 					 coords= [y_noisy.t.data[:-(E-1)]])
+# 	
+# 	if plot==True:
+# 		fig,ax=_plt.subplots()
+# 		y_noisy.plot(ax=ax,label='y+noise')
+# 		y_orig.plot(ax=ax,label='y original')
+# 		y_filt.plot(ax=ax,label='y filtered')
+# 		ax.legend()
+# 		
+# 	
 
 
 def eccm(s1,s2,E,tau,lagRange=_np.arange(-8,6.1,2),plot=False,s1Name='s1',s2Name='s2',title=''):
