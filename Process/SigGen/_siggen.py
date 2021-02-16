@@ -177,6 +177,39 @@ def tentMap(N=1000,plot=False,ICs={'x0':_np.sqrt(2)/2.0}):
 	return xDelta
 
 
+def saved_lorentzAttractor(	N=2000,
+							dt=0.05,
+							ICs={	'x0':-9.38131377,
+								    'y0':-8.42655716 , 
+									'z0':29.30738524},
+							plot=False,
+							removeMean=False,
+							normalize=False,
+							removeFirstNPoints=500,
+							args={	'sigma':10.0,
+									'b':8.0/3.0,
+									'r':28.0}):
+	
+	filename='lorentz_attractor_N_%d_dt_%.6f_x0_%.3f_y0_%.3f_z0_%.3f.NetCDF'%(N,dt,ICs['x0'],ICs['y0'],ICs['z0'])
+	
+	try:
+		ds=_xr.open_dataset(filename)
+		print('loaded previously generated dataset')
+	except:
+		print('creating dataset')
+		ds=lorentzAttractor(N=N,dt=dt,ICs=ICs,plot=plot,removeMean=removeMean,
+							normalize=normalize,
+							removeFirstNPoints=removeFirstNPoints,
+							args=args)
+		
+		ds.to_netcdf(filename)
+		ds=_xr.open_dataset(filename)
+	
+	return ds
+		
+		
+	
+
 def lorentzAttractor(	N=2000,
 						dt=0.05,
 						ICs={	'x0':-9.38131377,
@@ -241,20 +274,20 @@ def lorentzAttractor(	N=2000,
 						dims=['t'],
 						coords={'t':t_eval},
 						attrs={'units':"au",
-								 'standard_name': 'Amplitude'})
-	x.t.attrs={'units':'au'}
+								 'long_name': 'Amplitude'})
+	x.t.attrs={'units':'au','long_name':'Time'}
 	y=_xr.DataArray(	y,
 						dims=['t'],
 						coords={'t':t_eval},
 						attrs={'units':"au",
-								 'standard_name': 'Amplitude'})
-	y.t.attrs={'units':'au'}
+								 'long_name': 'Amplitude'})
+	y.t.attrs={'units':'au','long_name':'Time'}
 	z=_xr.DataArray(	z,
 						dims=['t'],
 						coords={'t':t_eval},
 						attrs={'units':"au",
-								 'standard_name': 'Amplitude'})
-	z.t.attrs={'units':'au'}
+								 'long_name': 'Amplitude'})
+	z.t.attrs={'units':'au','long_name':'Time'}
 	
 	if removeFirstNPoints>0:
 		x=x[removeFirstNPoints:]
