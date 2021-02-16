@@ -135,4 +135,4 @@ _settings.py
 *.gif
 *.csv
 *.pkl
-
+*.NetCDF
