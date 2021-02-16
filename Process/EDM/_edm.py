@@ -29,7 +29,7 @@ from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot, finali
 # various generated signals to test code in this library
 
 # load my external signal generation functions
-from johnspythonlibrary2.Process.SigGen import lorentzAttractor, tentMap#, coupledHarmonicOscillator, predatorPrey, 
+from johnspythonlibrary2.Process.SigGen import lorentzAttractor, tentMap, saved_lorentzAttractor#, coupledHarmonicOscillator, predatorPrey, 
 
 
 def twoSpeciesWithBidirectionalCausality(N,tau_d=0,IC=[0.2,0.4],plot=False,params={'Ax':3.78,'Ay':3.77,'Bxy':0.07,'Byx':0.08}):
@@ -344,9 +344,12 @@ def calcCorrelationCoefficient(data,fit,plot=False):
 		y=data.data
 		f=fit.data
 		
-		SSxy=((f-f.mean())*(y-y.mean())).sum()
-		SSxx=((f-f.mean())**2).sum()
-		SSyy=((y-y.mean())**2).sum()
+# 		SSxy=((f-f.mean())*(y-y.mean())).sum()
+# 		SSxx=((f-f.mean())**2).sum()
+# 		SSyy=((y-y.mean())**2).sum()
+		SSxy=_np.nansum( (f-_np.nanmean(f))*(y-_np.nanmean(y)) )
+		SSxx=_np.nansum((f-_np.nanmean(f))**2)
+		SSyy=_np.nansum((y-_np.nanmean(y))**2)
 		if _np.sqrt(SSxx*SSyy)!=0:
 			rho=SSxy/_np.sqrt(SSxx*SSyy) # r-squared value  #TODO this line occassionally returns a RuntimeWarning.  Fix.  "RuntimeWarning: invalid value encountered in double_scalars"
 			# rho[i]=SSxy**2/(SSxx*SSyy) # r-squared value
@@ -918,6 +921,45 @@ def splitData(s,split='half',reset_indices=True):
 
 
 
+def bin_embedded_data(Px, Py_noisy, E, m, verbose=False):
+	
+	
+	def create_bins(Px, m):
+		temp=_np.linspace(Px.min(),Px.max(),m+2)
+		temp=_np.linspace(Px.min()-(temp[1]-temp[0]),Px.max()+(temp[1]-temp[0]),m+2)
+		bin_edges=(temp[:-1]+temp[1:])/2
+		bin_centers=temp[1:-1]
+		
+		return bin_edges, bin_centers
+	
+	# create grid for matrix, M
+	bin_edges,bin_centers = create_bins(Px, m)
+
+
+	bins=[]
+	sample=[]
+	dims=[]
+	coords=[]
+	for i in range(E):
+		bins.append(bin_edges)
+		sample.append(Px[:,i].values)
+		dims.append('x%d'%(i+1))
+		coords.append(bin_centers)
+	M, _, indices=_binned_statistic_dd( sample,   ## binned_statistic_dd doesn't seem to work with E>=5
+													 values=Py_noisy[:,-1].values, 
+# 													 values=Py_noisy[:,0].values, 
+													 statistic='mean',
+													 bins=bins, 
+													 expand_binnumbers=True)
+	M=_xr.DataArray(M,
+					dims=dims,
+					coords=coords)
+	
+	if verbose==True:
+		 print('M is %.1f%% nan'%(_np.isnan(M).data.sum()/M.shape[0]**E * 100) )
+	
+	return M, indices
+	
 
 
 ###################################################################################
@@ -950,10 +992,21 @@ def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):
 			y_noisy.plot(ax=ax)
 			y.plot(ax=ax)
 			
-		E=3
-		tau=2
-		m=100
 		y_orig=y
+			
+		E=2
+		tau=1
+		m=100
+		denoise_signal(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
+		
+		E=4
+		tau=3
+		m=40
+		denoise_signal(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
+		
+		E=6
+		tau=4
+		m=20
 		denoise_signal(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
 		
 	"""
@@ -965,44 +1018,28 @@ def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):
 	# convert signals to time lagged state space
 	Px,Py_noisy=convertToTimeLaggedSpace([x,y_noisy], E, tau)
 		
-	# create grid for matrix, M
-	temp=_np.linspace(Px.min(),Px.max(),m+2)
-	temp=_np.linspace(Px.min()-(temp[1]-temp[0]),Px.max()+(temp[1]-temp[0]),m+2)
-	bin_edges=(temp[:-1]+temp[1:])/2
-	#bin_centers=temp[1:-1]
-
-	# add values to E-dimensioned matrix, M
-	bins=[]
-	sample=[]
-	#dims=[]
-	#coords=[]
-	for i in range(E):
-		bins.append(bin_edges)
-		sample.append(Px[:,i].values)
-		#dims.append('x%d'%(i+1))
-		#coords.append(bin_centers)
-	M, _, indices=_binned_statistic_dd( sample,   ## binned_statistic_dd doesn't seem to work with E>=5
-													 values=Py_noisy[:,0].values, 
-													 statistic='mean',
-													 bins=bins, 
-													 expand_binnumbers=True)
-	
+	# add values to E-dimensioned matrix, M		
+	M, indices = bin_embedded_data(Px, Py_noisy, E, m)
+		
 	# use M to filter noisy signal
 	ind=[]
 	for i in range(E):
 		ind.append(indices[i,:]-1)
-	y_filt=_xr.DataArray(M[ind],  
-					 dims='t',
-					 coords= [y_noisy.t.data[:-(E-1)*tau]])
+	y_filt=_xr.DataArray(	M.data[ind],  
+							dims='t',
+							coords= [y_noisy.t.data[(E-1)*tau:]],
+# 							coords= [y_noisy.t.data[:-(E-1)*tau]],
+							)
 	
 	if plot==True:
-		rho=calcCorrelationCoefficient(y_orig[:-(E-1)*tau], y_filt)
+		rho=calcCorrelationCoefficient(y_orig[(E-1)*tau:], y_filt)
+# 		rho=calcCorrelationCoefficient(y_orig[:-(E-1)*tau], y_filt)
 		fig,ax=_plt.subplots()
 		y_noisy.plot(ax=ax,label='y+noise')
 		y_orig.plot(ax=ax,label='y original')
 		y_filt.plot(ax=ax,label='y filtered')
 		ax.legend()
-		ax.set_title('rho = %.3f'%rho)
+		ax.set_title('rho = %.3f, E=%d, tau=%d, m=%d'%(rho,E,tau,m))
 		
 	return y_filt
 
@@ -1604,6 +1641,158 @@ def determineDimensionality(s,T,tau=1,Elist=_np.arange(1,10+1),method="simplex",
 
 
 #%% Under development
+
+
+def upsample(x,y_undersampled,sampling_factor, m=100,E=2,tau=1,plot=True,y_orig=None):
+	
+	"""
+	
+	Examples
+	--------
+	Example 1::
+		
+		import pandas as pd
+		import matplotlib.pyplot as plt; plt.close('all')
+		import numpy as np
+		import xarray as xr
+		
+		N=1000000
+		dt=0.05
+# 		ds=lorentzAttractor(N=N,dt=dt,removeMean=True,normalize=True, removeFirstNPoints=1000)
+		ds=saved_lorentzAttractor(N=N,dt=dt,removeMean=True,normalize=True, removeFirstNPoints=1000)
+		x=ds.x
+		y=ds.z
+		
+		y_orig=y
+		
+		E=2
+		tau=1
+		m=50
+		sampling_factor=10
+		y_undersampled=(y.copy()+np.random.normal(0,0.1,size=y.shape))[::sampling_factor]
+		y_upsampled=upsample(x,y_undersampled,sampling_factor=sampling_factor,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
+		
+		
+		if False:
+			tau_range=np.arange(1,6)
+			m_range=np.array([20,30,50,70,100,150,200,300,500])
+			sampling_factor_range=np.arange(2,6)
+			
+			rho_array=np.zeros((len(tau_range),len(m_range),len(sampling_factor_range)))
+			
+			for i,tau in enumerate(tau_range):
+				for j,m in enumerate(m_range):
+					for k,sampling_factor in enumerate(sampling_factor_range):
+						print(tau, m, sampling_factor)
+						
+						y_undersampled=(y.copy()+np.random.normal(0,0.0,size=y.shape))[::sampling_factor]
+						
+						y_upsampled=upsample(x,y_undersampled,sampling_factor=sampling_factor,m=m,E=E,tau=tau,plot=False,y_orig=y_orig)
+						rho=calcCorrelationCoefficient(y_orig[(E-1)*tau*sampling_factor:], y_upsampled)
+						rho_array[i,j,k]=rho
+						print(rho)
+			result=xr.DataArray(rho_array,
+								  dims=['tau','m','s'],
+								  coords=[tau_range,m_range,sampling_factor_range])
+		
+	"""
+	
+	#TODO this function is hardcoded for E=2.  Fix
+	
+	# check input type
+	x=check_dataArray(x)
+	y_undersampled=check_dataArray(y_undersampled)
+	
+	# undersample x data
+	x_undersampled=x.loc[y_undersampled.t.data]
+	
+	if False:
+		fig,ax=_plt.subplots()
+		x.plot(ax=ax, label='x')
+		x_undersampled.plot(ax=ax, label='x undersampled', marker='x', linestyle='')
+		
+	# convert signals to time lagged state space
+	Px=convertToTimeLaggedSpace(x, E, tau*sampling_factor)
+	Px_undersampled,Py_undersampled=convertToTimeLaggedSpace([x_undersampled,y_undersampled], E, tau)
+	Py_orig=convertToTimeLaggedSpace(y_orig, E, tau*sampling_factor)
+	
+	# add values to E-dimensioned matrix, M		
+	M, _ = bin_embedded_data(Px_undersampled, Py_undersampled, E, m, verbose=True)
+	M_full, _ = bin_embedded_data(Px, Py_orig, E, m, verbose=False)
+	
+	if True and E==2:
+		fig,ax=_plt.subplots(1,2)
+		M.plot(ax=ax[0])
+		M_full.plot(ax=ax[1])
+		ax[0].set_aspect('equal')
+		ax[1].set_aspect('equal')
+	
+	# find indices of Px in M
+# 	M_coordinates=_np.zeros( (M.shape[0]**E, E))
+	bin_edges=M.x1.data
+	temp1,temp2=_np.meshgrid(bin_edges,bin_edges)									#TODO this is hardcoded for E=2. fix
+	M_coordinates=_np.vstack((temp2.reshape(-1),temp1.reshape(-1))).transpose()		#TODO this is hardcoded for E=2. fix
+	_,indices,_=findNearestNeighbors(M_coordinates,Px.values,1,plot=False)
+	indices=indices.reshape(-1)
+	
+	M_linear=M.stack(x=('x1','x2')).data 											#TODO this is hardcoded for E=2. fix
+# 	M_linear=M.stack(x=('x2','x1')).data
+	
+	y_upsampled=_xr.DataArray( M_linear[indices].data,
+							  dims='t',
+							  coords=[x.t.data[(E-1)*tau*sampling_factor:]])
+	
+	# put "good" y data back into the y_upsampled
+	if True:
+		y_upsampled.loc[y_undersampled.t.data[(E-1)*tau:]] = y_undersampled.loc[y_undersampled.t.data[(E-1)*tau:]] 
+	
+	#TODO add multidimensional interpolation to fill empty cells:  https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.griddata.html
+
+	if True:
+		fig,ax=_plt.subplots()
+		rho=calcCorrelationCoefficient(y_orig[(E-1)*tau*sampling_factor:], y_upsampled)
+		if len(x)>10000:
+			y_orig[:10000].plot(ax=ax, label='y original')
+			y_undersampled[:10000//sampling_factor].plot(ax=ax, label='y undersampled', linestyle='',marker='.')
+			y_upsampled[:10000].plot(ax=ax, label='y upsampled')
+		else:
+			y_orig.plot(ax=ax, label='y original')
+			y_undersampled.plot(ax=ax, label='y undersampled', linestyle='',marker='x')
+			y_upsampled.plot(ax=ax, label='y upsampled')
+		ax.legend()
+		ax.set_title('rho = %.3f, E=%d, tau=%d, m=%d'%(rho,E,tau,m))
+	
+	
+	return y_upsampled
+	
+	
+# 	# use M to filter noisy signal
+# 	ind=[]
+# 	for i in range(E):
+# 		ind.append(indices[i,:]-1)
+# 	y_filt=_xr.DataArray(	M.data[ind],  
+# 							dims='t',
+# 							coords= [y_noisy.t.data[(E-1)*tau:]],
+# # 							coords= [y_noisy.t.data[:-(E-1)*tau]],
+# 							)
+# 	
+	
+	# use M to filter noisy signal
+# 	ind=[]
+# 	for i in range(E):
+# 		ind.append(indices[i,:]-1)
+# 	y_filt=_xr.DataArray(	M.data[ind],  
+# 							dims='t',
+# 							coords= [x.t.data[(E-1)*tau:]],
+# # 							coords= [y_noisy.t.data[:-(E-1)*tau]],
+# 							)
+	
+		
+	
+	# code snippet that uses Px on M to get Py_reconstructed
+	
+	
+	
 
 
 # def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):	
