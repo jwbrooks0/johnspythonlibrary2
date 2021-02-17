@@ -45,9 +45,14 @@ def polyFitData(da,
 	dim = da.dims[0]
 	coord = da.coords[dim].data
 	
-	coefs=_np.polyfit(	coord, 
-						da.data, 
-						deg=order)
+	try:
+		coefs=_np.polyfit(	coord, 
+							da.data, 
+							deg=order)
+	except _np.linalg.LinAlgError:
+		coefs=_np.polyfit(	coord, 
+							da.data, 
+							deg=order)
 	try:
 		ffit = _np.poly1d(	coefs)
 	except _np.linalg.LinAlgError:
