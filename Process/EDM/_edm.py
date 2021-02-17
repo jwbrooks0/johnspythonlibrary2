@@ -921,7 +921,7 @@ def splitData(s,split='half',reset_indices=True):
 
 
 
-def bin_embedded_data(Px, Py_noisy, E, m, verbose=False):
+def bin_embedded_data(Px, Py_noisy, E, m, verbose=False, plot=False):
 	
 	
 	def create_bins(Px, m):
@@ -953,10 +953,15 @@ def bin_embedded_data(Px, Py_noisy, E, m, verbose=False):
 													 expand_binnumbers=True)
 	M=_xr.DataArray(M,
 					dims=dims,
-					coords=coords)
+					coords=coords,
+					attrs={'long_name':'z'})
 	
 	if verbose==True:
 		 print('M is %.1f%% nan'%(_np.isnan(M).data.sum()/M.shape[0]**E * 100) )
+		 
+	if (plot==True or plot=='all') and E==2:
+		fig,ax=_plt.subplots()
+		M.plot(ax=ax)
 	
 	return M, indices
 	
@@ -995,9 +1000,9 @@ def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):
 		y_orig=y
 			
 		E=2
-		tau=1
-		m=100
-		denoise_signal(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
+		tau=3
+		m=40
+		denoise_signal(x,y_noisy,m=m,E=E,tau=tau,plot='all',y_orig=y_orig)
 		
 		E=4
 		tau=3
@@ -1006,8 +1011,8 @@ def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):
 		
 		E=6
 		tau=4
-		m=20
-		denoise_signal(x,y_noisy,m=m,E=E,tau=tau,plot=True,y_orig=y_orig)
+		m=8
+		denoise_signal(x,y_noisy,m=m,E=E,tau=tau,plot='all',y_orig=y_orig)
 		
 	"""
 	
@@ -1019,7 +1024,7 @@ def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):
 	Px,Py_noisy=convertToTimeLaggedSpace([x,y_noisy], E, tau)
 		
 	# add values to E-dimensioned matrix, M		
-	M, indices = bin_embedded_data(Px, Py_noisy, E, m)
+	M, indices = bin_embedded_data(Px, Py_noisy, E, m, plot=plot)
 		
 	# use M to filter noisy signal
 	ind=[]
@@ -1031,13 +1036,14 @@ def denoise_signal(x,y_noisy,m=100,E=2,tau=1,plot=True,y_orig=None):
 # 							coords= [y_noisy.t.data[:-(E-1)*tau]],
 							)
 	
-	if plot==True:
+	if plot==True or plot=='all':
+		lw=1.5
 		rho=calcCorrelationCoefficient(y_orig[(E-1)*tau:], y_filt)
 # 		rho=calcCorrelationCoefficient(y_orig[:-(E-1)*tau], y_filt)
 		fig,ax=_plt.subplots()
-		y_noisy.plot(ax=ax,label='y+noise')
-		y_orig.plot(ax=ax,label='y original')
-		y_filt.plot(ax=ax,label='y filtered')
+		y_noisy.plot(ax=ax,label='y+noise',linewidth=lw)
+		y_orig.plot(ax=ax,label='y original',linewidth=lw)
+		y_filt.plot(ax=ax,label='y filtered',linewidth=lw)
 		ax.legend()
 		ax.set_title('rho = %.3f, E=%d, tau=%d, m=%d'%(rho,E,tau,m))
 		
