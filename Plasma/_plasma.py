@@ -31,7 +31,7 @@ def debye_length(density, temperature_in_eV):
 	return _np.sqrt(ep_0 * temperature_in_eV / ( density * e) )
 
 
-def plasma_frequency_from_density(density, mass, plot = False):
+def plasma_frequency_from_density(density,  plot = False):
 	"""
 	
 	Example
@@ -39,9 +39,9 @@ def plasma_frequency_from_density(density, mass, plot = False):
 	Example 1::
 		
 		density = 10**_np.arange(13,19,0.01)
-		mass = m_e
-		plasma_frequency_from_density(density, mass, plot=True)
+		plasma_frequency_from_density(density, plot=True)
 	"""
+	mass = m_e
 	frequency = _xr.DataArray(_np.sqrt(density * e**2 / (mass * ep_0)) * 1/(2*pi),
 							  dims='n',
 							  coords=[density],
