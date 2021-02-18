@@ -1097,7 +1097,7 @@ def forecast(s,E,T,tau=1,knn=None,plot=False,weightingMethod=None):
 	# initialize parameters
 	N=s.shape[0]
 	
-	if knn == None or knn=='simplex':
+	if knn == None or knn=='simplex' or knn==0:
 		knn=E+1
 	elif knn == 'smap':
 		knn=s.shape[0]//2-E+1
@@ -1312,7 +1312,7 @@ def SMIReconstruction(	da_s1A,
 		pass
 		
 	# define number of nearest neighbors if not previously defined
-	if type(knn)==type(None):
+	if type(knn)==type(None) or knn==0:
 		knn=E+1	# simplex method
 		
 	if printStepInfo==True:
@@ -1448,8 +1448,9 @@ def ccm(	s1A,
 	s2B=check_dataArray(s2B,resetTimeIndex=False)
 	
 	# define number of nearest neighbors if not previously defined
-	if type(knn)==type(None):
+	if type(knn)==type(None) or knn==0:
 		knn=E+1	# simplex method
+	
 		
 	# remove offset
 	if removeOffset==True:
