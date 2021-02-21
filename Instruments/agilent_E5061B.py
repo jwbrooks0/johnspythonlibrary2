@@ -60,6 +60,16 @@ class agilent_E5061B:
 		#self.vna_socket.send(b":SYST:PRES\n")
 		print('successfully connected at %s' % str(self.vna_address))
 		time.sleep(self.SLEEP_TIME)
+		
+	def set_single_freq(self, freq):
+		"""set the span of the VNA"""
+		
+		self.vna_socket.send(b":SENS1:FREQ:CENT " + str(freq).encode()+b'\n')
+		self.vna_socket.send(b":SENS1:FREQ:SPAN " + str(0).encode()+b'\n')
+		self.vna_socket.send(b":SENS1:SWE:TIME:AUTO OFF\n" );
+		self.vna_socket.send(b":SENS1:SWE:TIME %.3f\n" % 1);
+		
+		time.sleep(self.SLEEP_TIME)
 
 	def get_answer(self):
 		"""
@@ -139,7 +149,7 @@ class agilent_E5061B:
 		self.vna_socket.send(b':SENS1:AVER:COUNT %d\n' % avg_count)
 		self.vna_socket.send(b':SENS1:BAND:RES %d\n' % if_bandwidth)
 
-	def set_sweep(self, f_start=10e6, f_stop=1e9, n_points=1601, power=0):
+	def set_sweep(self, f_start=1e6, f_stop=1e9, n_points=1601, power=0):
 		self.vna_socket.send(b':SENS1:FREQ:STAR %d\n' % f_start)
 		self.vna_socket.send(b':SENS1:FREQ:STOP %d\n' % f_stop)
 		self.vna_socket.send(b':SENS1:SWE:POIN %d\n' % n_points)
