@@ -317,8 +317,8 @@ def fft(	da,
 				
 	"""
 	import xarray as xr
-# 	from numpy.fft import fft as fft_np
-	from scipy.fft import fft as fft_np
+	from numpy.fft import fft as fft_np
+# 	from scipy.fft import fft as fft_np
 	
 	# check input
 	if type(da) not in [xr.core.dataarray.DataArray,xr.core.dataset.Dataset]:
@@ -1272,7 +1272,8 @@ def stftSingleFrequency_df(df,
 		temp=_pd.DataFrame(df.iloc[steps[i]:steps[i]+N].values,
 					index=dt*(n-n.mean()),
 					columns=df.columns)
-		dfOut=fftSingleFreq_df(temp*dfHann.values,freq,plot=False)
+		temp=_xr.DataArray(temp.values, dims='t',coords=[steps+int(N/2)])
+		dfOut=fftSingleFreq(temp*dfHann.values,freq,plot=False)
 			
 		dfComplex.iloc[i,:]=dfOut.loc['fft']
 		dfAmp.iloc[i,:]=dfOut.loc['amp']
@@ -1287,6 +1288,123 @@ def stftSingleFrequency_df(df,
 			ax2.plot(dfPhase[key],'.')
 		
 	return dfComplex,dfAmp,dfPhase
+
+
+
+# retire this function?
+def stftSingleFrequency(da,
+						   freq,
+						   windowSizeInWavelengths=2,
+						   plot=False,
+						   verbose=True,):
+	"""
+	Short-time Fourier transform of a single frequency.  Uses a Hann window
+	
+	Parameters
+	----------
+	da : xarray dataarray
+		data
+	f : float
+		frequency (in Hz) to do the analysis
+	windowSizeInWavelengths : float
+		width of the moving stft window, units in wavelengths at frequency, freq
+	plot : bool
+		plot results
+	verbose : bool
+		print results and related frequency information
+		
+	Returns
+	-------
+	dfComplex : pandas.core.frame.DataFrame
+		STFT complex results		
+	dfAmp : 
+		STFT amplitude	
+	dfPhase :
+		STFT phase	
+		
+	References
+	----------
+	https://en.wikipedia.org/wiki/Short-time_Fourier_transform
+	https://en.wikipedia.org/wiki/Window_function#Hann_and_Hamming_windows
+	
+	Example
+	-------
+	::
+		
+		import numpy as np
+		import pandas as pd
+		import xarray as xr
+		
+		dt=2e-6
+		t=np.arange(0,10e-3,dt)
+		f=1.5e3
+		y=np.sin(2*np.pi*t*f+0.25*np.pi)
+		
+		N=t.shape[0]
+		n=np.arange(0,N)
+		hannWindow=np.sin(np.pi*n/(N-1.))**2
+		hannWindow/=np.sum(hannWindow)*1.0/N  	# normalize
+		
+		da=xr.DataArray(y, dims='t', coords=[t])
+		
+		da_complex=stftSingleFrequency(da,f,plot=True)
+	"""
+	
+	import numpy as np
+	
+	# initial calculations
+	dt=da.t[1].data-da.t[0].data
+	fs=1./dt
+	N=np.ceil(windowSizeInWavelengths*fs/freq).astype(int)
+	dN=1
+	M=len(da)
+	
+	# calculate hann window
+	n=np.arange(0,N)
+	hannWindow=np.sin(np.pi*n/(N-1.))**2
+	hannWindow/=np.sum(hannWindow)*1.0/N  	# normalize
+# 	dfHann=_pd.DataFrame(hannWindow.transpose()
+			
+	# calculate steps
+	steps=np.arange(0,M-N,dN)
+		
+	if verbose:
+		# time window
+		timeWindow=dt*N 
+		print("Time window: %.3e s"%timeWindow)
+	
+		# lowest frequency to get a full wavelength
+		fLow=1./(N*dt)
+		print("Lowest freq. to get 1 full wavelength, %.2f" % fLow )
+	
+		# highest frequency
+		nyF=fs/2.
+		print("Nyquist freq., %.2f" % nyF)
+	
+	# initialize arrays
+# 	dfComplex=[]
+	step_time=da.t.data[steps+N//2]
+	da_complex=_xr.DataArray(np.zeros(len(step_time),dtype=complex), dims='t', coords=[step_time])
+	
+	# perform analysis
+	#TODO optomize this section of code.  should be a convolution function somewhere
+	for i in range(0,len(steps)):
+		temp=da[steps[i]:steps[i]+N].data
+		temp_time=da[steps[i]:steps[i]+N].t.data
+		dfOut=fftSingleFreq( _xr.DataArray(temp*hannWindow, dims='t', coords=[temp_time]),freq,plot=False)
+			
+		da_complex[i]=dfOut
+# 		dfComplex.append(dfOut)
+	
+# 	da_complex = _xr.DataArray( np.array(dfComplex), dims='t', coords=[da.t.data[steps+N//2]])
+		
+	if plot==True:
+		fig,(ax1,ax2)=_plt.subplots(2,sharex=True)
+		da_complex.real.plot(ax=ax1)
+		da_complex.imag.plot(ax=ax2, linestyle='', marker='.')
+	
+		
+	return da_complex
 
 
 
