@@ -624,8 +624,16 @@ def fftSingleFreq(da,f,plot=False):
 # 	for i,(key,val) in enumerate(df.iteritems()):
 #		print(key)
 # 	results=_xr.DataArray(	dims=['f'],)
-	fft=_np.nansum(da.data*_np.exp(-1j*2*_np.pi*f*da.t.data))*2./N
-	return fft
+	result=_np.nansum(da.data*_np.exp(-1j*2*_np.pi*f*da.t.data))*2./N
+	
+	if plot==True:
+		
+		da_fft=fft(da,plot=True, realAmplitudeUnits=True)
+		fig=_plt.gcf()
+		ax=_plt.gca()
+		ax.set_title( "fft(y) at f = %.3f is %s"%(f, str(result)) )
+		
+	return result
 # 		dfResults.at['fft',key]=fft
 # 		amp=_np.abs(fft)
 # 		dfResults.at['amp',key]=amp
