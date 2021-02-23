@@ -241,6 +241,7 @@ def fft(	da,
 			zeroTheZeroFrequency=False,
 			realAmplitudeUnits=False,
 			fft_scale='log'):
+	#TODO update this to allow for theta units (not just time)
 	"""
 	Simple wrapper for fft from scipy
 	
