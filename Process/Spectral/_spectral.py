@@ -232,6 +232,145 @@ def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
 
 
 	
+# def fft(	da,
+# 			plot=False,
+# 			trimNegFreqs=False,
+# 			normalizeAmplitude=False,
+# 			sortFreqIndex=False,
+# 			returnAbs=False,
+# 			zeroTheZeroFrequency=False,
+# 			realAmplitudeUnits=False,
+# 			fft_scale='log'):
+# 	#TODO update this to allow for theta units (not just time)
+# 	"""
+# 	Simple wrapper for fft from scipy
+# 	
+# 	Parameters
+# 	----------
+# 	da : xarray.DataArray or xarray.Dataset
+# 		dataarray of time dependent data
+# 		coord1 = time or t (units in seconds)
+# 	plot : bool
+# 		(optional) Plot results
+# 	trimNegFreqs : bool
+# 		(optional) True - only returns positive frequencies
+# 	normalizeAmplitude : bool
+# 		(optional) True - normalizes the fft (output) amplitudes to match the time series (input) amplitudes
+# 		
+# 	Returns
+# 	-------
+# 	da_fft : xarray.DataArray
+# 		complex FFT of da
+# 	
+# 	References
+# 	-----------
+# 	https://stackoverflow.com/questions/25735153/plotting-a-fast-fourier-transform-in-python
+# 	
+# 	Examples
+# 	--------
+# 	Example 1::
+# 		
+# 		import numpy as np
+# 		import xarray as xr
+# 		
+# 		dt=2e-6
+# 		f=1e3
+# 		t=np.arange(0,10e-3,dt)
+# 		y=np.sin(2*np.pi*t*f)+np.random.normal(0,1,t.shape)
+# 		da=xr.DataArray( 	y,
+# 							dims=['t'],
+# 							coords={'t':t})
+# 		fft_result=fft(da,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
+# 		
+# 		
+# 	Example 2::
+# 		
+# 		import numpy as np
+# 		import xarray as xr
+# 		
+# 		dt=2e-6
+# 		f1=1e3
+# 		f2=1.3e4
+# 		f3=3.3e4
+# 		t=np.arange(0,10e-3,dt)
+# 		y1=np.sin(2*np.pi*t*f1)+np.random.normal(0,1,t.shape)
+# 		y2=np.sin(2*np.pi*t*f2+np.pi/2.0)+np.random.normal(0,1,t.shape)
+# 		y3=np.sin(2*np.pi*t*f3+np.pi/2.0)+np.random.normal(0,1,t.shape)
+# 		da1=xr.DataArray( 	y1,
+# 							dims=['t'],
+# 							coords={'t':t},
+# 							name='y1')
+# 		da2=xr.DataArray( 	y2,
+# 							dims=['t'],
+# 							coords={'t':t},
+# 							name='y2')
+# 		da3=xr.DataArray( 	y3,
+# 							dims=['t'],
+# 							coords={'t':t},
+# 							name='y3')
+# 		ds=	xr.Dataset({'da1':da1,
+# 			  'da2':da2,
+# 			  'da3':da3})
+# 		fft_result=fft(	ds,
+# 						plot=True,
+# 						trimNegFreqs=True,
+# 						normalizeAmplitude=False)
+# 				
+# 	"""
+# 	import xarray as xr
+# 	from numpy.fft import fft as fft_np
+# # 	from scipy.fft import fft as fft_np
+# 	
+# 	# check input
+# 	if type(da) not in [xr.core.dataarray.DataArray,xr.core.dataset.Dataset]:
+# 		raise Exception('Input data not formatted correctly')
+# 	if type(da) in [xr.core.dataarray.Dataset]:
+# 		return da.apply(fft,
+# 						plot=plot,
+# 						trimNegFreqs=trimNegFreqs,
+# 						normalizeAmplitude=normalizeAmplitude,
+# 						sortFreqIndex=sortFreqIndex,
+# 						realAmplitudeUnits=realAmplitudeUnits,
+# 						zeroTheZeroFrequency=zeroTheZeroFrequency)
+
+# 	try: 
+# 		time=_np.array(da.t)
+# 	except:
+# 		raise Exception('Time dimension needs to be labeled t')
+# 	
+# 	# do fft
+# 	dt=time[1]-time[0]
+# 	freq = _fftpack.fftfreq(da.t.shape[0],d=dt)
+# 	fft_results=xr.DataArray(	fft_np(da.data),
+# 								dims=['f'],
+# 								coords={'f':freq})
+# 	fft_results.attrs["units"] = "au"
+# 	fft_results.f.attrs["units"] = "Hz"
+# 	fft_results.f.attrs["long_name"] = 'Frequency'
+# 	fft_results.attrs["long_name"] = 'FFT amplitude'
+# 	
+# 	# options
+# 	if realAmplitudeUnits==True:
+# 		N=da.t.shape[0]
+# 		fft_results*=2.0/N 
+# 	if trimNegFreqs==True:
+# 		fft_results=fft_results.where(fft_results.f>=0).dropna(dim='f')
+# 	if sortFreqIndex == True:
+# 		fft_results=fft_results.sortby('f')
+# 	if returnAbs == True:
+# 		fft_results=_np.abs(fft_results)
+# 	if zeroTheZeroFrequency == True:
+# 		fft_results.loc[0] = 0	
+# 	elif normalizeAmplitude==True:
+# 		fft_results/=fft_results.sum()
+# 		
+# 	# optional plot of results
+# 	if plot==True:
+# 		_fftPlot(fft_results,kwargs={'s':da},fft_scale=fft_scale)
+# 		
+# 	return fft_results
+
+
 def fft(	da,
 			plot=False,
 			trimNegFreqs=False,
@@ -280,7 +419,7 @@ def fft(	da,
 		da=xr.DataArray( 	y,
 							dims=['t'],
 							coords={'t':t})
-		fft_result=fft(da,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
+		fft_result=fft_v2(da,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
 		
 		
 	Example 2::
@@ -333,14 +472,16 @@ def fft(	da,
 						realAmplitudeUnits=realAmplitudeUnits,
 						zeroTheZeroFrequency=zeroTheZeroFrequency)
 
-	try: 
+	if 't' in da.dims: 
 		time=_np.array(da.t)
-	except:
+	elif 'theta' in da.dims:
+		time=_np.array(da.theta)
+	else:
 		raise Exception('Time dimension needs to be labeled t')
 	
 	# do fft
 	dt=time[1]-time[0]
-	freq = _fftpack.fftfreq(da.t.shape[0],d=dt)
+	freq = _fftpack.fftfreq(len(time),d=dt)
 	fft_results=xr.DataArray(	fft_np(da.data),
 								dims=['f'],
 								coords={'f':freq})
@@ -364,9 +505,16 @@ def fft(	da,
 	elif normalizeAmplitude==True:
 		fft_results/=fft_results.sum()
 		
+	
+	if 'theta' in da.dims:
+		fft_results=fft_results.rename({'f':'m'})
+		fft_results.m.attrs["units"] = ""
+		fft_results.m.attrs["long_name"] = 'Mode number'
+		
+		
 	# optional plot of results
 	if plot==True:
-		_fftPlot(fft_results,kwargs={'s':da},fft_scale=fft_scale)
+		_fftPlot(da, fft_results,fft_scale=fft_scale)
 		
 	return fft_results
 
@@ -555,29 +703,26 @@ def fft_average(	da,
 	
 	
 	
-def _fftPlot(da,kwargs={'s':None},fft_scale='log'):
+def _fftPlot(da_orig, da_fft,fft_scale='log'):
 
-	da_temp=_np.abs(da.copy()).sortby('f')
-	f,(ax1,ax2)=_plt.subplots(nrows=2)
-	
-	try:
-		s=kwargs['s']
-		s.plot(ax=ax1)
-	except:
-		try:		
-			s=kwargs['s']
-			s[da.name].plot(ax=ax1)
-		except:
-			pass
+	if 'f' in da_fft.dims:
+		da_temp=_np.abs(da_fft.copy()).sortby('f')
+	else:
+		da_temp=_np.abs(da_fft.copy()).sortby('m')
+		
+	fig,(ax1,ax2)=_plt.subplots(nrows=2)
+	da_orig.plot(ax=ax1)
 	
 	da_temp.plot(ax=ax2)
 	ax1.set_ylabel('Orig. signal')
-	ax1.set_xlabel('Time')
+# 	ax1.set_xlabel('Time')
 	ax2.set_yscale(fft_scale)
 	ax1.set_title(da_temp.name)
  		# ax2.set_xscale('log')
 	ax2.set_ylabel('FFT Amplitude')
-	ax2.set_xlabel('Frequency')
+# 	ax2.set_xlabel('Frequency')
+	
+	return fig,(ax1,ax2)
 
 
 def fftSingleFreq(da,f,plot=False):
