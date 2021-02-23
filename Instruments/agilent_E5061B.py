@@ -63,7 +63,8 @@ class agilent_E5061B:
 		
 	def set_single_freq(self, freq):
 		"""set the span of the VNA"""
-		
+		#TODO change number of points to 2
+		#TODO set avg number to 1
 		self.vna_socket.send(b":SENS1:FREQ:CENT " + str(freq).encode()+b'\n')
 		self.vna_socket.send(b":SENS1:FREQ:SPAN " + str(0).encode()+b'\n')
 		self.vna_socket.send(b":SENS1:SWE:TIME:AUTO OFF\n" );
@@ -154,6 +155,7 @@ class agilent_E5061B:
 		self.vna_socket.send(b':SENS1:FREQ:STOP %d\n' % f_stop)
 		self.vna_socket.send(b':SENS1:SWE:POIN %d\n' % n_points)
 		self.vna_socket.send(b':SOUR1:POW %d\n' % power)
+		self.vna_socket.send(b":SENS1:SWE:TIME:AUTO ON\n" );
 
 	def set_conversion(self, conv_on='ON', conv_func='ZREF'):
 		self.vna_socket.send(b':CALC1:SEL:CONV:STAT ON\n')		# %conv_on)
