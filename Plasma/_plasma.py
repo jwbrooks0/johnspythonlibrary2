@@ -90,6 +90,48 @@ def density_from_frequency(frequency, mass, plot = False):
 	return density
 
 
+def plasma_frequency( n0, m=m_e):
+	return _np.sqrt(n0 * e**2 / (m * ep_0)) * 1/(2*pi)
+
+
+def cyclotron_frequency( B, m):
+	return e * B / (2*pi*m)
+
+
+def lower_hybrid_frequency( m_ion, B, n0, plot=False):
+	""" Bellan: eq. 6.40 """
+	w_pe=plasma_frequency(n0=n0, m=m_e)
+	w_pi=plasma_frequency(n0=n0, m=m_ion)
+	
+	w_ce=cyclotron_frequency(B=B, m=m_e) 
+	w_ci=cyclotron_frequency(B=B, m=m_ion)
+	if type(n0)==_np.ndarray:
+		w_ce *= _np.ones(len(n0))
+		w_ci *= _np.ones(len(n0))
+	else:
+		w_pe *= _np.ones(len(B))
+		w_pi *= _np.ones(len(B))
+		
+		
+	w_lh = _np.sqrt( w_ci**2 + w_pi**2/(1+w_pe**2/w_ce**2))
+	
+	if plot==True:
+		fig,ax=_plt.subplots()
+		if type(n0)==_np.ndarray:
+			x=n0
+		else:
+			x=B
+# 		ax.plot(x,w_pe,label='w_pe')
+# 		ax.plot(x,w_pi,label='w_pi')
+# 		ax.plot(x,w_ce,label='w_ce')
+# 		ax.plot(x,w_ci,label='w_ci')
+		ax.plot(x,w_lh,label='w_lh')
+		ax.legend()
+		ax.set_yscale('log')
+		ax.set_xscale('log')
+	
+	return w_lh
+
 
 
 ##################################
