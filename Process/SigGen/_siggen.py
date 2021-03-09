@@ -6,8 +6,65 @@ import matplotlib.pyplot as _plt
 from johnspythonlibrary2.Process.Misc import findNearest
 import xarray as _xr
 
+from scipy.signal import gaussian as _gaussian
 
 #%% Basic signal generation
+
+
+def gaussian_pulse(sigma, t, amplitude=1, plot=False):
+	"""
+	Basic gaussian pulse with units in time
+	std_time is the standard deviation of the pulse with units of t
+	
+	Example
+	-------
+	
+	Example 1::
+		
+		dt=1e-9
+		t=np.arange(0,0.001+dt/2,dt)
+		t-=t.mean()
+		std_time=1e-4
+		gaussian_pulse(std_time, t=t, plot=True)
+		
+	References
+	----------
+	  * http://www.cse.psu.edu/~rtc12/CSE486/lecture11_6pp.pdf
+	"""
+	out= _xr.DataArray( _np.exp(-t**2/(2*sigma**2)), dims='t', coords=[t])
+	if plot == True:
+		out.plot()
+	return out
+
+
+def gaussian_1st_deriv(sigma, t, amplitude=1, plot=False):
+	"""
+	Basic gaussian pulse with units in time
+	std_time is the standard deviation of the pulse with units of t
+	
+	Example
+	-------
+	
+	Example 1::
+		
+		dt=1e-9
+		t=np.arange(0,0.001+dt/2,dt)
+		t-=t.mean()
+		std_time=1e-4
+		s=gaussian_1st_deriv(sigma = std_time, t=t, plot=True)
+		
+	References
+	----------
+	  * http://www.cse.psu.edu/~rtc12/CSE486/lecture11_6pp.pdf
+	"""
+	#TODO figure out how to normalize the signal
+	dt=t[1]-t[0]
+	out= _xr.DataArray( -t/(2*sigma**2)*_np.exp(-t**2/(2*sigma**2)) * amplitude * 1, dims='t', coords=[t])
+	if plot == True:
+		fig,ax=_plt.subplots()
+		out.plot(ax=ax)
+	return out
+
 
 def squareWave(	freq,
 				time,
