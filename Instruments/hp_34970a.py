@@ -95,9 +95,9 @@ class hp_34970a_prologix:
 		return self.receive_response(num_bytes)
 		
 	def connect(self):
-
+		# if having trouble connecting, try the GPIB Configurator app from the prologix website
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
-		sock.settimeout(.1)
+		sock.settimeout(1)
 		sock.connect((self.ip, 1234))
 		
 		# confirm connection by printing connection details
@@ -116,7 +116,7 @@ class hp_34970a_prologix:
 		self.sock.send(b"++addr %s\n"%self.gpib_address)
 		
 	def init_hp34970a(self, channels='@201:218'):
-		
+		#TODO I need a confirmation command that I'm actually talking with this unit.
 		#TODO the commands in this section need to be vetted.
 		if True:
 			self.sock.send(b'*RST\n')	# A Factory Reset (*RST command) turns off the units, time, channel, and alarm information
@@ -165,7 +165,7 @@ class hp_34970a_prologix:
 		return self.receive_response(max_wait_time=wait_time)
 
 		
-	def get_data(self, wait_time=10):
+	def get_data(self, wait_time=10, plot=False):
 		
 		raw_data=self._get_data_raw(wait_time=wait_time)
 		raw_data=np.array(raw_data.decode('ascii').split(',')).reshape(-1,8)
@@ -180,11 +180,15 @@ class hp_34970a_prologix:
 							  dims='ch',
 							  coords=[channels])
 		
+		if plot==True:
+			fig,ax=plt.subplots()
+			data_out.plot(ax=ax)
+		
 		return data_out
 	
 	
 if __name__ == '__main__':
-	unit = hp_34970a_prologix()
+	unit = hp_34970a_prologix('192.168.0.243')
 	print(unit.send_and_receive('++ver'))
 # # 	print(unit.receive_response())
 # 	raw_data=unit._get_data_raw(50)
@@ -193,6 +197,7 @@ if __name__ == '__main__':
 	fig,ax=plt.subplots()
 	ch=1
 	data=unit.get_data()
+	data.plot(ax=ax)
 	ax.legend()
-# 	unit.disconnect()
+	unit.disconnect()
 # 	
