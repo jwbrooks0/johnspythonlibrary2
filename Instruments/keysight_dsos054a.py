@@ -431,6 +431,15 @@ class keysight_dsos054a:
 		
 		return ds	
 	
+	def set_SINGLE(self):
+		self.do_command('SINGle')
+		
+	def set_STOP(self):
+		self.do_command('STOP')
+	
+	def set_RUN(self):
+		self.do_command('RUN')
+	
 	
 
 
