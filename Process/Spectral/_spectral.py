@@ -696,7 +696,7 @@ def fft_average(	da,
 		
 	# optional plot of results
 	if plot==True:
-		_fftPlot(fft_results,kwargs={'s':da},fft_scale=fft_scale)
+		_fftPlot(da, fft_results,fft_scale=fft_scale)
 		
 	return fft_results
 	
