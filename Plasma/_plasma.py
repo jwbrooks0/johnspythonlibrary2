@@ -52,7 +52,7 @@ def plasma_frequency_from_density(density,  plot = False):
 	if plot == True:
 		fig,ax=_plt.subplots()
 		frequency.plot(ax=ax)
-		ax.set_title('mass = %.3f AMU'%(mass/amu))
+# 		ax.set_title('mass = %.3f AMU'%(mass/amu))
 		ax.set_xscale('log')
 		ax.set_yscale('log')
 		ax.grid()
