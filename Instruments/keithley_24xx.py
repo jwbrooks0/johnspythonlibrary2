@@ -11,14 +11,19 @@ import xarray as xr
 import time
 import pyvisa as visa
 
+from johnspythonlibrary2.Instruments import instr_tools
+
+
 class keithley_24xx:
 	
 	#TODO add a function that sets the voltage range
 	#TODO Setting the voltage turns off continous scanning.  I want to leave continuous scanning on.
 	#TODO read_values should return both current and voltage
 	
-	def __init__(self,address='TCPIP0::192.168.0.236::inst0::INSTR',timeout=5000):
+	def __init__(self,address='',timeout=5000):
 		
+		if address=='':
+			address = instr_tools.find_device('?*K-24?*')[0]
 		self.address=address
 		self.timeout=timeout
 		self.connect()
