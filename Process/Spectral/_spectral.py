@@ -379,7 +379,8 @@ def fft(	da,
 			returnAbs=False,
 			zeroTheZeroFrequency=False,
 			realAmplitudeUnits=False,
-			fft_scale='log'):
+			fft_scale='log',
+			verbose=False):
 	"""
 	Simple wrapper for fft from scipy
 	
@@ -477,6 +478,9 @@ def fft(	da,
 		time=_np.array(da.theta)
 	else:
 		raise Exception('Time dimension needs to be labeled t')
+		
+	if verbose==True:
+		signal_spectral_properties(da,verbose=True)
 	
 	# do fft
 	dt=time[1]-time[0]
