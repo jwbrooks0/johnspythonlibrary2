@@ -75,6 +75,8 @@ class keithley_24xx:
 			current=self.read_values(count=count).mean()
 			print(v,current)
 			results[i]=current
+		self.set_voltage(0)
+		self.output_off()
 		da=xr.DataArray(	results,
 							  dims='V',
 							  coords=[v_range])
