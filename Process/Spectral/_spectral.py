@@ -45,7 +45,7 @@ def signal_spectral_properties(da,nperseg=None,verbose=True):
 	params['f_res']=params['f_s']/nperseg
 	if verbose: print("Frequency resolution, %.2f" % params['f_res'] )
 
-	return params
+	return params #dt, f_s, f_nyquist, time_window, f_min, f_res
 
 
 # def fft_max_freq(df_fft,positiveOnly=True):
