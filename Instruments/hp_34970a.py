@@ -50,7 +50,7 @@ class hp_34970a_prologix:
 	
 	# https://documentation.help/Keysight-34970A-34972A/documentation.pdf
 	
-	def __init__(self, ip='192.168.0.105', gpib_address=b'9'):
+	def __init__(self, ip='192.168.0.243', gpib_address=b'9'):
 		self.ip = ip
 		self.gpib_address = gpib_address
 		self.connect()
