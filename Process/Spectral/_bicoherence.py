@@ -1,11 +1,60 @@
 
-
+import numpy as _np
 import matplotlib.pyplot as _plt
 from johnspythonlibrary2.Plot import subTitle as _subTitle, finalizeFigure as _finalizeFigure #, finalizeSubplot as _finalizeSubplot
 from johnspythonlibrary2.Process.Spectral import fft_average, signal_spectral_properties
+import xarray as _xr
+
+#%% Signal generators for bicoherence
+# TODO add, y=cos(omega * t + 0.1*random(len(t)) )
+
+def generate_signals(t, omega, phase_offset=0, phase_std=0.01, plot=False):
+	
+# 	dt=1e-9
+# 	omega=1e4*2*np.pi
+# 	t=np.arange(0,1e-3+dt/2,dt)
+	phase_noise=_np.random.normal(0, scale=phase_std, size=len(t))
+	y=_np.sin(omega*t+phase_offset+phase_noise)
+	
+	if plot==True:
+		fig,ax=plt.subplots()
+		ax.plot(t,y)
+	
+	return y
 
 
 #%% main functions
+
+def _bicoherence_helper(stft, f_units='Hz'):
+	""" 
+	subfunction for calculating the bicoherence 
+	
+	Parameters
+	----------
+	stft : xarray.DataArray
+		This is the stft results just prior to calculating the bicoherence
+	"""
+
+	# calculate bicoherence numerator and denominators
+	for i,ti in enumerate(stft.t.data): # TODO(John) Figure out how to vectorize this step
+		#print(i,ti)
+		b,FiFj,conjFij=bispectrum(stft.sel(t=ti),returnAll=True,plot=False,f_units=f_units)
+		
+		if i==0:
+			numerator=FiFj*conjFij
+			denom1=_np.abs(FiFj)**2
+			denom2=_np.abs(conjFij)**2
+		else:
+			numerator+=FiFj*conjFij
+			denom1+=_np.abs(FiFj)**2
+			denom2+=_np.abs(conjFij)**2
+			
+	# finish bicoherence calc
+	bicoh=numerator**2/(denom1.data*denom2.data)
+	
+	return bicoh
+
+
 def bispectrum(	da,
 				firstQuadrantOnly=False,
 				plot=False,
@@ -14,9 +63,6 @@ def bispectrum(	da,
 	"""
 	work in progress
 	
-	# TODO this code should be correct.  Double check, finalize function, and incorporate with bicoherence function()
-	
-	# TODO flip f_1 and f_2 on the bispectrum and bicoherence plots
 	
 	Examples
 	--------
@@ -56,10 +102,11 @@ def bispectrum(	da,
 	N=da.shape[0]
 	signal=da.data
 	
-	try:
-		index=da.f.copy().data
-	except:
-		index=da.freq.copy().data
+# 	try:  #TODO get rid of this try statement
+# 		index=da.f.copy().data
+# 	except:
+# 		index=da.freq.copy().data
+	index=da.f.copy().data
 	df=index[1]-index[0]
 	index=np.round(index/df).astype(int)
 	
@@ -707,27 +754,13 @@ def bicoherence(	da,
 										return_onesided=False,
 										mode='stft')
 	
-	df=pd.DataFrame(stft_results,index=f,columns=t)
+	df=pd.DataFrame(stft_results,index=f,columns=t) #TODO remove pandas step
 	df.index.name='f'
 	df.columns.name='t'
 	da2=xr.DataArray(df).sortby('f')
-		
-	# calculate bicoherence numerator and denominators
-	for i,ti in enumerate(da2.t.data): # TODO(John) Figure out how to vectorize this step
-		#print(i,ti)
-		b,FiFj,conjFij=bispectrum(da2.sel(t=ti),returnAll=True,plot=False,f_units=f_units)
-		
-		if i==0:
-			numerator=FiFj*conjFij
-			denom1=np.abs(FiFj)**2
-			denom2=np.abs(conjFij)**2
-		else:
-			numerator+=FiFj*conjFij
-			denom1+=np.abs(FiFj)**2
-			denom2+=np.abs(conjFij)**2
-			
-	# finish bicoherence calc
-	bicoh=numerator**2/(denom1.data*denom2.data)
+	
+	
+	bicoh = _bicoherence_helper(da2, f_units=f_units)
 	
 	# options
 	if mask=='AB':
@@ -805,9 +838,152 @@ def bicoherence(	da,
 			
 		
 	return bicoh
-			
 
+
+def monteCarloNoiseFloorCalculation(da,
+					nperseg,
+					R=100,
+					alpha=0.9,
+					plot=False,
+					windowFunc='hann',
+					title='',
+					mask='A',
+					drawRedLines=[],
+					f_units='Hz',
+					verbose=True,
+					fft_scale='log',
+					precondition_signal=True):
+	""" 
+	References
+	----------
+	 * code is based on this paper: http://arxiv.org/abs/1811.02973
+	 """
+	print('work in progress')
+	
+# 	nperseg=512
+	import numpy as np
+	from mpl_toolkits.axes_grid1 import make_axes_locatable
+	from scipy.signal.spectral import _spectral_helper
+	import pandas as pd
+	import xarray as xr
+	import matplotlib.pyplot as plt
+	
+	if 'time' in da.dims:
+		da=da.rename({'time':'t'})
+	if 't' not in da.dims:
+		raise Exception('Time dimension, t, not present.  Instead, %s found'%(str(da.dims)))
+		
+	if precondition_signal==True:
+		da=(da.copy()-da.mean(dim='t').data)/da.std(dim='t').data
+
+	params=signal_spectral_properties(da,nperseg=nperseg,verbose=verbose)
+	
+	# step 2 : generate bicoherence from actual data
+	b=bicoherence(da, nperseg=nperseg, plot=plot,mask='None')
+	
+	
+	
+	# step 1a: Calculate fourier components from actual data for each time window 
+	windowFunc='hann'
+	f,t,stft_results=_spectral_helper(	da.data,
+										da.data,
+										fs=params['f_s'],
+										window=windowFunc,
+										nperseg=nperseg,
+										noverlap=0,
+										return_onesided=False,
+										mode='stft')
+	# step 1b: Calculate absolution value of each signal
+	stft_results_abs=np.abs(stft_results)
+	
+	# step 3a: Generate random phase for each fourier component in each time window.  Do this R times.
+	theta=np.random.rand(stft_results_abs.shape[0],stft_results_abs.shape[1],R)
+
+	# step 3b: Simulate (monte carlo) fourier data using real amplitude and random phase
+	stft_results_mc = np.repeat(stft_results_abs[:, :, np.newaxis], R, axis=2) * np.exp( 1j*theta)
+	stft_results_mc=xr.DataArray(stft_results_mc,dims=['f','t','r'], coords=[f,t,np.arange(R)]).sortby('f')
+
+	# step 3c: calculate bicoh for each r in range(R) to create the probability distribution function for each pair of frequency coordinates
+	if True:  #TODO this is painfully slow.  figure out how to vectorize
+		mc_results=xr.DataArray( np.zeros((stft_results_mc.f.shape[0], stft_results_mc.f.shape[0], R),dtype=complex))
+		for i,ri in enumerate(range(R)):
+			print('%d/%d'%(ri+1,R), end=' ')
+			mc_results[:,:,i]=_bicoherence_helper(stft_results_mc[:,:,i])
+		print('')
+		mc_results=np.abs(mc_results)
+	else:
+		print('work in progress')
+		# look into Numba functions 
+		
+	# step 4: alpha is already defined
+	
+	# step 5: Calculate critical bicoherence value (noise floor)
+	from scipy.interpolate import interp1d
+	def integrate_along_prob_function_integral_equals_value(x,y,alpha=0.9):
+		# y(x) is the probability function
+		y/=y.sum() # normalize such that integral is equal to 1
+		p = np.cumsum(y) # p = cumalative sum of y(x)
+		f=interp1d(p,x) # create interpolation of function, x(p)
+		return float( f(alpha) ) # find where x(p) = alpha
+			
+	def hist_1d(a, alpha=0.9):
+		if np.isnan(a).sum() > 0:
+			return float(0)
+		else:
+			hist, bin_edges = np.histogram(a)
+			hist = hist.astype(float)/hist.sum()
+			bin_centers=(bin_edges[1:]+bin_edges[:-1])/2
+			a= integrate_along_prob_function_integral_equals_value(x=bin_centers,y=hist,alpha=alpha)
+			return a
+
+	counts = np.apply_along_axis(hist_1d, axis=2, arr=mc_results.data, alpha=alpha)
+	counts = xr.DataArray( counts,
+						   dims=b.dims,
+						   coords=b.coords )
+	
+	if plot==True:
+		fig,ax=plt.subplots()
+		counts.plot(ax=ax)
+		ax.set_title('Critical bicoherence values')
+	
+	# Steps 6 and 7: Any place where bicoherence values are less than the critical bicoh values, set equal to NaN.  Otherwise, keep. 
+	b_abs=np.abs(b).data
+	b_abs[b_abs<counts.data]=np.nan
+	b_final=xr.DataArray( b_abs, dims=b.dims, coords=b.coords)
+	
+	if plot==True:
+		fig,ax=plt.subplots()
+		b_final.plot(ax=ax)
+	
+	return b_final
+# 	counts= counts.
+	
 #%% Examples
+
+def example_1_v2(mask='A',fft_scale='linear'):
+	
+	
+	
+	M=64
+	nperseg=128*4
+	dt=5e-1
+	t=np.arange(0,nperseg*M)*dt
+	
+	fN=1
+	fa=0.220*fN*_np.pi*2
+	fb=0.375*fN*_np.pi*2
+	
+	theta_a = 0
+	theta_b = 0.3569
+	
+	np.random.seed(0)
+	noise=np.random.normal(0,0.1,len(t))
+	baseSignal=generate_signals(t,fa,theta_a)+generate_signals(t,fb,theta_b)+noise
+	
+	y=_xr.DataArray(baseSignal, dims='t',coords=[t])
+	
+	
+	
 def example1(mask='A',fft_scale='linear'):
 	###  Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979).
 	
@@ -916,5 +1092,5 @@ def example1(mask='A',fft_scale='linear'):
 	_plt.gcf().savefig('images/figure5.png')
 
 #%% main
-if __name__ == '__main__':
-	example1(mask='none',fft_scale='linear')
+# if __name__ == '__main__':
+# 	example1(mask='none',fft_scale='linear')
