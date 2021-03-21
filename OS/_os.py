@@ -104,9 +104,14 @@ def getPwd(system,username):
 	return str(keyring.get_password(system, username))
 
 
+def check_operating_system(verbose=False):
+	from sys import platform
+	if verbose==True:
+		print('your os is: ',platform)
+	return platform
 
 
-def playBeep(durationInS=0.1,freqInHz=440):
+def playBeep(durationInS=1,freqInHz=440):
 	"""
 	Play short beep
 	
@@ -114,11 +119,21 @@ def playBeep(durationInS=0.1,freqInHz=440):
 	----------
 	https://stackoverflow.com/questions/16573051/sound-alarm-when-code-finishes
 	"""
-	import os
-	try:
-		os.system('play -nq -t alsa synth {} sine {}'.format(durationInS, freqInHz))
-	except:
-		print('This command only works on linux. \n If play not found error provided, you need to install play.  In ubuntu, type: sudo apt install sox')
+	
+	platform = check_operating_system()
+	if 'win' in platform:
+		import winsound
+		winsound.Beep(freqInHz, int(durationInS*1e3))
+	elif 'linux' in platform or 'darwin' in platform: #darwin = mac os x
+		import os
+		try:
+			os.system('play -nq -t alsa synth {} sine {}'.format(durationInS, freqInHz))
+		except:
+			print('This command only works on linux and macosx. \n If play not found error provided, you need to install play.  In ubuntu, type: sudo apt install sox')
+	else:
+		print("\a") # generic OS alert noise
+		print("OS not recognized.  Instead playing generic OS noise.")
+		
 
 
 def checkAndCreateDir(directory):
