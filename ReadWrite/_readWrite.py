@@ -529,9 +529,13 @@ def hdf5_to_xr_DataArray(	h5py_file,
 	dims=[]
 	coords=[]
 	for a in f[var_path].dims: # presently, this only grabs the first dim from each dimension
-		#print(a)
-		dims.append(list(a)[0])
+		print(a)
+# 		dims.append(list(a)[0])
+		dims.append(a.label)
+# 		try:
 		coords.append(a[0][()])
+# 		except:
+# 			pass
 		
 	da=_xr.DataArray(	data,
 						dims=dims,
