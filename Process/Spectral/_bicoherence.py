@@ -17,7 +17,7 @@ def generate_signals(t, omega, phase_offset=0, phase_std=0.01, plot=False):
 	y=_np.sin(omega*t+phase_offset+phase_noise)
 	
 	if plot==True:
-		fig,ax=plt.subplots()
+		fig,ax=_plt.subplots()
 		ax.plot(t,y)
 	
 	return y
@@ -800,13 +800,13 @@ def bicoherence(	da,
 		# subplot 1
 		ax1 = plt.subplot(111)
 		ax1.set_aspect('equal')
-		im=np.abs(bicoh).plot(ax=ax1,levels=np.linspace(0,1,20+1),add_colorbar=False)
+		im=np.abs(bicoh).plot(ax=ax1,levels=np.linspace(0,np.abs(bicoh).max(),20+1),add_colorbar=False)
 
 		# trick to get the subplots to line up correctly
 		divider = make_axes_locatable(ax1)
 		ax2 = divider.append_axes("bottom", size="50%", pad=.5,sharex = ax1)
 		cax = divider.append_axes("right", size="5%", pad=0.08)
-		cbar=plt.colorbar( im, ax=ax1, cax=cax, ticks= np.linspace(0,1,6) )
+		cbar=plt.colorbar( im, ax=ax1, cax=cax, ticks= np.linspace(0,np.abs(bicoh).max(),6) )
 		cbar.set_label('$b^2$')
 		
 		# subplot 2
