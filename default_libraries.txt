@@ -22,6 +22,8 @@ deprecated		# has a decorator for flagging deprecated functions
 seaborn			# additional plotting functions, colormaps, etc
 h5py			# loading matlab data
 mat73			# loading matlab data (better)
+sk-video
+pyvisa			# used to talk with instruments over USB, GPIB, Ethernet, etc
 
 ### Spyder settings - I've also included a few of my favorite settings for my spyder environment.
 # Consider reverting to the default settings first.  I've had issues where it pulls in an old spyder config file from outside the virtualenv.
