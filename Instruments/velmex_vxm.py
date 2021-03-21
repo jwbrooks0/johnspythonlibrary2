@@ -95,7 +95,7 @@ class velmex_vxm:
 	def move_by (self, distance, motor_num=1, wait=True):
 	    self._move_motor("I" + str(motor_num) + "M" + str(int(distance*self.steps_per_inch)) + ",", wait=wait) # send movement command
 	
-	def move_to (self, destination, motor_num, wait=True):
+	def move_to (self, destination, motor_num=1, wait=True):
 	    self._move_motor("IA" + str(motor_num) + "M" + str(int(destination*self.steps_per_inch)) + ",", wait=wait) # send movement command
 		
 	def home_motor(self, motor_num, wait=True):
@@ -130,5 +130,5 @@ class velmex_vxm:
 
 if __name__=="__main__":
 	unit=velmex_vxm()
-	limits=unit.find_limits()
-	print(limits)
+# 	limits=unit.find_limits()
+# 	print(limits)
