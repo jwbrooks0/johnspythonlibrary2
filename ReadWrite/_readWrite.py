@@ -15,6 +15,35 @@ except ImportError:
 	LOCALDIRTOSAVEDATA=''
 	
 	
+	
+#################################################
+# %% csv
+
+def append_single_row_to_csv(data_row, filename='name.csv', headers=[]):
+	"""
+	Examples
+	--------
+	Example 1 ::
+		
+		import numpy as np
+		headers=['a','b','c']
+		filename='filename_csv.csv'
+		for i in np.arange(10):
+			data=np.random.rand(len(headers))
+			if i==0:
+				append_single_row_to_csv(data, filename=filename,headers=headers)
+			else:
+				append_single_row_to_csv(data, filename=filename)
+
+	"""
+	import csv   
+	with open(filename, 'a', newline='') as f:
+		writer = csv.writer(f)
+		if len(headers) > 0:
+			writer.writerow(headers)
+		writer.writerow(data_row)
+		
+		
 #################################################
 # %% Pickles
 
