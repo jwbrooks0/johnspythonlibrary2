@@ -535,7 +535,8 @@ def fft_average(	da,
 					zeroTheZeroFrequency=False,
 					realAmplitudeUnits=False,
 					f_units='Hz',
-					fft_scale='log'):
+					fft_scale='log',
+					fig=None):
 	"""
 	Computes an averaged abs(fft) using Welch's method.  This is mostly a wrapper for scipy.signal.welch
 	
@@ -700,20 +701,23 @@ def fft_average(	da,
 		
 	# optional plot of results
 	if plot==True:
-		_fftPlot(da, fft_results,fft_scale=fft_scale)
+		_fftPlot(da, fft_results,fft_scale=fft_scale, fig=fig)
 		
 	return fft_results
 	
 	
 	
-def _fftPlot(da_orig, da_fft,fft_scale='log'):
+def _fftPlot(da_orig, da_fft,fft_scale='log', fig=None):
 
 	if 'f' in da_fft.dims:
 		da_temp=_np.abs(da_fft.copy()).sortby('f')
 	else:
 		da_temp=_np.abs(da_fft.copy()).sortby('m')
 		
-	fig,(ax1,ax2)=_plt.subplots(nrows=2)
+	if type(fig)==type(None):
+		fig,(ax1,ax2)=_plt.subplots(nrows=2)
+	else:
+		ax1,ax2=fig.get_axes()
 	da_orig.plot(ax=ax1)
 	
 	da_temp.plot(ax=ax2)
