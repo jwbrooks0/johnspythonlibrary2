@@ -16,7 +16,8 @@ class agilent_E5061B:
 	"""
 	Class used to send commands and acquire data from the Agilent E5061B vector \
 		network analyzer.
-
+		
+	* Manual incl programming : https://grandline.jahschwa.com/~kiosk/equip/agilent/e5061b/agilent-e5061b-manual.pdf
 	Note: Make sure you enable telnet communication.  System -> Misc Setup -> \
 		Network Setup -> Enable Telnet
 	http://ena.support.keysight.com/e5061b/manuals/webhelp/eng/?nid=-32496.1150148.00&cc=US&lc=eng&id=1790874
@@ -25,7 +26,7 @@ class agilent_E5061B:
 		_tests/blob/master/instr_tests/instruments/vna/agilent_e5061b.py
 	"""
 
-	def __init__(self, ip="192.168.0.111", port=5025, sleep_time=2.0):
+	def __init__(self, ip="192.168.0.111", port=5025, sleep_time=0.5):
 		"""
 		Class constructor.
 		Here the socket connection to the instrument is initialized. The
@@ -35,7 +36,7 @@ class agilent_E5061B:
 		self.vna_address = ((ip, port))
 		self.SLEEP_TIME = sleep_time
 		self.open_connection()
-
+		
 	def initial_setup(self):
 		# set default settings
 		self.set_avg()
@@ -72,14 +73,14 @@ class agilent_E5061B:
 		
 		time.sleep(self.SLEEP_TIME)
 
-	def get_answer(self):
+	def get_answer(self, max_num_of_bytes=1024):
 		"""
 		Get the instrument's answer after sending a command.
 		It is returned as a string of bytes.
 		"""
 		data = b""
 		while (data[len(data) - 1:] != b"\n"):
-			data += self.vna_socket.recv(1024)
+			data += self.vna_socket.recv(max_num_of_bytes)
 		return(data)
 
 	def get_frequency_data(self):
@@ -95,41 +96,107 @@ class agilent_E5061B:
 		frequency_data = [float(i) for i in frequency_data]
 		return np.array(frequency_data)
 
-	def get_s11_data(self):
-		"""Get the S11 trace data, returning a sequence of floating point numbers."""
-		self.vna_socket.send(b":CALC1:PAR1:DEF S11\n")
-		time.sleep(self.SLEEP_TIME)
-		self.vna_socket.send(b":CALC1:DATA:FDAT?\n")
-		s11_data = b""
-		while (s11_data[len(s11_data) - 1:] != b"\n"):
-			s11_data += self.vna_socket.recv(1024)
-		s11_data = s11_data[:len(s11_data) - 1].split(b",")
-		s11_data = s11_data[::2]
-		s11_data = [round(float(i), 2) for i in s11_data]
-		return(s11_data)
+# 	def get_s11_data(self):
+# 		"""Get the S11 trace data, returning a sequence of floating point numbers."""
+# 		self.vna_socket.send(b":CALC1:PAR1:DEF S11\n")
+# 		time.sleep(self.SLEEP_TIME)
+# 		self.vna_socket.send(b":CALC1:DATA:FDAT?\n")
+# 		s11_data = b""
+# 		while (s11_data[len(s11_data) - 1:] != b"\n"):
+# 			s11_data += self.vna_socket.recv(1024)
+# 		s11_data = s11_data[:len(s11_data) - 1].split(b",")
+# 		s11_data = s11_data[::2]
+# 		s11_data = [round(float(i), 5) for i in s11_data]
+# 		return(s11_data)
 
-	def get_s11_data_complex(self):
-		"""Get the S11 trace data, returning a sequence of floating point numbers."""
-		self.vna_socket.send(b":CALC1:PAR1:DEF S11\n")
-		time.sleep(self.SLEEP_TIME)
-		self.vna_socket.send(b":CALC1:DATA:FDAT?\n")
-		s11_data = b""
-		while (s11_data[len(s11_data) - 1:] != b"\n"):
-			s11_data += self.vna_socket.recv(1024)
-		s11_data = s11_data[:len(s11_data) - 1].split(b",")
-		s11_data_real = s11_data[::2]
-		s11_data_imag = s11_data[1::2]
-		s11_data_real = [round(float(i), 2) for i in s11_data_real]
-		s11_data_imag = [round(float(i), 2) for i in s11_data_imag]
-		s11_data_complex = np.array(s11_data_real) + 1j * np.array(s11_data_imag)
-		return s11_data_complex
+# 	def get_s11_data_complex(self):
+# 		"""Get the S11 trace data, returning a sequence of floating point numbers."""
+# 		self.vna_socket.send(b":CALC1:PAR1:DEF S11\n")
+# 		time.sleep(self.SLEEP_TIME)
+# 		self.vna_socket.send(b":CALC1:DATA:FDAT?\n")
+# 		s11_data = b""
+# 		while (s11_data[len(s11_data) - 1:] != b"\n"):
+# 			s11_data += self.vna_socket.recv(1024)
+# 		s11_data = s11_data[:len(s11_data) - 1].split(b",")
+# 		s11_data_real = s11_data[::2]
+# 		s11_data_imag = s11_data[1::2]
+# 		s11_data_real = [round(float(i), 5) for i in s11_data_real]
+# 		s11_data_imag = [round(float(i), 5) for i in s11_data_imag]
+# 		s11_data_complex = np.array(s11_data_real) + 1j * np.array(s11_data_imag)
+# 		return s11_data_complex
+	
+	
+	def _get_answer_complex(self, max_num_of_bytes=1024):
+		"""
+		Get the instrument's answer after sending a command.
+		It is returned as a string of bytes.
+		"""
+		data=self.get_answer(max_num_of_bytes=max_num_of_bytes)
+		data = data[:len(data) - 1].split(b",")
+		data_real = data[::2]
+		data_imag = data[1::2]
+# 		data_real = [round(float(i), 5) for i in data_real]
+# 		data_imag = [round(float(i), 5) for i in data_imag]
+		data_real = [float(i) for i in data_real]
+		data_imag = [float(i) for i in data_imag]
+		data_complex = np.array(data_real) + 1j * np.array(data_imag)
+			
+		return(data_complex)
+	
+	def get_data(self, types=['s11','s12','s21','s22']):
+		
+		data=[]
+		freq = self.get_frequency_data()
+		if 's11' in types or 'all' == types:
+			self.send_command(b":CALC1:PAR1:DEF S11\n")
+			time.sleep(self.SLEEP_TIME)
+			self.send_command(':CALC1:PAR1:SEL')
+			self.send_command(b":CALC1:DATA:FDAT?\n")
+			s11_data=self._get_answer_complex()
+			s11_data=xr.DataArray( s11_data, dims='f', coords=[freq], attrs={'name':'s11'})
+			s11_data.name='s11'
+			data.append(s11_data)
+		if 's12' in types or 'all' == types:
+			self.send_command(b":CALC1:PAR2:DEF S12\n")
+			time.sleep(self.SLEEP_TIME)
+			self.send_command(':CALC1:PAR2:SEL')
+			self.send_command(b":CALC1:DATA:FDAT?\n")
+			s12_data=self._get_answer_complex()
+			s12_data=xr.DataArray( s12_data, dims='f', coords=[freq], attrs={'name':'s12'})
+			s12_data.name='s12'
+			data.append(s12_data)
+		if 's21' in types or 'all' == types:
+			self.send_command(b":CALC1:PAR3:DEF S21\n")
+			time.sleep(self.SLEEP_TIME)
+			self.send_command(':CALC1:PAR3:SEL')
+			self.send_command(b":CALC1:DATA:FDAT?\n")
+			s21_data=self._get_answer_complex()
+			s21_data=xr.DataArray( s21_data, dims='f', coords=[freq], attrs={'name':'s21'})
+			s21_data.name='s21'
+			data.append(s21_data)
+		if 's22' in types or 'all' == types:
+			self.send_command(b":CALC1:PAR4:DEF S22\n")
+			time.sleep(self.SLEEP_TIME)
+			self.send_command(':CALC1:PAR4:SEL')
+			self.send_command(b":CALC1:DATA:FDAT?\n")
+			s22_data=self._get_answer_complex()
+			s22_data=xr.DataArray( s22_data, dims='f', coords=[freq], attrs={'name':'s22'})
+			s22_data.name='s22'
+			data.append(s22_data)
+			
+		return xr.merge(data)
 
-	def send_command(self, text):
+
+	def send_command(self, command):
 		"""
 		Sends a command to the instrument. 
 		The "text" argument must be a string of bytes.
 		"""
-		self.vna_socket.send(text)
+		if type(command) == str:  # make sure the command is binary
+			command=command.encode()
+		if command[-1:]!='\n'.encode(): # make sure the command ends in "\n"
+			command+='\n'.encode()
+		self.vna_socket.send(command)
 		time.sleep(self.SLEEP_TIME)
 		return
 
@@ -150,7 +217,7 @@ class agilent_E5061B:
 		self.vna_socket.send(b':SENS1:AVER:COUNT %d\n' % avg_count)
 		self.vna_socket.send(b':SENS1:BAND:RES %d\n' % if_bandwidth)
 
-	def set_sweep(self, f_start=1e6, f_stop=1e9, n_points=1601, power=0):
+	def set_sweep(self, f_start=1e6, f_stop=1e9, n_points=1000, power=0):
 		self.vna_socket.send(b':SENS1:FREQ:STAR %d\n' % f_start)
 		self.vna_socket.send(b':SENS1:FREQ:STOP %d\n' % f_stop)
 		self.vna_socket.send(b':SENS1:SWE:POIN %d\n' % n_points)
@@ -158,25 +225,27 @@ class agilent_E5061B:
 		self.vna_socket.send(b":SENS1:SWE:TIME:AUTO ON\n" );
 
 	def set_conversion(self, conv_on='ON', conv_func='ZREF'):
-		self.vna_socket.send(b':CALC1:SEL:CONV:STAT ON\n')		# %conv_on)
-		self.vna_socket.send(b':CALC1:SEL:CONV:FUNC ZREF\n')	# %conv_func)
+		self.vna_socket.send(b':CALC1:SEL:CONV:STAT %s\n'%conv_on.encode())		# %conv_on)
+		self.vna_socket.send(b':CALC1:SEL:CONV:FUNC %s\n'%conv_func.encode())	# %conv_func)
 
 	def set_format(self, fmat='SCOM'):  
 		# MLOG = maglog 
 		# SCOM=Smith complex 
+		# POL = Polar complex
 		# http://ena.support.keysight.com/e5061b/manuals/webhelp/eng/?nid=-11143.0.00&cc=US&lc=eng&id=1790874
-		self.vna_socket.send(b':CALC1:FORM SCOM\n')  # %fmat)
+		# http://ena.support.keysight.com/e5061b/manuals/webhelp/eng/programming/command_reference/calculate/scpi_calculate_ch_selected_format.htm
+		self.vna_socket.send(b':CALC1:FORM POL\n')  # %fmat)
 
-	def get_data(self, data_type='s11'):
-		if data_type == 's11':
-			data = self.get_s11_data_complex()
-		else:
-			raise Exception('Improper type requested: %s' % str(data_type))
-		freq = self.get_frequency_data()
-		da = xr.DataArray(data, dims=['f'], coords=[freq])
-		da.f.attrs['units'] = 'Hz'
-		da.f.attrs['long_name'] = 'Frequency'
-		da.attrs['units'] = 'Ohm'
-		da.name = 'Amplitude'
+# 	def get_data(self, data_type='s11'):
+# 		if data_type == 's11':
+# 			data = self.get_s11_data_complex()
+# 		else:
+# 			raise Exception('Improper type requested: %s' % str(data_type))
+# 		freq = self.get_frequency_data()
+# 		da = xr.DataArray(data, dims=['f'], coords=[freq])
+# 		da.f.attrs['units'] = 'Hz'
+# 		da.f.attrs['long_name'] = 'Frequency'
+# 		da.attrs['units'] = 'Ohm'
+# 		da.name = 'Amplitude'
 
-		return da
+# 		return da
