@@ -20,3 +20,5 @@ from . import OptomizeCode
 from . import Instruments
 from . import Constants
 from . import Plasma
+from . import Transforms
+from . import Audio
