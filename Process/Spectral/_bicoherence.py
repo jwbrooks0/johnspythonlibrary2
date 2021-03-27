@@ -101,11 +101,8 @@ def bispectrum(	da,
 	
 	N=da.shape[0]
 	signal=da.data
-	
-# 	try:  #TODO get rid of this try statement
-# 		index=da.f.copy().data
-# 	except:
-# 		index=da.freq.copy().data
+
+	# convert indices to integers (makes it easier to index later on)
 	index=da.f.copy().data
 	df=index[1]-index[0]
 	index=np.round(index/df).astype(int)
@@ -117,7 +114,7 @@ def bispectrum(	da,
 								coords={index1name:index,index2name:index})
 	
 	# Solve for M2 = F(f1+f2)
-	def M2(signal,index):
+	def M2(signal,index,index1name='f2',index2name='f1'):
 		x=signal
 		f=index
 		
@@ -136,8 +133,8 @@ def bispectrum(	da,
 		
 		# find M2 = F(f1+f2)
 		return xr.DataArray(	x_long.loc[fsumlist].data.reshape(N,N),
-				 			    dims=['f2','f1'],
-								coords={'f2':f,'f1':f})
+				 			    dims=[index1name,index2name],
+								coords={index1name:f,index2name:f})
 	
 	# bispectrum
 	m1=M1(signal=signal,index=index)
@@ -498,8 +495,116 @@ def bispectrum(	da,
 # 		
 # 		
 # 	return bicoh
-			
+		
+def bicoherence_2D(	da):
+	precondition_signal=True
+	nperseg=1000
+	verbose=True
+	windowFunc='hann'
+		
+	import numpy as np
+	from mpl_toolkits.axes_grid1 import make_axes_locatable
+	from scipy.signal.spectral import _spectral_helper
+	import pandas as pd
+	import xarray as xr
+	import matplotlib.pyplot as plt
+	
+	if 'time' in da.dims:
+		da=da.rename({'time':'t'})
+	if 't' not in da.dims:
+		raise Exception('Time dimension, t, not present.  Instead, %s found'%(str(da.dims)))
+		
+	if precondition_signal==True:
+		da=(da.copy()-da.mean(dim='t').data)/da.std(dim='t').data
 
+	dt,fsamp,fn,_,_,_=signal_spectral_properties(da,nperseg=nperseg,verbose=verbose).values()
+	
+	# Solve for the STFT results from each time window
+	f,t,stft_results=_spectral_helper(	da.data,
+										da.data,
+										axis=0,
+										fs=1/(da.t.data[1]-da.t.data[0]),
+										window=windowFunc,
+										nperseg=nperseg,
+										noverlap=0,
+										return_onesided=False,
+										mode='stft')
+	
+
+	da2=xr.DataArray(stft_results, dims=['f',da.dims[1],'t'], coords=[f,da.coords['theta'].data,t])
+	
+	dtheta=da.coords['theta'].data[1]-da.coords['theta'].data[0]
+	m,t0,stft_results=_spectral_helper(	da2.data,
+										da2.data,
+										axis=1,
+										fs=1/dtheta,
+										window=windowFunc,
+										nperseg=da2.shape[1],
+										noverlap=0,
+										return_onesided=False,
+										mode='stft')
+	
+	X2D=xr.DataArray(stft_results[:,:,:,0], dims=['f','m','t'], coords=[f,m,t]).sortby('f').sortby('m')
+	N=X2D.shape[0]
+	
+	def bispectrum_2D(signal_1, signal_2):
+		
+		# convert indices to integers (makes it easier to index later on)
+		index=da.f.copy().data
+		df=index[1]-index[0]
+		index=np.round(index/df).astype(int)
+		
+		# Solve for M1 = F(f1)*F(f2)
+		def M1(X2D, m1, m2,index=index,index1name='f2',index2name='f1'):
+			return xr.DataArray(	np.outer(X2D.sel(m=m1),X2D.sel(m=m1)),
+					 			    dims=[index1name,index2name],
+									coords={index1name:index,index2name:index})
+		
+		# Solve for M2 = F(f1+f2)
+		def M2(X2D, m1, m2, index=index,index1name='f2',index2name='f1'):
+
+			f=index
+			m3=m1+m2
+			x=X2D.sel(m=m3)
+			
+			# padding signal and index to account for the extremes of min(index)+min(index) and max(index)+max(index)
+			f_long=np.arange(f.min()*2, 2*(f.max()+(f[1]-f[0])), f[1]-f[0])
+			x_long=np.concatenate(	(np.zeros(N//2)*np.nan,
+									  x,
+									  np.zeros(int(np.ceil(N/2)))*np.nan))
+			x_long=xr.DataArray(	x_long,
+					 			    dims=['f'],
+									coords={'f':f_long})
+			
+			# calculate each permutation of f1+f2
+			f1temp,f2temp=np.meshgrid(f,f)
+			fsumlist=(f1temp+f2temp).reshape(-1)
+			
+			# find M2 = F(f1+f2)
+			return xr.DataArray(	x_long.loc[fsumlist].data.reshape(N,N),
+					 			    dims=[index1name,index2name],
+									coords={index1name:f,index2name:f})
+		
+		
+
+	# calculate bicoherence numerator and denominators
+	f_units='Hz'
+	for i,ti in enumerate(X2D.t.data): # TODO(John) Figure out how to vectorize this step
+		#print(i,ti)
+		b,FiFj,conjFij=bispectrum(X2D.sel(t=ti),returnAll=True,plot=False,f_units=f_units)
+		
+		if i==0:
+			numerator=FiFj*conjFij
+			denom1=_np.abs(FiFj)**2
+			denom2=_np.abs(conjFij)**2
+		else:
+			numerator+=FiFj*conjFij
+			denom1+=_np.abs(FiFj)**2
+			denom2+=_np.abs(conjFij)**2
+			
+	# finish bicoherence calc
+	bicoh=numerator**2/(denom1.data*denom2.data)
+	
 
 def bicoherence(	da,
 					nperseg,
