@@ -101,13 +101,13 @@ class velmex_vxm:
 	def home_motor(self, motor_num, wait=True):
 	    self._move_motor("IA" + str(motor_num) + "M0" + ",", wait=wait) # send movement command
 		
-	def wait_until_done(self):
+	def wait_until_done(self, sleep_time=0.01):
 		""" delay until current program is done    """
 		
 		self.instrument.readline()                  # clear current buffer
 		self.instrument.write(b'V')                  # query for velmex's status 
 		while (self.instrument.readline()==b"B"):    # if busy, loop until not busy
-			time.sleep(0.01)
+			time.sleep(sleep_time)
 			self.instrument.write(b"V")      
 			
 	def disconnect(self):
