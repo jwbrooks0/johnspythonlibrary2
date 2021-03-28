@@ -6,7 +6,6 @@ Created on Sun Feb  7 10:51:40 2021
 """
 
 
-import serial
 import time
 
 class velmex_vxm:
@@ -23,6 +22,7 @@ class velmex_vxm:
 	"""
 
 	
+	import serial
     
 	# returns the position of motor m    
 	def get_motor_position (self, motor_num=1):

@@ -28,6 +28,7 @@ def list_all_devices():
 	
 	return out
 
+
 def find_device(partial_name='TCPIP?*'):
 	"""
 	
