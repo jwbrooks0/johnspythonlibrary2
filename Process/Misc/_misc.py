@@ -4,6 +4,31 @@ import pandas as _pd
 #import matplotlib.pyplot as _plt
 
 
+def check_dims(da, dims=['t']):
+	for dim in dims:
+		if dim not in da.dims:
+			raise Exception('Dimension, %s, not present.  Instead, %s found'%(dim,str(da.dims)))
+		
+
+def subtract_mean_and_normalize_by_std(da, dim='t'):
+	if dim not in da.dims:
+		raise Exception('Dimension %s not found in da.  Instead found: %s'%(dim, str(da.dims)))
+	return (da.copy()-da.mean(dim=dim).data)/da.std(dim=dim).data
+
+
+def subtract_mean(da, dim='t'):
+	if dim not in da.dims:
+		raise Exception('Dimension %s not found in da.  Instead found: %s'%(dim, str(da.dims)))
+	return da.copy()-da.mean(dim=dim).data
+
+
+def normalize_by_std(da, dim='t'):
+	if dim not in da.dims:
+		raise Exception('Dimension %s not found in da.  Instead found: %s'%(dim, str(da.dims)))
+	return da.copy()/da.std(dim=dim).data
+
+
+
 
 def extractIntsFromStr(string):
 	"""
