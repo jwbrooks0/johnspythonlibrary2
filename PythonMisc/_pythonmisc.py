@@ -1,6 +1,5 @@
 
 import numpy as _np
-import inspect as _inspect
 
 
 def createLibrarySimple(keys,vals):
@@ -62,6 +61,8 @@ def retrieveVariableName(var):
 		c=3
 		retrieveVariableName([a,b,c])
 	"""
+	import inspect as _inspect
+	
 	callers_local_vars = _inspect.currentframe().f_back.f_locals.items()
 	if type(var)!=list:
 		name = [var_name for var_name, var_val in callers_local_vars if var_val is var][0]
