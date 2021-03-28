@@ -5,7 +5,6 @@ import matplotlib.pyplot as _plt
 from functools import wraps as _wraps
 import pickle as _pkl
 import xarray as _xr
-import skvideo.io as _skio
 
 try:
 	import johnspythonlibrary2.ReadWrite._settings as _settings
@@ -335,6 +334,9 @@ def np_array_to_mp4(array,file_name):
 	*  http://www.scikit-video.org/stable/io.html
 
 	"""
+	
+	import skvideo.io as _skio
+	
 	print("work in progress")
 	if not file_name.endswith('.mp4'):
 		file_name+='.mp4'
