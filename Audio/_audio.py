@@ -1,5 +1,4 @@
 
-import audio2numpy as _a2n
 import numpy as _np
 import xarray as _xr
 from johnspythonlibrary2.Process.Spectral import stft
@@ -9,6 +8,8 @@ import pandas as _pd
 def read_mp3(filepath, plot=False, 
 		nperseg=5000,
 		noverlap=0):
+	import audio2numpy as _a2n
+	
 	filepath='C:\\Users\\jwbrooks\\Downloads\\2021_03_25_20_56_34.mp3'
 	audio, f_s=_a2n.open_audio(filepath)
 	
