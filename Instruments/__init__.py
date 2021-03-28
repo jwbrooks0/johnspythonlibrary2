@@ -1,6 +1,7 @@
 
 try:
-	import pyvisa as visa
+	import pyvisa as _visa
+	import serial as _serial
 	
 	from .keithley_24xx import keithley_24xx
 	from .keysight_dsos054a import keysight_dsos054a
