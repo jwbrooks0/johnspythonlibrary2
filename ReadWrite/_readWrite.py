@@ -18,6 +18,26 @@ except ImportError:
 #################################################
 # %% csv
 
+def csv_to_xr(filename, delimiter=',', row_number_of_col_names='infer', first_column_is_index=True, number_of_rows=None,  dim_dtype=None):
+
+# 	filename='C:\\Users\\jwbrooks\\python\\nrl_code\\vna_impedance\\test29_mikeN_balun_board_S_measurements\\sn3_cal1.csv'
+	
+	data=_pd.read_csv(filename, delimiter=delimiter, header=row_number_of_col_names, skip_blank_lines=True)
+	
+	if type(number_of_rows)!=type(None):
+		data=data.iloc[:number_of_rows,:]
+		
+	if first_column_is_index==True:
+		data=data.set_index(data.iloc[:,0].name)
+		
+	if type(dim_dtype) != type(None):
+		data.index=data.index.astype(dim_dtype)
+		
+	data = data.to_xarray()
+	
+	return data
+
+
 def append_single_row_to_csv(data_row, filename='name.csv', headers=[]):
 	"""
 	Examples
