@@ -11,7 +11,7 @@ import xarray as _xr
 #%% Fourier methods
 
 def signal_spectral_properties(da,nperseg=None,verbose=True):
-	print('work in progress')
+# 	print('work in progress')
 	
 	# check input
 	if 'time' in da.dims:
@@ -37,15 +37,15 @@ def signal_spectral_properties(da,nperseg=None,verbose=True):
 	params['time_window']=time_window
 	if verbose: print("Time window: %.3e s"%time_window)
 	
-	# lowest frequency to get a full wavelength
-	params['f_min']=1./(nperseg*params['dt'])
-	if verbose: print("Lowest freq. to get 1 wavelength, %.2f" % params['f_min'] )
+# 	# lowest frequency to get a full wavelength
+# 	params['f_min']=1./(nperseg*params['dt'])
+# 	if verbose: print("Lowest freq. to get 1 wavelength, %.2f" % params['f_min'] )
 
-	# frequency resolution
+	# frequency resolution, also the lowest frequency to get a full wavelength
 	params['f_res']=params['f_s']/nperseg
 	if verbose: print("Frequency resolution, %.2f" % params['f_res'] )
 
-	return params #dt, f_s, f_nyquist, time_window, f_min, f_res
+	return params #dt, f_s, f_nyquist, time_window, f_res
 
 
 # def fft_max_freq(df_fft,positiveOnly=True):
@@ -659,7 +659,7 @@ def fft_average(	da,
 	except:
 		raise Exception('Time dimension needs to be labeled t')
 	
-	signal_spectral_properties(da, nperseg=nperseg,verbose=True)
+	signal_spectral_properties(da, nperseg=nperseg, verbose=verbose)
 	
 	# do fft
 	from scipy.signal import welch
@@ -679,10 +679,6 @@ def fft_average(	da,
 	fft_results.f.attrs["long_name"] = 'Frequency'
 	fft_results.attrs["long_name"] = 'FFT amplitude'
 	
-# 	# options
-# 	if True:
-# 		fft_results=fft_results.sortby('f')
-# 		
 	# options
 	if realAmplitudeUnits==True:
 		N=da.t.shape[0]
@@ -697,7 +693,6 @@ def fft_average(	da,
 		fft_results.loc[0] = 0	
 	elif normalizeAmplitude==True:
 		fft_results/=fft_results.sum()
-		
 		
 	# optional plot of results
 	if plot==True:
