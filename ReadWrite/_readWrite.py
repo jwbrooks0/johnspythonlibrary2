@@ -146,22 +146,8 @@ def matlab73_to_xr_DataArray(filename,dataNames=None,returnRaw=False):
 			
 		return _xr.Dataset(das)
 	
-
-def mat_to_pd_DataFrame(filename):
-	"""
-	Converts a matlab .mat file to a pandas dataframe
 	
-	Parameters
-	----------
-	filename : str
-		path and filename of the file to be processed
-		
-	Returns 
-	-------
-	df : pandas dataframe
-		dataframe containing the same data and headers as the .mat file
-		
-	"""
+def mat_to_dict(filename):
 	
 	# libraries
 	from scipy.io import loadmat
@@ -170,17 +156,45 @@ def mat_to_pd_DataFrame(filename):
 	matData=loadmat(filename)
 	
 	# get the column (header) names for each array
-	names=matData['varNames']
-	colNames=[]
-	for i in range(len(names)):
-		colNames.append(names[i][0][0])
+	names=list(matData.keys())
 	
-	# convert the dict to a dataframe with the appropriate column names
-	df=_pd.DataFrame()
-	for i in colNames:
-		df[i]=matData[i][:,0]
+	print('loaded:',names)
 	
-	return df
+	return matData
+	
+
+# def mat_to_pd_DataFrame(filename, keys=[]):
+# 	"""
+# 	Converts a matlab .mat file to a pandas dataframe
+# 	
+# 	Parameters
+# 	----------
+# 	filename : str
+# 		path and filename of the file to be processed
+# 		
+# 	Returns 
+# 	-------
+# 	df : pandas dataframe
+# 		dataframe containing the same data and headers as the .mat file
+# 		
+# 	"""
+# 	
+# 	# load .mat file into a dictionary
+# 	matData=mat_to_dict(filename)
+# 	
+# # 	get the column (header) names for each array
+# # 	names=list(matData.keys())
+# # 	colNames=[]
+# # 	for i in range(len(names)):
+# # 		colNames.append(names[i])
+# 	
+# 	# convert the dict to a dataframe with the appropriate column names
+# 	df=_pd.DataFrame()
+# 	for i in keys:
+# 		print(i)
+# 		df[i]=matData[i]
+# 	
+# 	return df
 
 
 #################################################
