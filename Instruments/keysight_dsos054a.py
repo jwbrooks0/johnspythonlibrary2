@@ -412,6 +412,61 @@ class keysight_dsos054a:
 			
 		return data
 	
+	
+	def get_data_v3(self,ch_num=2,plot=False):
+		""" 
+		get data from scope 
+		"""
+		print("work in progress")
+		# Clear status.
+		self.do_command("*CLS")
+# 		# Get and display the device's *IDN? string.
+# 		idn_string = self.do_query_string("*IDN?")
+# 		print("Identification string: '%s'" % idn_string)
+		self.do_command(":MEASure:SOURce CHANnel%s"%ch_num)
+		print('source: ', end='')
+		print(self.do_query_string(":MEASure:SOURce?"))
+		
+		
+		# Get the waveform type.
+		qresult = self.do_query_string(":WAVeform:TYPE?")
+		print("Waveform type: %s" % qresult)
+		# Get the number of waveform points.
+		qresult = self.do_query_string(":WAVeform:POINts?")
+		print("Waveform points: %s" % qresult)
+		# Set the waveform source.
+		self.do_command(":WAVeform:SOURce CHANnel%s"%ch_num)
+		print("Waveform source:  "+self.do_query_string(":WAVeform:SOURce?"))
+	# 	print("Waveform source: %s" % qresult)
+		# Choose the format of the data returned:
+		self.do_command(":WAVeform:FORMat BYTE")
+		print("Waveform format: %s" % self.do_query_string(":WAVeform:FORMat?"))
+		x_increment = self.do_query_number(":WAVeform:XINCrement?")
+		x_origin = self.do_query_number(":WAVeform:XORigin?")
+		y_increment = self.do_query_number(":WAVeform:YINCrement?")
+		y_origin = self.do_query_number(":WAVeform:YORigin?")
+		# Get the waveform data.
+		self.do_command(":WAVeform:STReaming OFF")
+		sData = self.do_query_ieee_block(":WAVeform:DATA?")
+		# Unpack signed byte data.
+	# 	import numpy as np
+		values = struct.unpack("%db" % len(sData), np.array(sData).astype(np.byte))
+	
+	
+		data = np.array(values) * y_increment + y_origin
+		time = np.arange(len(data)) * x_increment + x_origin
+	
+		import xarray as xr
+		data=xr.DataArray(	data,
+								 dims='t',
+								 coords=[time])
+		
+		if plot==True:
+			fig,ax=plt.subplots()
+			data.plot(ax=ax)
+			
+		return data
+	
 	def get_all_data(self, plot=False):
 		""" download all four channels of data """
 		
