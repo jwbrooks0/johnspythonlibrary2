@@ -413,14 +413,41 @@ def get_hdf5_tree(hdf5_file_path, text_file_output_name=None):
 	return out
 
 
-def hdf5_add_metadata(	hdf5_item, library):
+def hdf5_add_metadata_old(	hdf5_item, library):
 	""" Add a library as attributes to an hdf5 item (group or dataset) """
 	
 	for key in library.keys():
 		hdf5_item.attrs.create(name=key, data=library[key])
+		
+def hdf5_add_metadata(	hdf5_filename, library):
+	""" Add a library as attributes to an hdf5 item (group or dataset) """
+	print('not working yet')
+	import h5py
+	f=h5py.File(hdf5_filename,mode='a')
+	for key in library.keys():
+		f.attrs.create(name=key, data=library[key])
+		
+# def 
+		
+def xr_Dataset_to_hdf5(		ds,
+							hdf5_file_name,
+							group_name,
+							):
+	"""
+	The xarray library has a convenient method of converting a dataset to an hdf5 file.  This is a wrapper for this.
+	"""
+	ds.to_netcdf(hdf5_file_name, mode='a', format='NETCDF4', group=group_name, engine='h5netcdf', invalid_netcdf=True)
 
 
-def xr_DataArray_to_hdf5(	y, 
+def xr_DataArray_to_hdf5(	da,
+							hdf5_file_name,
+							group_name):
+	xr_Dataset_to_hdf5(		ds=da,
+								hdf5_file_name=hdf5_file_name,
+								group_name=group_name,
+								)
+
+def xr_DataArray_to_hdf5_old(	y, 
  							h5py_file, 
 							var_name='',
 							path='data',
@@ -518,7 +545,11 @@ def xr_DataArray_to_hdf5(	y,
 	return f
 
 
-def hdf5_to_xr_DataArray(	h5py_file, 
+def hdf5_to_xr_Dataset(		hdf5_file, group_name):
+	return _xr.load_dataset(hdf5_file, group=group_name, engine="h5netcdf")
+
+
+def hdf5_to_xr_DataArray_old(	h5py_file, 
 							var_path):
 	"""
 	
