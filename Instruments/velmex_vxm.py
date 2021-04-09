@@ -7,6 +7,7 @@ Created on Sun Feb  7 10:51:40 2021
 
 
 import time
+import serial
 
 class velmex_vxm:
 	
@@ -26,13 +27,22 @@ class velmex_vxm:
     
 	# returns the position of motor m    
 	def get_motor_position (self, motor_num=1):
-		motors = ['X','Y','Z','T' ]
-		global ser
-		self.instrument.readline();          # clear current buffer
-		self.instrument.write(motors[motor_num-1].encode())   # query for position
-		pos = int(self.instrument.readline()[:-1])
 		
-		return pos*self.inches_per_step
+		if motor_num==1:
+			steps_per_inch=self.m1_settings['steps_per_inch']
+		elif motor_num==2:
+			steps_per_inch=self.m2_settings['steps_per_inch']
+			
+		motors = ['X','Y','Z','T' ]
+# 		global ser
+		self.instrument.read_all();          # clear current buffer
+		time.sleep(0.1)
+		self.instrument.write(motors[motor_num-1].encode()) 
+		time.sleep(0.1)
+		print(self.instrument.read_all())  # query for position
+# 		pos = int(self.instrument.readline()[:-1])
+		
+# 		return pos/steps_per_inch
 	
 	def check_status(self, verbose=True):
 		self.instrument.readline()                  # clear current buffer
@@ -52,7 +62,7 @@ class velmex_vxm:
 		return status
 		
 	
-	def set_motor_speed(self,  speed=2000, motor_num=1,):
+	def set_motor_speed(self,  speed=500, motor_num=1,):
 		
 		self.instrument.write(b"C")  # clear current program
 		command = "S" + str(motor_num) + "M" + str(speed) + ","
@@ -66,8 +76,10 @@ class velmex_vxm:
 					parity=serial.PARITY_NONE, 
 					stopbits=1, 
 					timeout=.1, 
-					steps_per_revolution = 360/0.9, 
-					inches_per_revolution = 0.1):
+					m1_steps_per_revolution = 180/0.9, 
+					m2_steps_per_revolution = 360/0.9,
+					m1_inches_per_revolution = 0.1,
+					m2_inches_per_revolution = 0.1):
 		
 		self.instrument= serial.Serial(	port=port, 
 										baudrate=baudrate, 
@@ -80,10 +92,23 @@ class velmex_vxm:
 		if self.check_status(verbose=False) == b'R':
 			print('Successfully connected at port:', port)
 			
-		self.steps_per_revolution = steps_per_revolution
-		self.inches_per_revolution = inches_per_revolution
-		self.inches_per_step = inches_per_revolution / steps_per_revolution
-		self.steps_per_inch = steps_per_revolution / inches_per_revolution 
+		time.sleep(0.1)
+		self.instrument.read_all()
+		self.instrument.write(b'getD3')
+		self.instrument.write(b'getD0')
+		self.instrument.write(b'getD1')
+		time.sleep(0.1)
+		print('Connected to', self.instrument.read_all())
+			
+		self.m1_settings={'steps_per_revolution':m1_steps_per_revolution, 'inches_per_revolution':m1_inches_per_revolution, 'inches_per_step':m1_inches_per_revolution / m1_steps_per_revolution, 'steps_per_inch' : m1_steps_per_revolution / m1_inches_per_revolution }
+		self.m2_settings={'steps_per_revolution':m2_steps_per_revolution, 'inches_per_revolution':m2_inches_per_revolution, 'inches_per_step':m2_inches_per_revolution / m2_steps_per_revolution, 'steps_per_inch' : m2_steps_per_revolution / m2_inches_per_revolution }
+		
+		self.set_motor_speed(500,1)
+		self.set_motor_speed(500,2)
+# 		self.steps_per_revolution = steps_per_revolution
+# 		self.inches_per_revolution = inches_per_revolution
+# 		self.inches_per_step = inches_per_revolution / steps_per_revolution
+# 		self.steps_per_inch = steps_per_revolution / inches_per_revolution 
 		
 	def _move_motor(self, command, wait=True):
 		self.instrument.write(b"C")  # clear current program
@@ -93,10 +118,18 @@ class velmex_vxm:
 			self.wait_until_done()
 		
 	def move_by (self, distance, motor_num=1, wait=True):
-	    self._move_motor("I" + str(motor_num) + "M" + str(int(distance*self.steps_per_inch)) + ",", wait=wait) # send movement command
+		if motor_num==1:
+			steps_per_inch=self.m1_settings['steps_per_inch']
+		elif motor_num==2:
+			steps_per_inch=self.m2_settings['steps_per_inch']
+		self._move_motor("I" + str(motor_num) + "M" + str(int(distance*steps_per_inch)) + ",", wait=wait) # send movement command
 	
 	def move_to (self, destination, motor_num=1, wait=True):
-	    self._move_motor("IA" + str(motor_num) + "M" + str(int(destination*self.steps_per_inch)) + ",", wait=wait) # send movement command
+		if motor_num==1:
+			steps_per_inch=self.m1_settings['steps_per_inch']
+		elif motor_num==2:
+			steps_per_inch=self.m2_settings['steps_per_inch']
+		self._move_motor("IA" + str(motor_num) + "M" + str(int(destination*steps_per_inch)) + ",", wait=wait) # send movement command
 		
 	def home_motor(self, motor_num, wait=True):
 	    self._move_motor("IA" + str(motor_num) + "M0" + ",", wait=wait) # send movement command
@@ -111,6 +144,7 @@ class velmex_vxm:
 			self.instrument.write(b"V")      
 			
 	def disconnect(self):
+		vxm.instrument.write(b'Q')
 		self.instrument.close()
 		
 	def find_limits(self, motor_num=1, verbose=True):
@@ -129,6 +163,6 @@ class velmex_vxm:
 		self.instrument.write(b'N') 
 
 if __name__=="__main__":
-	unit=velmex_vxm()
+	vxm=velmex_vxm('COM8')
 # 	limits=unit.find_limits()
 # 	print(limits)
