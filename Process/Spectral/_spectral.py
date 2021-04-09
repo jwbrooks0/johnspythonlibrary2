@@ -5,7 +5,108 @@ import matplotlib.pyplot as _plt
 from scipy import fftpack as _fftpack
 from johnspythonlibrary2 import Plot as _plot
 from johnspythonlibrary2.Plot import subTitle as _subTitle, finalizeFigure as _finalizeFigure, finalizeSubplot as _finalizeSubplot
+from johnspythonlibrary2.Process.Misc import check_dims as _check_dims
+# from johnspythonlibrary2.Process.Spectral import fft as _fft
 import xarray as _xr
+
+
+
+###############################################################################
+#%% Dispersion plots
+
+def dispersion_plot(da, dim1='t', dim2='theta', nperseg_dim1=None, nperseg_dim2=None, plot=True):
+	print('work in progress')
+	
+	
+def dispersion_plot_2points(da1, da2, x_separation=1, nperseg=None, plot=True):
+	# https://scholar.colorado.edu/downloads/qj72p7185
+	# https://aip.scitation.org/doi/pdf/10.1063/1.2889424
+	# https://aip.scitation.org/doi/pdf/10.1063/1.331279
+	"""
+	filename='C:\\Users\\jwbrooks\\data\\marcels_thesis_data\\20A_5sccm_5mm_6.29.2019_7.07 PM.mat'
+	matData=jpl2.ReadWrite.mat_to_dict(filename)
+	t=matData['t'].reshape(-1)
+	da1=xr.DataArray(matData['s1'].reshape(-1), dims='t', coords=[t])
+	da2=xr.DataArray(matData['s4'].reshape(-1), dims='t', coords=[t])
+
+	x_separation=3e-3
+	"""
+	
+	# check input
+	_check_dims(da1,'t')
+	_check_dims(da2,'t')
+		
+	# parameters
+	nperseg=20000
+	N_k=50
+	N_f=1000
+	
+	# initialize arrays
+	S=_np.zeros((N_k,N_f),dtype=float)
+	count=_np.zeros((N_k,N_f),dtype=int)
+	
+	def calc_fft_and_k(x1,x2):	
+		fft1=fft(x1, plot=False).sortby('f')
+		fft2=fft(x2, plot=False).sortby('f')
+		s=_np.real(0.5*(_np.conj(fft1)*fft1+_np.conj(fft2)*fft2))
+		phase_diff,_,_=calcPhaseDifference(fft1, fft2, plot=False)
+		k=phase_diff/x_separation
+# 		k_bins=_np.linspace(k.data.min(),k.data.max(),N_k+1)
+# 		f_bins=_np.linspace(k.f.data.min(),k.f.data.max(),N_f+1)
+		
+		return s, k
+	
+	
+	# calculate bin sizes
+	s,k=calc_fft_and_k(da1,da2)
+	k_bins=_np.linspace(k.data.min(),k.data.max(),N_k+1)
+	f_bins=_np.linspace(k.f.data.min(),k.f.data.max(),N_f+1)
+		
+	
+	# itegrate through each time window
+	segs=_np.arange(0,len(da1),nperseg)
+	for i,seg in enumerate(segs):
+		if len(da1[seg:seg+nperseg])<nperseg:
+			pass
+		else:
+			print(seg)
+# 			
+# 			fft1=fft(da1[seg:seg+nperseg], plot=False).sortby('f')
+# 			fft2=fft(da2[seg:seg+nperseg], plot=False).sortby('f')
+# 			s=_np.real(0.5*(_np.conj(fft1)*fft1+_np.conj(fft2)*fft2))
+# 			
+# 			phase_diff,_,_=calcPhaseDifference(fft1, fft2, plot=False)
+# 			k=phase_diff/x_separation
+# 			
+# 			if i == 0:
+# 				k_bins=_np.linspace(k.data.min(),k.data.max(),N_k+1)
+# 				f_bins=_np.linspace(k.f.data.min(),k.f.data.max(),N_f+1)
+# 				
+			
+			s,k=calc_fft_and_k(da1[seg:seg+nperseg], da2[seg:seg+nperseg])
+			data=_pd.DataFrame()
+			data['f']=s.f.data
+			data['S']=s.data
+			data['k']=k.data
+			
+			for a in range(N_k):
+				for b in range(N_f):
+					c=data.where((data['k']>k_bins[a])&(data['k']<k_bins[a+1])&(data['f']>f_bins[b])&(data['f']<f_bins[b+1])).dropna()
+					count[a,b]+=len(c)
+					S[a,b]=S[a,b]+c['S'].sum()
+					
+	count[count==0]=1	# prevent divide by 0 issues
+	S=_xr.DataArray(S/count, dims=['k','f'],coords=[ (k_bins[1:]+k_bins[0:-1])/2, (f_bins[1:]+f_bins[0:-1])/2])
+	
+	if plot==True:
+		fig,ax=_plt.subplots()
+		count=_xr.DataArray(count, dims=['k','f'],coords=[ (k_bins[1:]+k_bins[0:-1])/2, (f_bins[1:]+f_bins[0:-1])/2])
+		count.plot(ax=ax)
+		
+		fig,ax=_plt.subplots()
+		_np.log10(S).plot(ax=ax)
+		
+	return S
 
 ###############################################################################
 #%% Fourier methods
