@@ -39,7 +39,67 @@ class keysight_N5222A:
 			if "No error" not in error:
 				print(error)
 		return response	
-				
+	
+	def start_fast_CW_segments(self):
+		# description on page 3356 of the manual
+		# relevant(ish) example http://na.support.keysight.com/vna/help/latest/Programming/GPIB_Example_Programs/Setup_FastCW_and_FIFO.htm
+		if False:
+			self.write_command("CONT:SIGN BNC1,TIEPOSITIVE") # configures external trigger.  BNC1 is the BNC triggen in ch 1.  TIEPOSITIVE sets the trigger to positive edge
+			self.write_command("TRIG:SOUR EXT") # sets trigger to external
+			self.write_command("SENS:SWE:TRIG:POIN OFF") # (i think) OFF sets it so that 1 trigger results in a full sweep.  ON sets it to 1 point per trigger.
+		
+		# 1 - Activechannel.hold 1 # hold syncronous
+		self.write_command("SENS:SWE:MODE HOLD")
+		# 2 - FIFO.State = 1 # turn on
+		self.write_command("SYST:FIFO ON")
+		# 3 - FIFO.Clear # clears buffer
+		self.write_command("SYST:FIFO:DATA:CLEAR")
+		# 4 - Turn on Segment sweep
+		self.write_command("SENS:SWE:TYPE SEGM")
+		self.write_command("SENS:SWE:MODE CONT")
+		# 6 - 
+		
+# 		self.write_command("SENS:SWE:MODE CONT") # pg 3119 in programming manual
+
+	def timeit(self):
+		data=np.zeros((20,2))
+		for i in range(data.shape[0]):
+			data[i,0]=time.time()
+			data[i,1]=int(vna.query("SYST:FIFO:DATA:COUNT?"))
+			time.sleep(1)
+		data=np.array(data)
+		data=xr.DataArray(data[:,1],dims='t',coords=[data[:,0]])
+		print(np.gradient(data.data/51)/np.gradient(data.t.data))
+		
+		return data
+	def upload_segment_table(	self, 
+								f_start=100e6, 
+								f_stop=500e6, 
+								num_f=51, 
+								if_bandwidth=600e3, 
+								power=0, 
+								npoints=1):
+		# description on segment commands on page 2697 of the manual
+		
+		# clear the table
+		vna.write_command('SENS:FOM:RANG:SEGM:DEL:ALL')
+		
+		# create each entry
+		f_range=np.linspace(f_start, f_stop, num_f)
+		for f in np.flip(f_range):
+			# adds entry
+			vna.write_command('SENS:FOM:RANG:SEGM1:ADD')
+			# sets if bandwidth
+			vna.write_command('SENS:FOM:RANG:SEGM1:BWID %d'%if_bandwidth)
+			# sets frequency (start = stop)
+			vna.write_command('SENS:FOM:RANG:SEGM1:FREQ:STAR %d'%f)
+			vna.write_command('SENS:FOM:RANG:SEGM1:FREQ:STOP %d'%f)
+			# sets power
+			vna.write_command('SENS:FOM:RANG:SEGM1:POW %d'%power)
+			# sets number of points
+			vna.write_command('SENS:FOM:RANG:SEGM1:SWE:POIN %d'%npoints)
+			# turns on
+			vna.write_command('SENS:FOM:RANG:SEGM1 1') 
 			
 	def fast_cw_stop(self):
 		self.write_command('SENSe1:SWEep:TYPE:FACW 0')
@@ -49,11 +109,10 @@ class keysight_N5222A:
 		# http://na.support.keysight.com/vna/help/latest/Programming/GPIB_Example_Programs/Setup_FastCW_and_FIFO.htm
 		self.write_command("SENS:BWID:RES 600khz") # set IF Bandwidth to large value
 		self.write_command("SENS:AVER:MODE POINT")
-
 		self.write_command("SENS:AVER ON")
-
 		self.write_command("SENS:AVER:COUNT 1")
-		## good example on page 3192 of pdf
+		
+		# good example on page 3192 of pdf
 		# possibly a relevant example of page 3054 of pdf
 		# 1 - Activechannel.hold 1 # hold syncronous
 		self.write_command("SENS:SWE:MODE HOLD")
@@ -65,6 +124,10 @@ class keysight_N5222A:
 		self.write_command("SENS:SWE:TYPE CW")
 		# 5 - enable fast cw by specifying a the count size
 		self.write_command('SENSe1:SWEep:TYPE:FACW 1000000') # set 0 to disable fast CW.  This is the number of points to measure in fast cw (before presumably it turns itself off)
+		
+# 		self.write_command(':SENS:FREQ:STAR %d' % int(1e8))
+# 		self.write_command(':SENS:FREQ:STOP %d' % int(1e9))
+# 		self.write_command('SENS:SWE:POIN %d'%int(991))
 		# 6 - Activechannel.single 1 # syncronous single
 		self.write_command("SENS:SWE:MODE SINGle") # pg 3119 in programming manual
 
