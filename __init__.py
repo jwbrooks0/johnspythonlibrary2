@@ -23,3 +23,4 @@ from . import Plasma
 from . import Transforms
 from . import Audio
 from . import RF
+from . import HSVideo
