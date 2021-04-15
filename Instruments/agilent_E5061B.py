@@ -217,7 +217,7 @@ class agilent_E5061B:
 		self.vna_socket.send(b':SENS1:AVER:COUNT %d\n' % avg_count)
 		self.vna_socket.send(b':SENS1:BAND:RES %d\n' % if_bandwidth)
 
-	def set_sweep(self, f_start=1e6, f_stop=1e9, n_points=1000, power=0):
+	def set_sweep(self, f_start=1e6, f_stop=1e9, n_points=1000, power=10): #default power = 0.  
 		self.vna_socket.send(b':SENS1:FREQ:STAR %d\n' % f_start)
 		self.vna_socket.send(b':SENS1:FREQ:STOP %d\n' % f_stop)
 		self.vna_socket.send(b':SENS1:SWE:POIN %d\n' % n_points)
