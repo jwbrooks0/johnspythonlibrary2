@@ -12,6 +12,8 @@ from johnspythonlibrary2.Process.Misc import check_dims as _check_dims
 from johnspythonlibrary2.Process.Spectral import fft as _fft
 from johnspythonlibrary2.Process.Spectral import calcPhaseDifference as _calcPhaseDifference
 import xarray as _xr
+from scipy.stats import _binned_statistic
+from scipy.optimize import minimize as _minimize
 
 
 
@@ -200,3 +202,370 @@ def dispersion_plot_2points(da1, da2, x_separation=1, nperseg=None, plot=True):
 		_np.log10(S).plot(ax=ax)
 		
 	return S
+
+#%% binning
+
+def _solve_for_bin_edges(numberBins=100):
+	return _np.linspace(-_np.pi, _np.pi, numberBins + 1)
+
+def create_radial_mask(video, ri=0.9, ro=1.1, fillValue=_np.nan, plot=False):
+	"""
+	Calculate radial mask
+
+	Parameters
+	----------
+	video : xarray.core.dataarray.DataArray
+		the video
+	ri : float
+		inner radius of mask
+	ro : float
+		outer radius of mask
+	fillValue : int,float
+		Fill value for the masked region. 0 or np.nan is standard.
+
+	Returns
+	-------
+	mask : numpy.ndarray (2D)
+	   Mask with 1s in the "keep" region and fillValue
+	   in the "masked-out" region
+
+	Examples
+	--------
+
+	Example 1 ::
+
+		video = create_fake_video_data()
+		video, _ = scale_video_spatial_gaussian(video)
+		mask=create_radial_mask(video, plot=True)
+	"""
+
+	R, _ = calc_video_polar_coordinates(video)
+	mask = _np.ones(R.shape)
+	mask[(R > ro) | (R < ri)] = fillValue
+
+	if plot:
+		temp = _xr.DataArray(mask, dims=['y', 'x'],
+							coords=[video.y, video.x])
+		fig, ax = _plt.subplots()
+		temp.plot(ax=ax)
+
+	return mask
+
+
+def calc_video_polar_coordinates(video, plot=False):
+	"""
+	Creates polar coordinates for the video
+
+	Example 1 ::
+
+		video = create_fake_video_data()
+		video, _ = scale_video_spatial_gaussian(video)
+		calc_video_polar_coordinates(video, plot=True)
+
+	"""
+
+	X, Y = _np.meshgrid(video.x, video.y)
+	R = _np.sqrt(X ** 2 + Y ** 2)
+	Theta = _np.arctan2(Y, X)
+
+	if plot:
+		X = _xr.DataArray(X, dims=['y', 'x'], coords=[video.y, video.x])
+		Y = _xr.DataArray(Y, dims=['y', 'x'], coords=[video.y, video.x])
+		R_temp = _xr.DataArray(R, dims=['y', 'x'], coords=[video.y, video.x])
+		Theta_temp = _xr.DataArray(Theta, dims=['y', 'x'],
+								  coords=[video.y, video.x])
+		fig, ax = _plt.subplots(1, 4)
+		X.plot(ax=ax[0])
+		ax[0].set_title('X')
+		Y.plot(ax=ax[1])
+		ax[1].set_title('Y')
+		R_temp.plot(ax=ax[2])
+		ax[2].set_title('R')
+		Theta_temp.plot(ax=ax[3])
+		ax[3].set_title('Theta')
+		for i in range(4):
+			ax[i].set_aspect('equal')
+
+	return R, Theta
+
+# azimuthal channel binning
+def azimuthal_binning(video, numberBins, ri, ro, plot=False):
+	"""
+	Parameters
+	----------
+	video : xarray.core.dataarray.DataArray
+		the video
+	numberBins : int
+		Number of bins for binning.  e.g. 100
+	ri : float
+		Inner radius for the azimuthal binning
+	ro : float
+		Outer radius for the azimuthal binning
+	plot : bool
+		Optional plots of results
+
+	Returns
+	-------
+	binned_data : xarray.core.dataarray.DataArray
+		2D binned video data with coordinates in theta and time.
+
+	Examples
+	--------
+
+	Example 1 ::
+
+		video = create_fake_video_data()
+		video, _ = scale_video_spatial_gaussian(video)
+		video = scale_video_amplitude(video, method='std')
+		azimuthal_binning(video, 100, ri=0.9, ro=1.1, plot=True)
+
+	"""
+
+	# binning subfunction
+	def binDataAndAverage(x, y, numberBins, plot=False):
+		"""
+		Bins data.
+
+		Parameters
+		----------
+		x : numpy.ndarray
+			independent variable
+		y : numpy.ndarray
+			dependent variable
+		numberBins : int
+			number of bins
+		plot : bool
+			Optional plot of results
+
+		Returns
+		-------
+		xarray.core.dataarray.DataArray
+			DataArray containing the binned results
+		Example
+		-------
+		Example 1::
+
+			x = np.linspace(0, 2 * np.pi, 1000) - np.pi
+			y = np.cos(x) + 1 * (np.random.rand(x.shape[0]) - 0.5)
+			numberBins = 100
+			bin_results = binDataAndAverage(x, y, numberBins, plot=True)
+
+		"""
+		bin_edges = _solve_for_bin_edges(numberBins)
+
+		# bin y(x) into discrete bins and average the values within each
+		y_binned, _, _ = _binned_statistic(x, y, bins=bin_edges,
+										  statistic='mean')
+		x_bins = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+		if plot:
+			da_raw = _xr.DataArray(y, dims=['x'], coords=[x]).sortby('x')
+			fig, ax = _plt.subplots()
+			da_raw.plot(ax=ax, label='raw data')
+			ax.plot(x_bins, y_binned, label='binned data',
+					marker='s', ms=3, linestyle='--')
+			ax.legend()
+
+		return _xr.DataArray(y_binned, dims='Theta', coords=[x_bins])
+
+	# create radial mask
+	R, Theta = calc_video_polar_coordinates(video)
+	mask = create_radial_mask(video, ri=ri, ro=ro)
+
+	# bin and average each time step in the data
+	binned_data = _np.zeros((video.t.shape[0], numberBins))
+	for i, t in enumerate(video.t.data):
+		unbinned_data = _pd.DataFrame()
+		unbinned_data['theta'] = Theta.reshape(-1)
+		unbinned_data['radius'] = R.reshape(-1)
+		unbinned_data['data'] = (video.sel(t=t).data * mask).reshape(-1)
+		unbinned_data = unbinned_data.dropna()
+
+		if i == 0 and plot:
+			plot2 = True
+		else:
+			plot2 = False
+			
+		if i==0:
+			print('Average number of pixels per bin:',unbinned_data.shape[0]/numberBins)
+
+
+		out = binDataAndAverage(unbinned_data.theta.values,
+								unbinned_data.data.values,
+								numberBins, plot=plot2)
+		
+		if i == 0:
+			number_of_NaNs = _np.isnan(out).sum()
+			if number_of_NaNs > 0:
+				print('NaNs encounted in binning: ', number_of_NaNs)
+		binned_data[i, :] = out
+
+	binned_data = _xr.DataArray(binned_data, dims=['t', 'theta'],
+							   coords=[video.t.data.copy(), out.Theta])
+
+	if plot:
+		fig, ax = _plt.subplots()
+		binned_data.plot(ax=ax)
+
+	return binned_data
+
+
+#%% Circular/annulus detection
+
+
+def _circle(ax, xy=(0, 0), r=1, color='r', linestyle='-',
+		   alpha=1, fill=False, label=''):
+	"""
+	Draws a circle on an AxesSubplot (ax) at origin=(xy) and radius=r
+	"""
+	circle1 = _plt.Circle(xy, r, color=color, alpha=alpha,
+						 fill=fill, linestyle=linestyle)
+	ax.add_artist(circle1)
+	
+
+def scale_video_spatial_gaussian(video, guess=[], plot=False, verbose=False):
+	"""
+	Scale (center and normalize) the video's cartesian coordinates
+	using an annular Gaussian fit
+
+	Parameters
+	----------
+	video : xarray.core.dataarray.DataArray
+	   the video
+	guess : list (empty or of 6 floats)
+		Guess values for the fit.
+		Default is an empty list, and a "reasonable" guess is used.
+		[amplitude, channel x center, channel y center,
+		channel radius, channel width, offset]
+	plot : bool
+		optional plot of the results
+	verbose : bool
+		optionally prints misc steps of the fit
+
+	Returns
+	-------
+	video : xarray.core.dataarray.DataArray
+		the video with coordinates scaled
+	fit_params : dict
+		Fit parameters
+
+	Examples
+	--------
+	Example 1 ::
+
+		video = create_fake_video_data()
+		video_scaled, params = scale_video_spatial_gaussian(video, plot=True,
+															verbose=True)
+	"""
+
+	# convert video to time averaged image
+	image = calc_video_time_average(video.copy())
+
+	# create Cartesian grid
+	X, Y = _np.meshgrid(image.x.data, image.y.data)
+
+	# annular Gaussian model, assumed form of the channel
+	def model(image, params):
+		a0, x0, y0, r0, sigma0, offset = params
+
+		def gaussian(a, r, sigma, R):
+			return a * _np.exp(-0.5 * ((R - r) / sigma) ** 2)
+
+		R0 = _np.sqrt((X - x0) ** 2 + (Y - y0) ** 2)
+		Z = gaussian(a0, r0, sigma0, R0) ** 1 + offset
+
+		return Z
+
+	# Generate a reasonable guess and guess image
+	if len(guess) < 6:
+		sh = image.shape
+		guess = [1, sh[1] // 2, sh[0] // 2, _np.min(sh) / 3, _np.min(sh) / 4, 4]
+
+	# Function that minimizes (i.e. fits) the parameters to the model
+	def min_func(params):
+		Z = model(image.data, params)
+		error = _np.abs((image.data - Z)).sum()
+		if verbose:
+			print('error = %.6f' % error)
+		return error
+
+	# perform fit
+	fit = _minimize(min_func, guess)
+	a0, x0, y0, r0, sigma0, offset = fit.x
+	fit_params = {'a0': a0, 'x0': x0, 'y0': y0, 'r0': r0,
+				  'sigma0': sigma0, 'offset': offset}
+
+	# optional plot of results
+	if plot:
+		Z_fit = _xr.DataArray(model(image, fit.x),
+							 dims=image.dims, coords=image.coords)
+		Z_guess = _xr.DataArray(model(image, guess),
+							   dims=image.dims, coords=image.coords)
+
+		fig, ax = _plt.subplots(1, 2, sharey=True)
+		image.sel(x=x0, method='nearest').plot(ax=ax[0], label='data',
+											   color='k')
+		Z_fit.sel(x=x0, method='nearest').plot(ax=ax[0], label='fit',
+											   linestyle='--',
+											   color='tab:blue')
+		ax[0].set_title('x=x0=%.1f' % x0)
+		image.sel(y=y0, method='nearest').plot(ax=ax[1], label='data',
+											   color='k')
+		Z_fit.sel(y=y0, method='nearest').plot(ax=ax[1], label='fit',
+											   linestyle='--',
+											   color='tab:blue')
+		ax[1].set_title('y=y0=%.1f' % y0)
+		ax[0].legend()
+		ax[1].legend()
+
+		image['x'] = (image.x - x0) / r0
+		image['y'] = (image.y - y0) / r0
+
+		fig0, ax0 = _plt.subplots(1, 4)
+
+		ax0[0].imshow(image, origin='lower')
+		ax0[0].set_title('actual')
+
+		ax0[1].imshow(Z_guess, origin='lower')
+		ax0[1].set_title('guess')
+
+		ax0[2].imshow(Z_fit, origin='lower')
+		ax0[2].set_title('fit')
+
+		ax0[3].imshow(image, origin='lower')
+		ax0[3].set_title('actual with fit')
+
+		_circle(ax0[3], xy=(x0, y0), r=r0, fill=False, linestyle='--')
+		_circle(ax0[3], xy=(x0, y0), r=r0 + sigma0 * 1.5, fill=False)
+		_circle(ax0[3], xy=(x0, y0), r=r0 - sigma0 * 1.5, fill=False)
+
+	# apply correction to the video
+	video = video.copy()
+	video['x'] = (video.x - x0) / r0
+	video['y'] = (video.y - y0) / r0
+
+	return video, fit_params
+
+
+#%% Video processing, misc
+
+def calc_video_time_average(video, plot=False):
+	"""
+	calculate time averaged image
+
+	Examples
+	--------
+
+	Example 1 ::
+
+		video = create_fake_video_data()
+		video, _ = scale_video_spatial_gaussian(video)
+		mask = calc_video_time_average(video, plot=True)
+	"""
+	ave = video.mean(dim='t')
+	if plot:
+		fig, ax = _plt.subplots()
+		ave.plot(ax=ax)
+		ax.set_title('time average')
+	return ave
+
