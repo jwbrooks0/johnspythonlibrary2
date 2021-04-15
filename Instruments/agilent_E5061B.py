@@ -37,6 +37,7 @@ class agilent_E5061B:
 		self.SLEEP_TIME = sleep_time
 		self.open_connection()
 		
+		
 	def initial_setup(self):
 		# set default settings
 		self.set_avg()
@@ -62,6 +63,7 @@ class agilent_E5061B:
 		print('successfully connected at %s' % str(self.vna_address))
 		time.sleep(self.SLEEP_TIME)
 		
+		
 	def set_single_freq(self, freq):
 		"""set the span of the VNA"""
 		#TODO change number of points to 2
@@ -72,6 +74,7 @@ class agilent_E5061B:
 		self.vna_socket.send(b":SENS1:SWE:TIME %.3f\n" % 1);
 		
 		time.sleep(self.SLEEP_TIME)
+
 
 	def get_answer(self, max_num_of_bytes=1024):
 		"""
@@ -96,35 +99,6 @@ class agilent_E5061B:
 		frequency_data = [float(i) for i in frequency_data]
 		return np.array(frequency_data)
 
-# 	def get_s11_data(self):
-# 		"""Get the S11 trace data, returning a sequence of floating point numbers."""
-# 		self.vna_socket.send(b":CALC1:PAR1:DEF S11\n")
-# 		time.sleep(self.SLEEP_TIME)
-# 		self.vna_socket.send(b":CALC1:DATA:FDAT?\n")
-# 		s11_data = b""
-# 		while (s11_data[len(s11_data) - 1:] != b"\n"):
-# 			s11_data += self.vna_socket.recv(1024)
-# 		s11_data = s11_data[:len(s11_data) - 1].split(b",")
-# 		s11_data = s11_data[::2]
-# 		s11_data = [round(float(i), 5) for i in s11_data]
-# 		return(s11_data)
-
-# 	def get_s11_data_complex(self):
-# 		"""Get the S11 trace data, returning a sequence of floating point numbers."""
-# 		self.vna_socket.send(b":CALC1:PAR1:DEF S11\n")
-# 		time.sleep(self.SLEEP_TIME)
-# 		self.vna_socket.send(b":CALC1:DATA:FDAT?\n")
-# 		s11_data = b""
-# 		while (s11_data[len(s11_data) - 1:] != b"\n"):
-# 			s11_data += self.vna_socket.recv(1024)
-# 		s11_data = s11_data[:len(s11_data) - 1].split(b",")
-# 		s11_data_real = s11_data[::2]
-# 		s11_data_imag = s11_data[1::2]
-# 		s11_data_real = [round(float(i), 5) for i in s11_data_real]
-# 		s11_data_imag = [round(float(i), 5) for i in s11_data_imag]
-# 		s11_data_complex = np.array(s11_data_real) + 1j * np.array(s11_data_imag)
-# 		return s11_data_complex
-	
 	
 	def _get_answer_complex(self, max_num_of_bytes=1024):
 		"""
@@ -142,6 +116,7 @@ class agilent_E5061B:
 		data_complex = np.array(data_real) + 1j * np.array(data_imag)
 			
 		return(data_complex)
+	
 	
 	def get_data(self, types=['s11','s12','s21','s22']):
 		
@@ -200,22 +175,22 @@ class agilent_E5061B:
 		time.sleep(self.SLEEP_TIME)
 		return
 
-#  	def set_power(self, power):
-# 		self.vna_socket.send(b":SOUR1:POW:GPP " + str(power) + b"\n")
-# 		return
 
 	def close_connection(self):
 		"""Close the socket connection to the instrument."""
 		self.vna_socket.close()
 		print("connection closed")
 
+
 	def auto_scale(self):
 		self.vna_socket.send(b':DISP:WIND1:TRAC1:Y:AUTO\n')
+
 
 	def set_avg(self, avg_on='ON', avg_count=10, if_bandwidth=30e3):
 		self.vna_socket.send(b':SENS1:AVER ' + bytearray(avg_on, 'utf-8') + b'\n')
 		self.vna_socket.send(b':SENS1:AVER:COUNT %d\n' % avg_count)
 		self.vna_socket.send(b':SENS1:BAND:RES %d\n' % if_bandwidth)
+
 
 	def set_sweep(self, f_start=1e6, f_stop=1e9, n_points=1000, power=10): #default power = 0.  
 		self.vna_socket.send(b':SENS1:FREQ:STAR %d\n' % f_start)
@@ -224,9 +199,11 @@ class agilent_E5061B:
 		self.vna_socket.send(b':SOUR1:POW %d\n' % power)
 		self.vna_socket.send(b":SENS1:SWE:TIME:AUTO ON\n" );
 
+
 	def set_conversion(self, conv_on='ON', conv_func='ZREF'):
 		self.vna_socket.send(b':CALC1:SEL:CONV:STAT %s\n'%conv_on.encode())		# %conv_on)
 		self.vna_socket.send(b':CALC1:SEL:CONV:FUNC %s\n'%conv_func.encode())	# %conv_func)
+
 
 	def set_format(self, fmat='SCOM'):  
 		# MLOG = maglog 
@@ -236,16 +213,3 @@ class agilent_E5061B:
 		# http://ena.support.keysight.com/e5061b/manuals/webhelp/eng/programming/command_reference/calculate/scpi_calculate_ch_selected_format.htm
 		self.vna_socket.send(b':CALC1:FORM POL\n')  # %fmat)
 
-# 	def get_data(self, data_type='s11'):
-# 		if data_type == 's11':
-# 			data = self.get_s11_data_complex()
-# 		else:
-# 			raise Exception('Improper type requested: %s' % str(data_type))
-# 		freq = self.get_frequency_data()
-# 		da = xr.DataArray(data, dims=['f'], coords=[freq])
-# 		da.f.attrs['units'] = 'Hz'
-# 		da.f.attrs['long_name'] = 'Frequency'
-# 		da.attrs['units'] = 'Ohm'
-# 		da.name = 'Amplitude'
-
-# 		return da
