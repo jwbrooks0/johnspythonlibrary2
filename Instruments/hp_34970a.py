@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pyvisa as visa
 import socket
-from time import sleep
+from time import sleep, time
 import xarray as xr
 
 ## Working progress
@@ -115,7 +115,7 @@ class hp_34970a_prologix:
 		# Set HP33120A address
 		self.sock.send(b"++addr %s\n"%self.gpib_address)
 		
-	def init_hp34970a(self, channels='@201:218'):
+	def init_hp34970a(self, mode='T', channels='@201:208'):
 		#TODO I need a confirmation command that I'm actually talking with this unit.
 		#TODO the commands in this section need to be vetted.
 		if True:
@@ -123,7 +123,11 @@ class hp_34970a_prologix:
 			self.sock.send(b':ABORt\n')	# stops a scan
 	# 		self.sock.send(b':CONFigure:TEMPerature %s,%s,(%s)\n' % (b'TCouple', b'K', b'@102:104'))
 	# 		self.sock.send(b':CONFigure:VOLT:DC 1,(@101:120') # configures 1V range at channels 101 to 120
-			self.sock.send(b':CONFigure:VOLT:DC AUTO,(%s)\n'%channels.encode()) # configures auto range at channels 101 to 120
+			if mode =='V':
+				self.sock.send(b':CONFigure:VOLT:DC AUTO,(%s)\n'%channels.encode()) # configures auto range at channels 101 to 120
+			elif mode=='T':
+				self.sock.send(b':CONFigure:TEMPerature %s,%s,(%s)\n' % (b'TCouple', b'K', channels.encode()))
+				
 # 			self.sock.send(b':CONFigure:VOLT:DC AUTO,(@101:122') # configures auto range at channels 101 to 120
 	# 		self.sock.send(b':UNIT:TEMPerature %s\n' % (b'C'))
 			self.sock.send(b':ROUTe:SCAN (%s)\n' % (channels.encode())) # configures channels 101 to 122 to be scanned
@@ -186,18 +190,49 @@ class hp_34970a_prologix:
 		
 		return data_out
 	
+	def slow_aquire_data(self, wait_time_in_min=1, filename='out.csv', headers=['Chamber','Anode','TDU','Breadboard','Anode_cooling_block','Z-stage','R-stage','PIP_mount'], mode='T', channels='@201:208'):#, plot=False):
+		self.init_hp34970a(mode=mode,channels=channels)
+		
+		import os
+		from datetime import datetime
+		from johnspythonlibrary2.ReadWrite import append_single_row_to_csv
+		now=datetime.now().strftime("%H:%M:%S")
+		#now.strftime("%H:%M:%S")
+		data=self.get_data()
+		if os.path.exists(filename):
+			headers=[]
+		else:
+			headers=['time', *headers]
+		append_single_row_to_csv( [now, *data.data.astype(str)], filename=filename, headers=headers)
+# 		if plot==True:
+# 			self.plot_time_results_animate()
+		while(True):
+			sleep(int(wait_time_in_min*60))
+			now=datetime.now().strftime("%H:%M:%S")
+			data=self.get_data()
+			append_single_row_to_csv( [now, *data.data.astype(str)], filename=filename)
+	
+		# TODO write function that plots the results and autoupdates the plot each cycle
+	
+	def plot_time_results(filename='out.csv'):
+		import pandas as pd
+		data=pd.read_csv(filename).set_index('time')
+		
+			
+		
 	
 if __name__ == '__main__':
-	unit = hp_34970a_prologix('192.168.0.243')
+	unit = hp_34970a_prologix('192.168.0.105')
 	print(unit.send_and_receive('++ver'))
 # # 	print(unit.receive_response())
 # 	raw_data=unit._get_data_raw(50)
 # 	print(raw_data)
 # # 	print(unit._get_data_raw(1))
-	fig,ax=plt.subplots()
-	ch=1
-	data=unit.get_data()
-	data.plot(ax=ax)
-	ax.legend()
-	unit.disconnect()
+# 	fig,ax=plt.subplots()
+# 	ch=1
+# 	data=unit.get_data()
+# 	data.plot(ax=ax)
+# 	ax.legend()
+	unit.slow_aquire_data(0.25)
+# 	unit.disconnect()
 # 	
