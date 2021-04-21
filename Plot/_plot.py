@@ -4,12 +4,13 @@
 import numpy as _np
 import pandas as _pd
 import matplotlib.pyplot as _plt
-import matplotlib as _mpl
+import matplotlib as _mpl	
+import matplotlib.animation as _animation
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 ###############################################################################
-### custom matplotlib settings
+#%% custom matplotlib settings
 
 # custom color cycle.  now 15 colors long
 _colors=[ 	"k",
@@ -47,7 +48,7 @@ _mpl.rcParams['legend.numpoints'] = 3  # not working
 _mpl.rcParams.update({'figure.autolayout': True})
 
 ###################################################################################
-### figure/ax related
+#%% figure/ax related
 
 def subTitle(	ax,
 				string,
@@ -382,7 +383,7 @@ def subplotsWithColormaps(nrows=2,sharex=False):
 
 
 ###################################################################################
-### shapes
+#%% shapes
 
 def circle(ax,xy=(0,0),r=1,color='r',linestyle='-',alpha=1,fill=True,label=''):
 	circle1 = _plt.Circle(xy, r, color=color,alpha=alpha,fill=fill,linestyle=linestyle)
@@ -668,3 +669,33 @@ def RdOrWGnBu_colormap(plot=False):
 		plot_examples([viridis, Spectral, seismic, newcmp])
 		
 	return newcmp
+
+
+
+#######################################################################################################
+#%% data related
+
+
+def plot_csv_file_that_is_actively_being_written_to(filename='out.csv', interval=5000, index='time'):
+	""" 
+	I don't get it.  This function works if I 'F9' the code, but not when I call it as a function.  No error provided so debugging is difficult. """
+	import os
+	
+	if os.path.exists(filename):
+		
+		# init plot
+		fig,ax=_plt.subplots()
+		
+		# update plot
+		def update(i, a, ind, fn):
+			print(i)
+			a.clear()
+			data=_pd.read_csv(fn).set_index(ind)
+			data.plot(ax=a)
+			_plt.show()
+			
+		# animations
+		_animation.FuncAnimation(fig, update, interval=interval, fargs=(ax,index,filename,)) 
+				
+	else:
+		print('File does not exist')
