@@ -58,12 +58,24 @@ class sorensenPower(object):
 		current = float(currentASCII.strip())
 
 		return current
+	
+	def measure_volt_and_current(self):
+		V=self.getOutputVoltage()
+		I=self.getOutputCurrent()
+		
+		return V,I
 
 	def setOutputVoltage(self, voltage):
 		self.do_query_string(":SOUR:VOLT {:1.03f}".format(voltage))
 
 	def setOutputCurrent(self, current):
 		self.do_query_string(":SOUR:CURR {:1.03f}".format(current))
+		
+	def setZeroOutput(self):
+		self.setOutputCurrent(0)
+		self.setOutputVoltage(0)
+		
+		
 
 	def getStatus(self):
 		statusASCII = self.do_query_string(':SOUR:STAT:BLOC?').strip().split(',')
