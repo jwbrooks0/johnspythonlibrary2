@@ -1943,7 +1943,7 @@ def coherenceAnalysis(	da1,
 		da1=(da1.copy()-da1.mean())/da1.std()
 		da2=(da2.copy()-da2.mean())/da2.std()
 	
-	dt,fs,_,_,f_min,_=signal_spectral_properties(da1,nperseg=numPointsPerSegment,verbose=verbose).values()
+	dt,fs,_,_,f_min=signal_spectral_properties(da1,nperseg=numPointsPerSegment,verbose=verbose).values()
 	
 	
 	# coherence analysis 
