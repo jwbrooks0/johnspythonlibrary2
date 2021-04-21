@@ -94,9 +94,9 @@ if __name__=='__main__':
 	k24xx.set_current_limit(.1)
 	k24xx.output_on()
 	data=k24xx.read_values(10)
-	IV_data=k24xx.IV_sweep(np.arange(-10,11),plot=True)
+	IV_data=k24xx.IV_sweep(np.arange(-100,110,5),plot=True)
 	k24xx.output_off()
-	k24xx.disconnect()
+# 	k24xx.disconnect()
 
 # import usb
 
