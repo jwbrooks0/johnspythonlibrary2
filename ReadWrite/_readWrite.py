@@ -419,6 +419,7 @@ def hdf5_add_metadata_old(	hdf5_item, library):
 	for key in library.keys():
 		hdf5_item.attrs.create(name=key, data=library[key])
 		
+		
 def hdf5_add_metadata(	hdf5_filename, library):
 	""" Add a library as attributes to an hdf5 item (group or dataset) """
 	print('not working yet')
@@ -427,7 +428,6 @@ def hdf5_add_metadata(	hdf5_filename, library):
 	for key in library.keys():
 		f.attrs.create(name=key, data=library[key])
 		
-# def 
 		
 def xr_Dataset_to_hdf5(		ds,
 							hdf5_file_name,
@@ -435,7 +435,17 @@ def xr_Dataset_to_hdf5(		ds,
 							):
 	"""
 	The xarray library has a convenient method of converting a dataset to an hdf5 file.  This is a wrapper for this.
+	
+	Parameters
+	----------
+	ds : xarray.core.dataset.Dataset
+		Dataset to save
+	hdf5_file_name : str
+		Filename of the hdf5 to be created or appended to
+	group_name : str
+		internal hdf5 path to save the data
 	"""
+	# TODO add a parameter that contains "notes" and a line that adds the notes to the dataset before writing to hdf5
 	ds.to_netcdf(hdf5_file_name, mode='a', format='NETCDF4', group=group_name, engine='h5netcdf', invalid_netcdf=True)
 
 
@@ -447,102 +457,103 @@ def xr_DataArray_to_hdf5(	da,
 								group_name=group_name,
 								)
 
-def xr_DataArray_to_hdf5_old(	y, 
- 							h5py_file, 
-							var_name='',
-							path='data',
-							compression_level=5):
-	"""
-	
-	Examples
-	--------
-	Example 1::
-	
-		# multiple time series data with different time bases
-		t1=np.arange(0,1e-2,1e-6)
-		y1=np.sin(2*np.pi*1e3*t1)
-		y1=xr.DataArray(	y1,
-							dims=['t'],
-							coords=[t1])
-		y1.name='y1'
-		
-		t2=np.arange(0,1e-2,2e-6)
-		y2=np.cos(2*np.pi*1e3*t2)
-		y2=xr.DataArray(	y2,
-							dims=['t'],
-							coords=[t2])
-		y2.name='y2'
-		# t2=np.arange(0,1e-2,2e-6)
-		y3=np.cos(2*np.pi*1e3*t2)
-		y3=xr.DataArray(	y3,
-							dims=['t'],
-							coords=[t2])
-		y3.name='y3'
-		
-		num=int(np.random.rand()*10000)
-		print(num)
-		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
-		f = xr_DataArray_to_hdf5(y1, f ,path='data1')
-		f = xr_DataArray_to_hdf5(y2, f, path='data2')
-		f = xr_DataArray_to_hdf5(y3, f, path='data2')
-		#f.close()
-		
-	Example 2::
-		
-		# 3D dataset with attributes
-		x=np.arange(5)
-		y=np.arange(10)
-		z=np.arange(20)
-		three_d_data=xr.DataArray(	np.random.rand(5,10,20),
-								dims=['x','y','z'],
-								coords=[x,y,z],
-								attrs={	'name':'video1',
-										'comment':'this is an example video',
-										'long_name':'video 1 of data',
-										'units':'au'})
-		
-		
-		num=int(np.random.rand()*10000)
-		print(num)
-		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
-		f = xr_DataArray_to_hdf5(three_d_data, f, var_name='video', path='data1')
 
-	"""
+# def xr_DataArray_to_hdf5_old(	y, 
+#  							h5py_file, 
+# 							var_name='',
+# 							path='data',
+# 							compression_level=5):
+# 	"""
+# 	
+# 	Examples
+# 	--------
+# 	Example 1::
+# 	
+# 		# multiple time series data with different time bases
+# 		t1=np.arange(0,1e-2,1e-6)
+# 		y1=np.sin(2*np.pi*1e3*t1)
+# 		y1=xr.DataArray(	y1,
+# 							dims=['t'],
+# 							coords=[t1])
+# 		y1.name='y1'
+# 		
+# 		t2=np.arange(0,1e-2,2e-6)
+# 		y2=np.cos(2*np.pi*1e3*t2)
+# 		y2=xr.DataArray(	y2,
+# 							dims=['t'],
+# 							coords=[t2])
+# 		y2.name='y2'
+# 		# t2=np.arange(0,1e-2,2e-6)
+# 		y3=np.cos(2*np.pi*1e3*t2)
+# 		y3=xr.DataArray(	y3,
+# 							dims=['t'],
+# 							coords=[t2])
+# 		y3.name='y3'
+# 		
+# 		num=int(np.random.rand()*10000)
+# 		print(num)
+# 		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
+# 		f = xr_DataArray_to_hdf5(y1, f ,path='data1')
+# 		f = xr_DataArray_to_hdf5(y2, f, path='data2')
+# 		f = xr_DataArray_to_hdf5(y3, f, path='data2')
+# 		#f.close()
+# 		
+# 	Example 2::
+# 		
+# 		# 3D dataset with attributes
+# 		x=np.arange(5)
+# 		y=np.arange(10)
+# 		z=np.arange(20)
+# 		three_d_data=xr.DataArray(	np.random.rand(5,10,20),
+# 								dims=['x','y','z'],
+# 								coords=[x,y,z],
+# 								attrs={	'name':'video1',
+# 										'comment':'this is an example video',
+# 										'long_name':'video 1 of data',
+# 										'units':'au'})
+# 		
+# 		
+# 		num=int(np.random.rand()*10000)
+# 		print(num)
+# 		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
+# 		f = xr_DataArray_to_hdf5(three_d_data, f, var_name='video', path='data1')
 
-	# make sure the data has a name
-	if var_name=='':
-		if y.name==None:
-			raise Exception('var_name not provided')
-		else:
-			var_name=y.name
-			
-	f = h5py_file
-	
-	# combine path and var_name and initialize the dataset
-	var_name='%s/%s'%(path,var_name)
-	f.create_dataset(var_name, data=y, compression=compression_level)
-	
-	# create and attach each dimension to the dataset
-	for i,dim_name in enumerate(y.dims):
-	
-		f[var_name].dims[i].label = dim_name
-		try:
-			f['%s/'%path+dim_name]=y[dim_name].values
-		except OSError:
-			print('OSError: The time basis already existed for this group. Skipping...')  
-			pass
-		
-		f['%s/'%path+dim_name].make_scale(dim_name)
-		f[var_name].dims[i].attach_scale(f['%s/'%path+dim_name])
-		
-	# copy attributes
-	for i,attr in enumerate(y.attrs):
-		print(attr)
-		f[var_name].attrs.create(	attr,
-								    y.attrs[attr])
-		
-	
-	return f
+# 	"""
+
+# 	# make sure the data has a name
+# 	if var_name=='':
+# 		if y.name==None:
+# 			raise Exception('var_name not provided')
+# 		else:
+# 			var_name=y.name
+# 			
+# 	f = h5py_file
+# 	
+# 	# combine path and var_name and initialize the dataset
+# 	var_name='%s/%s'%(path,var_name)
+# 	f.create_dataset(var_name, data=y, compression=compression_level)
+# 	
+# 	# create and attach each dimension to the dataset
+# 	for i,dim_name in enumerate(y.dims):
+# 	
+# 		f[var_name].dims[i].label = dim_name
+# 		try:
+# 			f['%s/'%path+dim_name]=y[dim_name].values
+# 		except OSError:
+# 			print('OSError: The time basis already existed for this group. Skipping...')  
+# 			pass
+# 		
+# 		f['%s/'%path+dim_name].make_scale(dim_name)
+# 		f[var_name].dims[i].attach_scale(f['%s/'%path+dim_name])
+# 		
+# 	# copy attributes
+# 	for i,attr in enumerate(y.attrs):
+# 		print(attr)
+# 		f[var_name].attrs.create(	attr,
+# 								    y.attrs[attr])
+# 		
+# 	
+# 	return f
 
 
 def hdf5_to_xr_Dataset(		hdf5_file, group_name):
