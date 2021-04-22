@@ -337,7 +337,7 @@ def IV_sweep_analysis_v2(da, exp_fit_bounds=[25,45], i_sat_bounds=[-100,-30], pr
 	return temperature_in_eV, density, da, da_new
 
 
-def IV_sweep_analysis_experimental(da, exp_fit_bounds=[25,45], i_sat_bounds=[-100,-30], probe_area=4.25e-6,  expFitGuess=(6, 20, -5), plot=True, mass = m_Ar, cold_plasma_assumption=True):
+def IV_sweep_analysis_v3(da, probe_area=4.25e-6,  expFitGuess=(6, 20, -5), plot=True, mass = m_Ar, cold_plasma_assumption=True):
 
 	
 	def density_from_isat_and_temp(ionSatCurrent, temperatureInEV, probe_area = probe_area, cold_plasma_assumption = cold_plasma_assumption, mass = mass):
@@ -402,11 +402,12 @@ def IV_sweep_analysis_experimental(da, exp_fit_bounds=[25,45], i_sat_bounds=[-10
 		return V_float
 	
 	V_float = find_V_float(da)
+	exp_fit_bounds=[V_float, V_float+12]
 	
 	# subtract ion saturation linear fit from data
 	da_isat=da[da.V<V_float]
 	da_isat=da_isat[da_isat.V<da_isat.V.data.mean()]
-	_,i_sat_fit=polyFitData(da_isat, order=1,plot=True)
+	_,i_sat_fit=polyFitData(da_isat, order=1,plot=False)
 	da_e_current=da.copy()-i_sat_fit(da.V.data)
 	
 	
@@ -415,8 +416,9 @@ def IV_sweep_analysis_experimental(da, exp_fit_bounds=[25,45], i_sat_bounds=[-10
 	
 	dIe_dV = _xr.DataArray( _np.gradient(da_e_current)/_np.gradient(da_e_current.V), dims='V', coords=[da_e_current.V])
 # 	dIe2_dV2 = _xr.DataArray( _np.gradient(dIe_dV)/_np.gradient(dIe_dV.V), dims='V', coords=[da_e_current.V])
-	fig,ax=_plt.subplots()
-	dIe_dV.plot(ax=ax, yscale='log')
+	if False:
+		fig,ax=_plt.subplots()
+		dIe_dV.plot(ax=ax, yscale='log')
 
 	## perform exp curve fit
 	# fit exp
@@ -466,11 +468,11 @@ def IV_sweep_analysis_experimental(da, exp_fit_bounds=[25,45], i_sat_bounds=[-10
 		_np.abs(da_isat_fit).plot(ax=ax, label='Linear I_sat fit', linewidth=2)
 		
 		ax.legend()
-		ax.set_title('Temperature = %.1f eV,     Density = %.1e %s, \n Debye length = %.1e m, r = %.1e m'%(temperature_in_eV,density,r'm$^{-3}$',debye, radius))
+		ax.set_title('Temperature = %.1f eV,     Density = %.1e %s, \n Debye length = %.1e m, r = %.1e m, V_float=%.3f'%(temperature_in_eV,density,r'm$^{-3}$',debye, radius, V_float))
 		ax.set_yscale('log')
 		ax.set_xlabel('Volts [V]')
 		ax.set_ylabel('|Current| [A]')
 		
-	return temperature_in_eV, density, da, da_e_current
+	return temperature_in_eV, density, V_float, da #, da_e_current
 	
 	
