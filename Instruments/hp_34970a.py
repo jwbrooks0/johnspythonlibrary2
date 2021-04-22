@@ -233,6 +233,6 @@ if __name__ == '__main__':
 # 	data=unit.get_data()
 # 	data.plot(ax=ax)
 # 	ax.legend()
-	unit.slow_aquire_data(0.25)
+	unit.slow_aquire_data(1, 'test30_temperature.csv')
 # 	unit.disconnect()
 # 	
