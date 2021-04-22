@@ -62,7 +62,7 @@ class keysight_N5222A:
 # 		self.write_command("SENS:SWE:MODE CONT") # pg 3119 in programming manual
 
 	def timeit(self):
-		data=np.zeros((20,2))
+		data=np.zeros((10,2))
 		for i in range(data.shape[0]):
 			data[i,0]=time.time()
 			data[i,1]=int(vna.query("SYST:FIFO:DATA:COUNT?"))
