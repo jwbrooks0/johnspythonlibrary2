@@ -560,92 +560,92 @@ def hdf5_to_xr_Dataset(		hdf5_file, group_name):
 	return _xr.load_dataset(hdf5_file, group=group_name, engine="h5netcdf")
 
 
-def hdf5_to_xr_DataArray_old(	h5py_file, 
-							var_path):
-	"""
-	
-	Examples
-	--------
-	Example 1::
-	
-		# multiple time series data with different time bases
-		t1=np.arange(0,1e-2,1e-6)
-		y1=np.sin(2*np.pi*1e3*t1)
-		y1=xr.DataArray(	y1,
-							dims=['t'],
-							coords=[t1])
-		y1.name='y1'
-		
-		t2=np.arange(0,1e-2,2e-6)
-		y2=np.cos(2*np.pi*1e3*t2)
-		y2=xr.DataArray(	y2,
-							dims=['t'],
-							coords=[t2])
-		y2.name='y2'
-		# t2=np.arange(0,1e-2,2e-6)
-		y3=np.cos(2*np.pi*1e3*t2)
-		y3=xr.DataArray(	y3,
-							dims=['t'],
-							coords=[t2])
-		y3.name='y3'
-		
-		num=int(np.random.rand()*10000)
-		print(num)
-		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
-		f = xr_DataArray_to_hdf5(y1, f ,path='data1')
-		f = xr_DataArray_to_hdf5(y2, f, path='data2')
-		f = xr_DataArray_to_hdf5(y3, f, path='data2')
-		
-		da1=hdf5_to_xr_DataArray(f,'data1/y1')
-		da2=hdf5_to_xr_DataArray(f,'data2/y2')
-		da3=hdf5_to_xr_DataArray(f,'data2/y3')
-		
-		f.close()
-		
-	Example 2::
-		
-		# 3D dataset with attributes
-		x=np.arange(5)
-		y=np.arange(10)
-		z=np.arange(20)
-		three_d_data=xr.DataArray(	np.random.rand(5,10,20),
-								dims=['x','y','z'],
-								coords=[x,y,z],
-								attrs={	'name':'video1',
-										'comment':'this is an example video',
-										'long_name':'video 1 of data',
-										'units':'au'})
-		
-		
-		num=int(np.random.rand()*10000)
-		print(num)
-		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
-		f = xr_DataArray_to_hdf5(three_d_data, f, var_name='video', path='data1')
+# def hdf5_to_xr_DataArray_old(	h5py_file, 
+# 							var_path):
+# 	"""
+# 	
+# 	Examples
+# 	--------
+# 	Example 1::
+# 	
+# 		# multiple time series data with different time bases
+# 		t1=np.arange(0,1e-2,1e-6)
+# 		y1=np.sin(2*np.pi*1e3*t1)
+# 		y1=xr.DataArray(	y1,
+# 							dims=['t'],
+# 							coords=[t1])
+# 		y1.name='y1'
+# 		
+# 		t2=np.arange(0,1e-2,2e-6)
+# 		y2=np.cos(2*np.pi*1e3*t2)
+# 		y2=xr.DataArray(	y2,
+# 							dims=['t'],
+# 							coords=[t2])
+# 		y2.name='y2'
+# 		# t2=np.arange(0,1e-2,2e-6)
+# 		y3=np.cos(2*np.pi*1e3*t2)
+# 		y3=xr.DataArray(	y3,
+# 							dims=['t'],
+# 							coords=[t2])
+# 		y3.name='y3'
+# 		
+# 		num=int(np.random.rand()*10000)
+# 		print(num)
+# 		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
+# 		f = xr_DataArray_to_hdf5(y1, f ,path='data1')
+# 		f = xr_DataArray_to_hdf5(y2, f, path='data2')
+# 		f = xr_DataArray_to_hdf5(y3, f, path='data2')
+# 		
+# 		da1=hdf5_to_xr_DataArray(f,'data1/y1')
+# 		da2=hdf5_to_xr_DataArray(f,'data2/y2')
+# 		da3=hdf5_to_xr_DataArray(f,'data2/y3')
+# 		
+# 		f.close()
+# 		
+# 	Example 2::
+# 		
+# 		# 3D dataset with attributes
+# 		x=np.arange(5)
+# 		y=np.arange(10)
+# 		z=np.arange(20)
+# 		three_d_data=xr.DataArray(	np.random.rand(5,10,20),
+# 								dims=['x','y','z'],
+# 								coords=[x,y,z],
+# 								attrs={	'name':'video1',
+# 										'comment':'this is an example video',
+# 										'long_name':'video 1 of data',
+# 										'units':'au'})
+# 		
+# 		
+# 		num=int(np.random.rand()*10000)
+# 		print(num)
+# 		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
+# 		f = xr_DataArray_to_hdf5(three_d_data, f, var_name='video', path='data1')
 
-		da=hdf5_to_xr_DataArray(f,'data1/video')
-		
-		f.close()
-	
-	"""
-			
-	f = h5py_file
-	
-	data=f[var_path]#[()] 	# note that this allows the attrs to be coppied over
-	
-	# create dimensions and coordinates
-	dims=[]
-	coords=[]
-	for a in f[var_path].dims: # presently, this only grabs the first dim from each dimension
-		print(a)
-# 		dims.append(list(a)[0])
-		dims.append(a.label)
-# 		try:
-		coords.append(a[0][()])
-# 		except:
-# 			pass
-		
-	da=_xr.DataArray(	data,
-						dims=dims,
-						coords=coords)
-	
-	return da
+# 		da=hdf5_to_xr_DataArray(f,'data1/video')
+# 		
+# 		f.close()
+# 	
+# 	"""
+# 			
+# 	f = h5py_file
+# 	
+# 	data=f[var_path]#[()] 	# note that this allows the attrs to be coppied over
+# 	
+# 	# create dimensions and coordinates
+# 	dims=[]
+# 	coords=[]
+# 	for a in f[var_path].dims: # presently, this only grabs the first dim from each dimension
+# 		print(a)
+# # 		dims.append(list(a)[0])
+# 		dims.append(a.label)
+# # 		try:
+# 		coords.append(a[0][()])
+# # 		except:
+# # 			pass
+# 		
+# 	da=_xr.DataArray(	data,
+# 						dims=dims,
+# 						coords=coords)
+# 	
+# 	return da
