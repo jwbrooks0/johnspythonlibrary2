@@ -22,6 +22,36 @@ import time
 import serial
 
 
+
+class close_the_loop:
+ 	
+	def __init__(self, vxm, vro):
+		
+		self.vxm=vxm
+		self.vro=vro
+		
+	def move_to(self, position, motor_num, delta=0.01):
+		
+		time.sleep(0.2)
+		
+		check = True
+		count=0
+		while( check == True ):
+			
+			vro_position=self.vro.get_motor_position(motor_num=motor_num)
+			difference = vro_position - position
+			print(vro_position, position, difference)
+				
+			if np.abs(difference)<delta:
+				check = False
+			else:
+				self.vxm.move_by(-difference, motor_num=motor_num)
+			count+=1
+			if count>10:
+				print('gave up after 10 attempts')
+				check=False
+				
+
 class velmex_vxm:
 	
 	"""
@@ -52,10 +82,27 @@ class velmex_vxm:
 		time.sleep(0.1)
 		self.instrument.write(motors[motor_num-1].encode()) 
 		time.sleep(0.1)
-		print(self.instrument.read_all())  # query for position
-# 		pos = int(self.instrument.readline()[:-1])
 		
-# 		return pos/steps_per_inch
+		if True:
+			if motor_num==1:
+				steps_per_inch=self.m1_settings['steps_per_inch']
+			elif motor_num==2:
+				steps_per_inch=self.m2_settings['steps_per_inch']
+			
+			return int(self.instrument.read_all().decode())/steps_per_inch
+		if False:
+			position=int(self.instrument.read_all().decode())  # query for position
+	
+			
+			if motor_num==1:
+				steps_per_inch=self.m1_settings['steps_per_inch']
+			elif motor_num==2:
+				steps_per_inch=self.m2_settings['steps_per_inch']
+			
+			position/=self.m1_settings['steps_per_inch']
+			
+			return position
+	
 	
 	def check_status(self, verbose=True):
 		self.instrument.readline()                  # clear current buffer
@@ -79,8 +126,8 @@ class velmex_vxm:
 		if type(cmd) is str:
 			cmd=cmd.encode()
 		# make sure cmd ends in a carriage return
-		if cmd[-1]!=b'\n':
-			cmd+=b'\n'
+		if cmd[-1]!=b'\r':
+			cmd+=b'\r'
 		# write command
 		self.instrument.write(cmd)
 		
@@ -117,12 +164,12 @@ class velmex_vxm:
 					timeout=.1, 
 					m1_steps_per_revolution = 180/0.9, 
 					m2_steps_per_revolution = 360/0.9,
-					m1_inches_per_revolution = 0.1,
+					m1_inches_per_revolution = 0.05,
 					m2_inches_per_revolution = 0.1):
 		
 		self.instrument= serial.Serial(	port=port, 
 										baudrate=baudrate, 
-										bytesize=bytesize , 
+										bytesize=bytesize, 
 										parity=parity, 
 										stopbits=stopbits, 
 										timeout=timeout)
@@ -150,6 +197,7 @@ class velmex_vxm:
 # 		self.steps_per_inch = steps_per_revolution / inches_per_revolution 
 		
 	def _move_motor(self, command, wait=True):
+		print(command)
 		self.instrument.write(b"C")  # clear current program
 		self.instrument.write(command.encode()) # send movement command
 		self.instrument.write(b"R")  # run current program
@@ -168,7 +216,7 @@ class velmex_vxm:
 			steps_per_inch=self.m1_settings['steps_per_inch']
 		elif motor_num==2:
 			steps_per_inch=self.m2_settings['steps_per_inch']
-		self._move_motor("IA" + str(motor_num) + "M" + str(int(destination*steps_per_inch)) + ",", wait=wait) # send movement command
+		self._move_motor("IA" + str(motor_num) + "M" + str(int(destination*steps_per_inch)) + "\r", wait=wait) # send movement command
 		
 	def home_motor(self, motor_num, wait=True):
 	    self._move_motor("IA" + str(motor_num) + "M0" + ",", wait=wait) # send movement command
@@ -202,10 +250,20 @@ class velmex_vxm:
 		self.instrument.write(b'N') 
 		
 	def set_position_as(self, motor_num=1, pos=0): #TODO confirm this command works
-		self.instrument.write(b'IA%dM-%d'%(motor_num,int(pos))) 
+		if motor_num==1:
+			steps_per_inch=self.m1_settings['steps_per_inch']
+		elif motor_num==2:
+			steps_per_inch=self.m2_settings['steps_per_inch']
+# 		self.instrument.write(b'IA%dM%d'%(motor_num,int(pos))) 
+		command='E,C,IA1M%d,R\r'%int(steps_per_inch*pos)
+		self.instrument.write(command.encode())
 		
-	def close_the_loop(self, encoder, motor_num=1): #TODO write this command
-		print('work in progress') 
+		#  clear buffer
+		self.instrument.read_all()
+
+		
+# 	def close_the_loop(self, encoder, motor_num=1): #TODO write this command
+# 		print('work in progress') 
 # 		encoder_position = encoder.get_motor_position(motor_num=motor_num)
 # # 		if encoder_units == 'in' and motor_num==1:
 # # 			encoder_position*=self.m1_settings['steps_per_inch'] 
@@ -242,7 +300,7 @@ class velmex_vro:
 # 			steps_per_inch=self.m2_settings['steps_per_inch']
 # 			
 			
-		motors = ['X','Y','Z','T' ]
+		motors = ['x','y','z','t' ]
 		global ser
 		self.instrument.read_all();          # clear current buffer
 		self.instrument.write(motors[motor_num-1].encode())   # query for position
@@ -284,7 +342,7 @@ class velmex_vro:
 					stopbits=1, 
 					timeout=.1, 
 					m1_multiplier=int(1),
-					m1_divisor=int(180/1.8/0.1),
+					m1_divisor=int(4000),#180/1.8/0.1
 					m2_multiplier=int(1),
 					m2_divisor=int(360/1.8/0.1),
 # 					m1_steps_per_revolution = 180/0.9, 
@@ -314,20 +372,20 @@ class velmex_vro:
 		print('Connected to', self.instrument.read_all())
 		
 		## Set default encoder constants
-# 		self.write('set*Y%d'%int(2*127))
-# 		self.write('set/Y%d'%int(100))
-# 		self.write('set*X%d'%int(1*127))
-# 		self.write('set/X%d'%int(1000))
 		
-		self.write('set*Y%d'%int(1*254))
-		self.write('set/Y%d'%int(1*1000))
 		self.write('set*X%d'%int(1*127))
-		self.write('set/X%d'%int(1*100))
+		self.write('set/X%d'%int(1*1000))
+		self.write('set*Y%d'%int(1*127))
+		self.write('set/Y%d'%int(1*100))
+# 		self.write('set*Y%d'%int(1*254))
+# 		self.write('set/Y%d'%int(1*1000))
+# 		self.write('set*X%d'%int(1*127))
+# 		self.write('set/X%d'%int(1*100))
 		
-		self.write('set*y%d'%int(100))
-		self.write('set/y%d'%int(1))
 		self.write('set*x%d'%int(50))
 		self.write('set/x%d'%int(1))
+		self.write('set*y%d'%int(50))
+		self.write('set/y%d'%int(1))
 		
 		self.instrument.write(b"Q")  # Retrun to standard dispaly mode
 		
