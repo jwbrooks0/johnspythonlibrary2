@@ -61,7 +61,7 @@ def plasma_frequency_from_density(density,  plot = False):
 
 
 
-def density_from_frequency(frequency, mass, plot = False):
+def density_from_frequency(frequency, mass=m_e, plot = False):
 	"""
 	
 	Example
@@ -402,7 +402,7 @@ def IV_sweep_analysis_v3(da, probe_area=4.25e-6,  expFitGuess=(6, 20, -5), plot=
 		return V_float
 	
 	V_float = find_V_float(da)
-	exp_fit_bounds=[V_float, V_float+12]
+	exp_fit_bounds=[V_float-5, V_float+2]  #TODO this upperlimit is a hack.  Instead, develop a code to autodetermine the V_plasma and use that (or midpoint between V_f and V_p) as the upper limit.  
 	
 	# subtract ion saturation linear fit from data
 	da_isat=da[da.V<V_float]
