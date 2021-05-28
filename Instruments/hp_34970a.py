@@ -115,7 +115,7 @@ class hp_34970a_prologix:
 		# Set HP33120A address
 		self.sock.send(b"++addr %s\n"%self.gpib_address)
 		
-	def init_hp34970a(self, mode='T', channels='@201:208'):
+	def init_hp34970a(self, mode='V', channels='@201:209'):
 		#TODO I need a confirmation command that I'm actually talking with this unit.
 		#TODO the commands in this section need to be vetted.
 		if True:
@@ -162,7 +162,7 @@ class hp_34970a_prologix:
 			
 		
 	def _get_data_raw(self, wait_time=10):
-		self.init_hp34970a()
+# 		self.init_hp34970a()
 		self.receive_response() #clear buffer
 		sleep(0.1)
 		self.sock.send(b':READ?\n')
@@ -222,8 +222,10 @@ class hp_34970a_prologix:
 		
 	
 if __name__ == '__main__':
-	unit = hp_34970a_prologix('192.168.0.105')
+	unit = hp_34970a_prologix('192.168.0.243')
+	unit.init_hp34970a(mode='V', channels='@215:215')
 	print(unit.send_and_receive('++ver'))
+	unit.get_data(plot=True)
 # # 	print(unit.receive_response())
 # 	raw_data=unit._get_data_raw(50)
 # 	print(raw_data)
@@ -233,6 +235,6 @@ if __name__ == '__main__':
 # 	data=unit.get_data()
 # 	data.plot(ax=ax)
 # 	ax.legend()
-	unit.slow_aquire_data(1, 'test30_temperature.csv')
+# 	unit.slow_aquire_data(1, 'test30_temperature.csv')
 # 	unit.disconnect()
 # 	
