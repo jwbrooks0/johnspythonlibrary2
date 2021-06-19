@@ -18,24 +18,33 @@ except ImportError:
 #################################################
 # %% csv
 
+def xr_dataarray_to_csv(data, filename='test.csv'):
+	
+	out=data.to_pandas()
+	out.name=data.name
+	out.to_csv(filename)
+	
+
 def csv_to_xr(filename, delimiter=',', row_number_of_col_names='infer', first_column_is_index=True, number_of_rows=None,  dim_dtype=None):
 
-# 	filename='C:\\Users\\jwbrooks\\python\\nrl_code\\vna_impedance\\test29_mikeN_balun_board_S_measurements\\sn3_cal1.csv'
+	# filename='C:\\Users\\jwbrooks\\python\\nrl_code\\vna_impedance\\test29_mikeN_balun_board_S_measurements\\sn3_cal1.csv'
 	
-	data=_pd.read_csv(filename, delimiter=delimiter, header=row_number_of_col_names, skip_blank_lines=True)
+	data = _pd.read_csv(filename, delimiter=delimiter, header=row_number_of_col_names, skip_blank_lines=True)
 	
-	if type(number_of_rows)!=type(None):
-		data=data.iloc[:number_of_rows,:]
+	if type(number_of_rows) != type(None):
+		data = data.iloc[:number_of_rows, :]
 		
-	if first_column_is_index==True:
-		data=data.set_index(data.iloc[:,0].name)
+	if first_column_is_index is True:
+		data = data.set_index(data.iloc[:, 0].name)
 		
 	if type(dim_dtype) != type(None):
-		data.index=data.index.astype(dim_dtype)
+		data.index = data.index.astype(dim_dtype)
 		
 	data = data.to_xarray()
 	
-	return data
+	keys = list(data.keys())
+	
+	return data[keys[0]]
 
 
 def append_single_row_to_csv(data_row, filename='name.csv', headers=[]):
@@ -373,10 +382,9 @@ def np_array_to_mp4(array,file_name):
 	
 	print("work in progress")
 	if not file_name.endswith('.mp4'):
-		file_name+='.mp4'
+		file_name += '.mp4'
 		
 	_skio.vwrite(file_name, array)
-
 
 
 ##############################################################################
@@ -407,8 +415,8 @@ def get_hdf5_tree(hdf5_file_path, text_file_output_name=None):
 	f.close()
 	
 	if type(text_file_output_name) == str:
-		str_to_text_file(out, text_file_output_name )
-		print('wrote data to : %s'%text_file_output_name)
+		str_to_text_file(out, text_file_output_name)
+		print('wrote data to : %s' % text_file_output_name)
 	
 	return out
 
@@ -424,15 +432,14 @@ def hdf5_add_metadata(	hdf5_filename, library):
 	""" Add a library as attributes to an hdf5 item (group or dataset) """
 	print('not working yet')
 	import h5py
-	f=h5py.File(hdf5_filename,mode='a')
+	f = h5py.File(hdf5_filename, mode='a')
 	for key in library.keys():
 		f.attrs.create(name=key, data=library[key])
 		
 		
 def xr_Dataset_to_hdf5(		ds,
 							hdf5_file_name,
-							group_name,
-							):
+							group_name):
 	"""
 	The xarray library has a convenient method of converting a dataset to an hdf5 file.  This is a wrapper for this.
 	
@@ -445,17 +452,54 @@ def xr_Dataset_to_hdf5(		ds,
 	group_name : str
 		internal hdf5 path to save the data
 	"""
-	# TODO add a parameter that contains "notes" and a line that adds the notes to the dataset before writing to hdf5
-	ds.to_netcdf(hdf5_file_name, mode='a', format='NETCDF4', group=group_name, engine='h5netcdf', invalid_netcdf=True)
+	ds.to_netcdf(hdf5_file_name, 
+					mode='a', 
+					format='NETCDF4', 
+					group=group_name, 
+					engine='h5netcdf', 
+					invalid_netcdf=True)
+	
+	
+def xr_Dataset_to_hdf5_v2(	ds,
+							hdf5_file_name,
+							group_name,
+							compression_level=5):
+	"""
+	The xarray library has a convenient method of converting a dataset to an hdf5 file.  This is a wrapper for this.
+	
+	Parameters
+	----------
+	ds : xarray.core.dataset.Dataset
+		Dataset to save
+	hdf5_file_name : str
+		Filename of the hdf5 to be created or appended to
+	group_name : str
+		internal hdf5 path to save the data
+		
+	References
+	----------
+	* https://stackoverflow.com/questions/40766037/specify-encoding-compression-for-many-variables-in-xarray-dataset-when-write-to
+	"""
+	# add encoding (compression) for each variable in the dataset
+	comp = dict(compression='gzip', compression_opts=compression_level)
+	encoding = {var: comp for var in ds.data_vars}
+	
+	# write to hdf5 file
+	ds.to_netcdf(hdf5_file_name, 
+					mode='a', 
+					format='NETCDF4', 
+					group=group_name, 
+					engine='h5netcdf', 
+					invalid_netcdf=True,
+					encoding=encoding)
 
 
 def xr_DataArray_to_hdf5(	da,
 							hdf5_file_name,
 							group_name):
-	xr_Dataset_to_hdf5(		ds=da,
-								hdf5_file_name=hdf5_file_name,
-								group_name=group_name,
-								)
+	xr_Dataset_to_hdf5(		ds=da.to_dataset(),
+							hdf5_file_name=hdf5_file_name,
+							group_name=group_name)
 
 
 # def xr_DataArray_to_hdf5_old(	y, 
