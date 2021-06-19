@@ -388,10 +388,12 @@ def np_array_to_mp4(array, file_name):
 # %% Text files, generic
 
 def str_to_text_file(input_str, filename):
+	""" 
+	Writes a str of data to a single row in a text file. 
+	This is useful, for instance, if a csv file is being written to one line at a time. 
+	"""
 	text_file = open(filename, "w")
-
-	text_file.write(input_str)
-	
+	text_file.write(input_str)	
 	text_file.close()
 
 
