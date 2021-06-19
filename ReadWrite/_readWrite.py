@@ -437,30 +437,30 @@ def hdf5_add_metadata(	hdf5_filename, library):
 		f.attrs.create(name=key, data=library[key])
 		
 		
-def xr_Dataset_to_hdf5(		ds,
-							hdf5_file_name,
-							group_name):
-	"""
-	The xarray library has a convenient method of converting a dataset to an hdf5 file.  This is a wrapper for this.
+# def xr_Dataset_to_hdf5(		ds,
+# 							hdf5_file_name,
+# 							group_name):
+# 	"""
+# 	The xarray library has a convenient method of converting a dataset to an hdf5 file.  This is a wrapper for this.
+# 	
+# 	Parameters
+# 	----------
+# 	ds : xarray.core.dataset.Dataset
+# 		Dataset to save
+# 	hdf5_file_name : str
+# 		Filename of the hdf5 to be created or appended to
+# 	group_name : str
+# 		internal hdf5 path to save the data
+# 	"""
+# 	ds.to_netcdf(hdf5_file_name, 
+# 					mode='a', 
+# 					format='NETCDF4', 
+# 					group=group_name, 
+# 					engine='h5netcdf', 
+# 					invalid_netcdf=True)
 	
-	Parameters
-	----------
-	ds : xarray.core.dataset.Dataset
-		Dataset to save
-	hdf5_file_name : str
-		Filename of the hdf5 to be created or appended to
-	group_name : str
-		internal hdf5 path to save the data
-	"""
-	ds.to_netcdf(hdf5_file_name, 
-					mode='a', 
-					format='NETCDF4', 
-					group=group_name, 
-					engine='h5netcdf', 
-					invalid_netcdf=True)
 	
-	
-def xr_Dataset_to_hdf5_v2(	ds,
+def xr_Dataset_to_hdf5(	ds,
 							hdf5_file_name,
 							group_name,
 							compression_level=5):
@@ -494,9 +494,8 @@ def xr_Dataset_to_hdf5_v2(	ds,
 					encoding=encoding)
 
 
-def xr_DataArray_to_hdf5(	da,
-							hdf5_file_name,
-							group_name):
+def xr_DataArray_to_hdf5(	da, hdf5_file_name, group_name):
+	""" Writes xarray DataArray to hdf5 file format """
 	xr_Dataset_to_hdf5(		ds=da.to_dataset(),
 							hdf5_file_name=hdf5_file_name,
 							group_name=group_name)
