@@ -1,31 +1,33 @@
 
+
+##############################################################################
+# %% Import libraries
 import numpy as _np
 import pandas as _pd
-import matplotlib.pyplot as _plt
+# import matplotlib.pyplot as _plt
 from functools import wraps as _wraps
 import pickle as _pkl
 import xarray as _xr
 
 try:
 	import johnspythonlibrary2.ReadWrite._settings as _settings
-	LOCALDIRTOSAVEDATA=_settings.localDirToSaveData
+	LOCALDIRTOSAVEDATA = _settings.localDirToSaveData
 except ImportError:
 	print('Warning: ReadWrite/_settings.py file not found.  Have you modified the ReadWrite/_settingsTemplate.py file yet?')
-	LOCALDIRTOSAVEDATA=''
+	LOCALDIRTOSAVEDATA = ''
 	
 	
-	
-#################################################
+##############################################################################
 # %% csv
 
 def xr_dataarray_to_csv(data, filename='test.csv'):
-	
-	out=data.to_pandas()
-	out.name=data.name
+	""" writes xarray dataarray to csv file """
+	out = data.to_pandas()
+	out.name = data.name
 	out.to_csv(filename)
 	
 
-def csv_to_xr(filename, delimiter=',', row_number_of_col_names='infer', first_column_is_index=True, number_of_rows=None,  dim_dtype=None):
+def csv_to_xr(filename, delimiter=',', row_number_of_col_names='infer', first_column_is_index=True, number_of_rows=None, dim_dtype=None):
 
 	# filename='C:\\Users\\jwbrooks\\python\\nrl_code\\vna_impedance\\test29_mikeN_balun_board_S_measurements\\sn3_cal1.csv'
 	
@@ -89,10 +91,10 @@ def pickle_to_any_data(filename):
 
 	"""
 	
-	return _pkl.load(open(filename,'rb'))
+	return _pkl.load(open(filename, 'rb'))
 
 
-def any_data_to_pickle(data,filename):
+def any_data_to_pickle(data, filename):
 	"""
 	Parameters
 	----------
@@ -107,14 +109,13 @@ def any_data_to_pickle(data,filename):
 
 	"""
 	
-	_pkl.dump(data,open(filename,"wb"))
+	_pkl.dump(data, open(filename, "wb"))
 	
-
 
 ##############################################################################
 # %% Matlab data
 
-def matlab73_to_xr_DataArray(filename,dataNames=None,returnRaw=False):
+def matlab73_to_xr_DataArray(filename, dataNames=None, returnRaw=False):
 	"""
 	Reads matlab 7.3 data
 
@@ -129,29 +130,29 @@ def matlab73_to_xr_DataArray(filename,dataNames=None,returnRaw=False):
 		
 	References
 	----------
-	  * https://stackoverflow.com/questions/17316880/reading-v-7-3-mat-file-in-python
+	* https://stackoverflow.com/questions/17316880/reading-v-7-3-mat-file-in-python
 
 	"""
 	import mat73
-	data_temp=mat73.loadmat(filename)
+	data_temp = mat73.loadmat(filename)
 	
-	if returnRaw==True:
+	if returnRaw is True:
 		return data_temp
 	else:
-		colNames=_np.array(list(data_temp.keys()),dtype=str)[:-1]
-		if type(dataNames)==type(None):
-			dataNames=colNames.copy()
+		colNames = _np.array(list(data_temp.keys()), dtype=str)[:-1]
+		if type(dataNames) == type(None):
+			dataNames = colNames.copy()
 			
-		das={}
-		for ic,c in enumerate(colNames):
-			t=_np.arange(data_temp[c].NumPoints)*data_temp[c].XInc+data_temp[c].XOrg
-			da=_xr.DataArray((data_temp[c].Data)*data_temp[c].YInc+data_temp[c].YOrg,
+		das = {}
+		for ic, c in enumerate(colNames):
+			t = _np.arange(data_temp[c].NumPoints) * data_temp[c].XInc + data_temp[c].XOrg
+			da = _xr.DataArray((data_temp[c].Data) * data_temp[c].YInc + data_temp[c].YOrg,
 								dims=['t'],
-								coords={'t':t},
-								attrs={'units':data_temp[c].YUnits})
+								coords={'t': t},
+								attrs={'units': data_temp[c].YUnits})
 			
-			da.t.attrs={'units':data_temp[c].XUnits}
-			das[dataNames[ic]]=da
+			da.t.attrs = {'units': data_temp[c].XUnits}
+			das[dataNames[ic]] = da
 			
 		return _xr.Dataset(das)
 	
@@ -162,12 +163,12 @@ def mat_to_dict(filename):
 	from scipy.io import loadmat
 
 	# load .mat file into a dictionary
-	matData=loadmat(filename)
+	matData = loadmat(filename)
 	
 	# get the column (header) names for each array
-	names=list(matData.keys())
+	names = list(matData.keys())
 	
-	print('loaded:',names)
+	print('loaded:', names)
 	
 	return matData
 	
@@ -208,7 +209,7 @@ def mat_to_dict(filename):
 
 #################################################
 # %% HBT related
-def backupDFs(func,defaultDir=LOCALDIRTOSAVEDATA,debug=False):
+def backupDFs(func, defaultDir=LOCALDIRTOSAVEDATA, debug=False):
 	"""
 	Decorator for functions that return one or more DataFrames.
 	This decorator stores the data locally so it doesn't need to be download from 
@@ -249,63 +250,60 @@ def backupDFs(func,defaultDir=LOCALDIRTOSAVEDATA,debug=False):
 			print(args)
 			print(kwargs)
 			
-		name=args[0]
+		name = args[0]
 		if debug:
 			print(name)
 			
 		if 'forceDownload' in kwargs:
-			forceDownload=kwargs.pop('forceDownload')
+			forceDownload = kwargs.pop('forceDownload')
 		else:
-			forceDownload=False
+			forceDownload = False
 		if debug:
 			print(forceDownload)
 			
-		partialFileName='%s_%s'%(str(name),func.__name__)
+		partialFileName = '%s_%s' % (str(name), func.__name__)
 		if debug:
 			print(partialFileName)
 		
 		try:
-			if LOCALDIRTOSAVEDATA=='':
+			if LOCALDIRTOSAVEDATA == '':
 				raise Exception('Default directory not specified.  Forcing download.')
-			elif forceDownload==True:
+			elif forceDownload is True:
 				raise Exception('forcing download')
 			import glob
-			inList=glob.glob('%s%s*.pkl'%(defaultDir,partialFileName))
-			if len(inList)==0:
+			inList = glob.glob('%s%s*.pkl' % (defaultDir, partialFileName))
+			if len(inList) == 0:
 				print('data does not exist, downloading')
 				raise Exception('data does not exist, downloading')
-			elif len(inList)==1:
-				fileName='%s%s.pkl'%(defaultDir,partialFileName)
-				df=_pd.read_pickle(fileName)
-				print('loaded %s from memory'%fileName)
+			elif len(inList) == 1:
+				fileName = '%s%s.pkl ' % (defaultDir, partialFileName)
+				df = _pd.read_pickle(fileName)
+				print('loaded %s from memory' % fileName)
 			else:
-				df=[]
+				df = []
 				for i in range(len(inList)):
-					fileName='%s%s_%d.pkl'%(defaultDir,partialFileName,i)
+					fileName = '%s%s_%d.pkl' % (defaultDir, partialFileName, i)
 					df.append(_pd.read_pickle(fileName))
-					print('loaded %s from memory'%fileName)
+					print('loaded %s from memory' % fileName)
 		except:
-			read=func(*args, **kwargs)
-			if type(read)==_pd.core.frame.DataFrame:
-				if LOCALDIRTOSAVEDATA!='':
-					fileName='%s%s_%s.pkl'%(defaultDir,str(name),func.__name__)
+			read = func(*args, **kwargs)
+			if type(read) == _pd.core.frame.DataFrame:
+				if LOCALDIRTOSAVEDATA != '':
+					fileName = '%s%s_%s.pkl' % (defaultDir, str(name), func.__name__)
 					read.to_pickle(fileName)
-					print('downloading and storing %s'%fileName)
+					print('downloading and storing %s' % fileName)
 			else:
 				for i in range(len(read)):
-					df=read[i]
-					if LOCALDIRTOSAVEDATA!='':
-						fileName='%s%s_%s_%d.pkl'%(defaultDir,str(name),func.__name__,i)
+					df = read[i]
+					if LOCALDIRTOSAVEDATA != '':
+						fileName = '%s%s_%s_%d.pkl' % (defaultDir, str(name), func.__name__, i)
 						df.to_pickle(fileName)
-						print('downloading and storing %s'%fileName)
-			df=read
+						print('downloading and storing %s' % fileName)
+			df = read
 			
 		return df
 					
 	return inner1
-
-
-
 
 
 ##############################################################################
@@ -334,17 +332,16 @@ def ods_to_pd_DataFrame(filename, sheetName='Sheet1', header=0):
 	import ezodf
 	
 	tab = ezodf.opendoc(filename=filename).sheets[sheetName]
-	df = _pd.DataFrame({col[header].value:[x.value for x in col[header+1:]]
-						 for col in tab.columns()})
+	df = _pd.DataFrame({col[header].value:[x.value for x in col[header + 1:]]
+						for col in tab.columns()})
 	
 	return df
-
 
 
 ##############################################################################
 # %% Videos
 
-def np_array_to_mp4(array,file_name):
+def np_array_to_mp4(array, file_name):
 	"""
 	
 	Parameters
@@ -401,7 +398,7 @@ def str_to_text_file(input_str, filename):
 ##############################################################################
 # %% HDF5
 
-## proposed hdf5 data structure template for future data
+# ## proposed hdf5 data structure template for future data
 # Tier 1 (Parent directory) : Experiment # or case
 # Tier 2 : Parameter scan(s)
 # Tier 3 : Instruments/Diagnostics (because datasets with different time bases should not be mixed)
@@ -501,194 +498,6 @@ def xr_DataArray_to_hdf5(	da, hdf5_file_name, group_name):
 							group_name=group_name)
 
 
-# def xr_DataArray_to_hdf5_old(	y, 
-#  							h5py_file, 
-# 							var_name='',
-# 							path='data',
-# 							compression_level=5):
-# 	"""
-# 	
-# 	Examples
-# 	--------
-# 	Example 1::
-# 	
-# 		# multiple time series data with different time bases
-# 		t1=np.arange(0,1e-2,1e-6)
-# 		y1=np.sin(2*np.pi*1e3*t1)
-# 		y1=xr.DataArray(	y1,
-# 							dims=['t'],
-# 							coords=[t1])
-# 		y1.name='y1'
-# 		
-# 		t2=np.arange(0,1e-2,2e-6)
-# 		y2=np.cos(2*np.pi*1e3*t2)
-# 		y2=xr.DataArray(	y2,
-# 							dims=['t'],
-# 							coords=[t2])
-# 		y2.name='y2'
-# 		# t2=np.arange(0,1e-2,2e-6)
-# 		y3=np.cos(2*np.pi*1e3*t2)
-# 		y3=xr.DataArray(	y3,
-# 							dims=['t'],
-# 							coords=[t2])
-# 		y3.name='y3'
-# 		
-# 		num=int(np.random.rand()*10000)
-# 		print(num)
-# 		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
-# 		f = xr_DataArray_to_hdf5(y1, f ,path='data1')
-# 		f = xr_DataArray_to_hdf5(y2, f, path='data2')
-# 		f = xr_DataArray_to_hdf5(y3, f, path='data2')
-# 		#f.close()
-# 		
-# 	Example 2::
-# 		
-# 		# 3D dataset with attributes
-# 		x=np.arange(5)
-# 		y=np.arange(10)
-# 		z=np.arange(20)
-# 		three_d_data=xr.DataArray(	np.random.rand(5,10,20),
-# 								dims=['x','y','z'],
-# 								coords=[x,y,z],
-# 								attrs={	'name':'video1',
-# 										'comment':'this is an example video',
-# 										'long_name':'video 1 of data',
-# 										'units':'au'})
-# 		
-# 		
-# 		num=int(np.random.rand()*10000)
-# 		print(num)
-# 		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
-# 		f = xr_DataArray_to_hdf5(three_d_data, f, var_name='video', path='data1')
-
-# 	"""
-
-# 	# make sure the data has a name
-# 	if var_name=='':
-# 		if y.name==None:
-# 			raise Exception('var_name not provided')
-# 		else:
-# 			var_name=y.name
-# 			
-# 	f = h5py_file
-# 	
-# 	# combine path and var_name and initialize the dataset
-# 	var_name='%s/%s'%(path,var_name)
-# 	f.create_dataset(var_name, data=y, compression=compression_level)
-# 	
-# 	# create and attach each dimension to the dataset
-# 	for i,dim_name in enumerate(y.dims):
-# 	
-# 		f[var_name].dims[i].label = dim_name
-# 		try:
-# 			f['%s/'%path+dim_name]=y[dim_name].values
-# 		except OSError:
-# 			print('OSError: The time basis already existed for this group. Skipping...')  
-# 			pass
-# 		
-# 		f['%s/'%path+dim_name].make_scale(dim_name)
-# 		f[var_name].dims[i].attach_scale(f['%s/'%path+dim_name])
-# 		
-# 	# copy attributes
-# 	for i,attr in enumerate(y.attrs):
-# 		print(attr)
-# 		f[var_name].attrs.create(	attr,
-# 								    y.attrs[attr])
-# 		
-# 	
-# 	return f
-
-
 def hdf5_to_xr_Dataset(		hdf5_file, group_name):
 	return _xr.load_dataset(hdf5_file, group=group_name, engine="h5netcdf")
 
-
-# def hdf5_to_xr_DataArray_old(	h5py_file, 
-# 							var_path):
-# 	"""
-# 	
-# 	Examples
-# 	--------
-# 	Example 1::
-# 	
-# 		# multiple time series data with different time bases
-# 		t1=np.arange(0,1e-2,1e-6)
-# 		y1=np.sin(2*np.pi*1e3*t1)
-# 		y1=xr.DataArray(	y1,
-# 							dims=['t'],
-# 							coords=[t1])
-# 		y1.name='y1'
-# 		
-# 		t2=np.arange(0,1e-2,2e-6)
-# 		y2=np.cos(2*np.pi*1e3*t2)
-# 		y2=xr.DataArray(	y2,
-# 							dims=['t'],
-# 							coords=[t2])
-# 		y2.name='y2'
-# 		# t2=np.arange(0,1e-2,2e-6)
-# 		y3=np.cos(2*np.pi*1e3*t2)
-# 		y3=xr.DataArray(	y3,
-# 							dims=['t'],
-# 							coords=[t2])
-# 		y3.name='y3'
-# 		
-# 		num=int(np.random.rand()*10000)
-# 		print(num)
-# 		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
-# 		f = xr_DataArray_to_hdf5(y1, f ,path='data1')
-# 		f = xr_DataArray_to_hdf5(y2, f, path='data2')
-# 		f = xr_DataArray_to_hdf5(y3, f, path='data2')
-# 		
-# 		da1=hdf5_to_xr_DataArray(f,'data1/y1')
-# 		da2=hdf5_to_xr_DataArray(f,'data2/y2')
-# 		da3=hdf5_to_xr_DataArray(f,'data2/y3')
-# 		
-# 		f.close()
-# 		
-# 	Example 2::
-# 		
-# 		# 3D dataset with attributes
-# 		x=np.arange(5)
-# 		y=np.arange(10)
-# 		z=np.arange(20)
-# 		three_d_data=xr.DataArray(	np.random.rand(5,10,20),
-# 								dims=['x','y','z'],
-# 								coords=[x,y,z],
-# 								attrs={	'name':'video1',
-# 										'comment':'this is an example video',
-# 										'long_name':'video 1 of data',
-# 										'units':'au'})
-# 		
-# 		
-# 		num=int(np.random.rand()*10000)
-# 		print(num)
-# 		f = h5py.File('mytestfile%.5d.hdf5'%num, 'a')
-# 		f = xr_DataArray_to_hdf5(three_d_data, f, var_name='video', path='data1')
-
-# 		da=hdf5_to_xr_DataArray(f,'data1/video')
-# 		
-# 		f.close()
-# 	
-# 	"""
-# 			
-# 	f = h5py_file
-# 	
-# 	data=f[var_path]#[()] 	# note that this allows the attrs to be coppied over
-# 	
-# 	# create dimensions and coordinates
-# 	dims=[]
-# 	coords=[]
-# 	for a in f[var_path].dims: # presently, this only grabs the first dim from each dimension
-# 		print(a)
-# # 		dims.append(list(a)[0])
-# 		dims.append(a.label)
-# # 		try:
-# 		coords.append(a[0][()])
-# # 		except:
-# # 			pass
-# 		
-# 	da=_xr.DataArray(	data,
-# 						dims=dims,
-# 						coords=coords)
-# 	
-# 	return da
