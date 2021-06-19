@@ -499,5 +499,15 @@ def xr_DataArray_to_hdf5(	da, hdf5_file_name, group_name):
 
 
 def hdf5_to_xr_Dataset(		hdf5_file, group_name):
-	return _xr.load_dataset(hdf5_file, group=group_name, engine="h5netcdf")
+	ds = _xr.load_dataset(hdf5_file, group=group_name, engine="h5netcdf")
+	return ds
+	
+
+def hdf5_to_xr(		hdf5_file, group_name):
+	""" Reads hdf5 data and returns xarray dataset if multiple variables or xarray dataarray is a single variable """
+	ds = hdf5_to_xr_Dataset(hdf5_file=hdf5_file, group_name=group_name)
+	if len(ds) == 1:
+		return ds[list(ds.data_vars)[0]]
+	else:
+		return ds
 
