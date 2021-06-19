@@ -337,7 +337,7 @@ def IV_sweep_analysis_v2(da, exp_fit_bounds=[25,45], i_sat_bounds=[-100,-30], pr
 	return temperature_in_eV, density, da, da_new
 
 
-def IV_sweep_analysis_v3(da, probe_area=4.25e-6,  expFitGuess=(6, 20, -5), plot=True, mass = m_Ar, cold_plasma_assumption=True):
+def IV_sweep_analysis_v3(da, probe_area=3.1669e-5,  expFitGuess=(6, 20, -5), plot=True, mass = m_Ar, cold_plasma_assumption=True): # probe_area=4.25e-6
 
 	
 	def density_from_isat_and_temp(ionSatCurrent, temperatureInEV, probe_area = probe_area, cold_plasma_assumption = cold_plasma_assumption, mass = mass):
@@ -402,7 +402,7 @@ def IV_sweep_analysis_v3(da, probe_area=4.25e-6,  expFitGuess=(6, 20, -5), plot=
 		return V_float
 	
 	V_float = find_V_float(da)
-	exp_fit_bounds=[V_float-5, V_float+2]  #TODO this upperlimit is a hack.  Instead, develop a code to autodetermine the V_plasma and use that (or midpoint between V_f and V_p) as the upper limit.  
+	exp_fit_bounds=[V_float-1, V_float+10]  #TODO this upperlimit is a hack.  Instead, develop a code to autodetermine the V_plasma and use that (or midpoint between V_f and V_p) as the upper limit.  
 	
 	# subtract ion saturation linear fit from data
 	da_isat=da[da.V<V_float]
