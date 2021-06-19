@@ -28,6 +28,9 @@ def normalize_by_std(da, dim='t'):
 	return da.copy()/da.std(dim=dim).data
 
 
+def extractFloatsFromStr(string, pattern="\d+\.\d+"):
+	import re
+	return re.findall(pattern, string)
 
 
 def extractIntsFromStr(string):
