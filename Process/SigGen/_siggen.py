@@ -346,6 +346,7 @@ def lorentzAttractor(	N=2000,
 	References
 	----------
 	 * https://en.wikipedia.org/wiki/Lorenz_system
+	 * https://www.diasporist.org/jeroen/assets/lecture%20-%20A%20brief%20introduction%20to%20the%20Lorenz%2063%20system.pdf
 	 
 	Examples
 	--------
