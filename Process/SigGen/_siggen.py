@@ -1,12 +1,10 @@
 
 import numpy as _np
-#import pandas as _pd
 import matplotlib.pyplot as _plt
-#from johnspythonlibrary2 import Plot as _plot
 from johnspythonlibrary2.Process.Misc import findNearest
 import xarray as _xr
 
-from scipy.signal import gaussian as _gaussian
+# from scipy.signal import gaussian as _gaussian
 
 #%% Basic signal generation
 
@@ -236,7 +234,7 @@ def tentMap(N=1000,plot=False,ICs={'x0':_np.sqrt(2)/2.0}):
 def saved_lorentzAttractor(	N=2000,
 							dt=0.05,
 							ICs={	'x0':-9.38131377,
-								    'y0':-8.42655716 , 
+									'y0':-8.42655716 , 
 									'z0':29.30738524},
 							plot=False,
 							removeMean=False,
@@ -264,12 +262,76 @@ def saved_lorentzAttractor(	N=2000,
 	return ds
 		
 		
+def lorentz96(N=5, F=8, t_final=30.0, dt=0.01, plot=False):
+	"""
 	
+	References
+	----------
+	* https://en.wikipedia.org/wiki/Lorenz_96_model
+	* 'a common benchmark for spatiotemporal filtering methods due to its chaotic dynamics and moderate dimensionality' : https://journals.aps.org/prx/abstract/10.1103/PhysRevX.6.011021
+	
+	Examples
+	--------
+	
+	Example 1::
+		
+		x = lorentz96(plot=True)
+		
+	Example 2::
+		
+		x = lorentz96(40, t_final=50, plot=True)
+	"""
+	
+	if N < 4:
+		raise Exception("N must be >= 4")
+	
+	# parameters
+
+	# library
+	from scipy.integrate import odeint
+		
+	# subfunction
+	def L96(x, t):
+		"""Lorenz 96 model with constant forcing"""
+		# Setting up vector
+		d = _np.zeros(N)
+		# Loops over indices (with operations and Python underflow indexing handling edge cases)
+		for i in range(N):
+			d[i] = (x[(i + 1) % N] - x[i - 2]) * x[i - 1] - x[i] + F
+		return d
+	
+	# setup time
+	t = _np.arange(0.0, float(t_final), dt)
+	
+	# setup ICs
+	x0 = F * _np.ones(N)  # Initial state (equilibrium)
+	x0[0] += 0.01  # Add small perturbation to the first variable
+	
+	# solve
+	x = odeint(L96, x0, t)
+	
+	# finalize
+	x = _xr.DataArray(x.transpose(), dims=['n', 't'], coords=[_np.arange(0, N) + 1, t])
+	x.t.attrs = {'long_name': 'Time', 'units': 'au'}
+	
+	if plot is True:
+		fig = _plt.figure()
+		ax = fig.gca(projection="3d")
+		ax.plot(x.sel(n=1), x.sel(n=2), x.sel(n=3))
+		ax.set_xlabel("$x_1$")
+		ax.set_ylabel("$x_2$")
+		ax.set_zlabel("$x_3$")
+		
+		fig, ax = _plt.subplots()
+		x.plot(ax=ax)
+		
+	return x
+
 
 def lorentzAttractor(	N=2000,
 						dt=0.05,
 						ICs={	'x0':-9.38131377,
-							    'y0':-8.42655716 , 
+								'y0':-8.42655716 , 
 								'z0':29.30738524},
 						plot=False,
 						removeMean=False,
