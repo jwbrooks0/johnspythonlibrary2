@@ -2,7 +2,7 @@
 import numpy as _np
 
 
-def round_float_to_resolution(value, resolution):
+def round_float_to_arbitrary_resolution(value, resolution):
 	"""
 	
 	Examples
