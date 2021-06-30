@@ -495,6 +495,10 @@ def xr_Dataset_to_hdf5(	ds,
 
 def xr_DataArray_to_hdf5(	da, hdf5_file_name, group_name):
 	""" Writes xarray DataArray to hdf5 file format """
+	
+	if da.name is None:
+		da.name = 'data'
+	
 	xr_Dataset_to_hdf5(		ds=da.to_dataset(),
 							hdf5_file_name=hdf5_file_name,
 							group_name=group_name)
