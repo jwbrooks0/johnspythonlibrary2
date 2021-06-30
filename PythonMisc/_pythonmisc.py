@@ -2,7 +2,21 @@
 import numpy as _np
 
 
-def createLibrarySimple(keys,vals):
+def round_float_to_resolution(value, resolution):
+	"""
+	
+	Examples
+	--------
+	Examples ::
+		
+		round_float_to_resolution(10.021, 0.025)
+		round_float_to_resolution(3.141592653589793, 0.001)
+
+	"""
+	return round(value / resolution) * resolution
+
+
+def createLibrarySimple(keys, vals):
 	"""
 	Simple method to create library by passing a list of keys and a list of 
 	values (vals)
@@ -23,7 +37,7 @@ def createLibrarySimple(keys,vals):
 		zipped = createLibrarySimple(keys,vals)
 		print(zipped)
 	"""
-	if len(keys)!=len(vals):
+	if len(keys) != len(vals):
 		raise Exception('Lengths of keys and vals are not equal')
 	return dict(zip(keys, vals))
 
@@ -64,11 +78,11 @@ def retrieveVariableName(var):
 	import inspect as _inspect
 	
 	callers_local_vars = _inspect.currentframe().f_back.f_locals.items()
-	if type(var)!=list:
+	if type(var) != list:
 		name = [var_name for var_name, var_val in callers_local_vars if var_val is var][0]
 	else:
 		print(_np.shape(var))
-		name=[]
+		name = []
 		for n in var:
 			name.append([var_name for var_name, var_val in callers_local_vars if var_val is n][0])
 			
