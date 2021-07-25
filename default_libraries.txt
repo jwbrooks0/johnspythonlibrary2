@@ -33,11 +33,13 @@ pyserial 		# used to talk with instruments over serial (eg. RS232) connections.
 # Preferences->Editor->Display->Source Code->Indention characters->Tabulations
 # Preferences->Editor->Advances->Edit template for new file->  (Then add numpy, pandas, mpl, etc)
 # Preferences->IPython console->Graphics->Graphics backend->Backend->Automatic
+# Preferences->Completion and linting->Code style and formatting->Enable code style linting
+# Preferences->Completion and linting->Code style and formatting->Ignore the following errors or warnings-> W191, W293, W291, E501, E128
 # Preferences->Completion and linting->Show automatic completions after
 #    characters entered->1
 # Preferences->Show automatic completions after
 #    keyboard idle (ms)->100
-# Preferences->Syntax Coloring->Scheme->Spyder Dark
+# Preferences->Appearance->Syntax highlighting theme->Spyder Dark
 ### Misc.
 # PYTHONPATH - remember to add your personal libraries
 
