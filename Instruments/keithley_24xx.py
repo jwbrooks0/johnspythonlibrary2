@@ -15,7 +15,7 @@ from johnspythonlibrary2.Instruments import instr_tools
 
 
 class keithley_24xx:
-	
+	# https://download.tek.com/manual/2460-901-01_B_May_2015_Ref.pdf
 	#TODO add a function that sets the voltage range
 	#TODO Setting the voltage turns off continous scanning.  I want to leave continuous scanning on.
 	#TODO read_values should return both current and voltage
