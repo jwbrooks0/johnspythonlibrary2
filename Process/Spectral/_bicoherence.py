@@ -9,29 +9,38 @@ import xarray as _xr
 #%% Signal generators for bicoherence
 # TODO add, y=cos(omega * t + 0.1*random(len(t)) )
 
-def generate_signals(dt, M, N, f, seed=0, plot=False):
-	"""
-	
-	"""
-	t = np.arange(0, int(M*N)) * dt
-	
-	def sigGen(f=f,seed=seed, M=M, N=N, t=t):
-		_np.random.seed(seed)
-		Theta = (_np.random.rand(M,N)-0.5)*_np.pi
-		T=t.reshape((M,N))
-		return np.cos(2*_np.pi*f*T+Theta)
-	
-	y=_xr.DataArray( sigGen().flatten(), dims='t', coords=[t])
-	
-	if plot==True:
-		fig,ax=_plt.subplots()
-# <<<<<<< Updated upstream
-# 		ax.plot(t,y)
-# =======
-		y.plot(ax=ax)
-# >>>>>>> Stashed changes
-	
-	return y
+# def generate_signals(dt, M, N, f, phase, seed=0,plot=False):
+# 	"""
+# 	dt=5e-1
+# 	M=64     # number of windows
+# 	N=128*4  # number of samples per window
+# 	f=0.220*1*_np.pi*2
+# 	seed=0
+# 	phase=(_np.random.rand(M)-0.5)*_np.pi
+# 	"""
+# 	# M = number of windows
+# 	# N = number of samples per window
+# 	t = _np.arange(0, int(M*N)) * dt
+# 	
+# 	def sigGen(f=f, seed=seed, M=M, N=N, t=t):
+# 		_np.random.seed(seed)
+# 		theta = phase
+# 		Theta = _np.repeat(theta[_np.newaxis,:], N, axis=0)
+# 		
+# # 		T=t.reshape((N,M))
+# 		T=_np.array(list(t[0:N])*M).reshape(M,N).transpose()
+# 		return _np.cos(2*_np.pi*f*T+Theta)
+# 	
+# 	y=sigGen()
+# 	
+# 	t = _np.arange(0, int(M*N)) * dt
+# 	y=_xr.DataArray( y.transpose().flatten(), dims='t', coords=[t])
+# 	
+# 	if plot==True:
+# 		fig,ax=_plt.subplots()
+# 		y.plot(ax=ax)
+# 	
+# 	return y
 
 
 #%% main functions
@@ -507,35 +516,39 @@ def bispectrum(	da,
 # 		
 # 	return bicoh
 		
-def bicoherence_2D(	da):
+def bicoherence_2D(da, nperseg=500, verbose=True, precondition_signal=False, windowFunc='hann', m_range=_np.arange(-5,5.1,1, dtype=int)):
+	"""
+	
+	References
+	----------
+	 * See Appendix A in https://aip.scitation.org/doi/10.1063/1.3429674
+	 
+	"""
 	print("work in progress")
-	precondition_signal=True
-	nperseg=1000
-	verbose=True
-	windowFunc='hann'
+	
+	
+	
+	
 		
 	import numpy as np
-	from mpl_toolkits.axes_grid1 import make_axes_locatable
+# 	from mpl_toolkits.axes_grid1 import make_axes_locatable
 	from scipy.signal.spectral import _spectral_helper
-	import pandas as pd
+# 	import pandas as pd
 	import xarray as xr
-	import matplotlib.pyplot as plt
-
+# 	import matplotlib.pyplot as plt
+# 	from johnspythonlibrary2.Process.Misc import check_dims, subtract_mean_and_normalize_by_std
+	from johnspythonlibrary2.Process.Spectral import signal_spectral_properties
 	
 	# make sure 't' and 'theta' are in dimensions
 	if 'time' in da.dims:
 		da=da.rename({'time':'t'})
-	if 't' not in da.dims:
-		raise Exception('Time dimension, t, not present.  Instead, %s found'%(str(da.dims)))
-	if 'theta' not in da.dims:
-		raise Exception('Azimuthal dimension, theta, not present.  Instead, %s found'%(str(da.dims)))
-		
+	check_dims(da, dims=['t','theta'])
+	
 	# optional precondition signal
 	if precondition_signal==True:
-# 		da=(da.copy()-da.mean(dim='t').data)/da.std(dim='t').data
 		da = subtract_mean_and_normalize_by_std(da,'t')
 
-	dt,fsamp,fn,_,_,_=signal_spectral_properties(da,nperseg=nperseg,verbose=verbose).values()
+	dt,fsamp,fn,_,_=signal_spectral_properties(da,nperseg=nperseg,verbose=verbose).values()
 	
 	# Solve for the STFT results from each time window
 	f,t,stft_results=_spectral_helper(	da.data,
@@ -547,10 +560,10 @@ def bicoherence_2D(	da):
 										noverlap=0,
 										return_onesided=False,
 										mode='stft')
-	da2=xr.DataArray(stft_results, dims=['f',da.dims[1],'t'], coords=[f,da.coords['theta'].data,t])
+	da2=xr.DataArray(stft_results, dims=['f',da.dims[1],'t'], coords=[f,da.coords['theta'].data,t]).sortby('f')
 	
 	# Solve for FFT (STFT with 1 window) of azimuthal
-	dtheta=da.coords['theta'].data[1]-da.coords['theta'].data[0]
+	dtheta=da2.coords['theta'].data[1]-da2.coords['theta'].data[0]
 	m,t0,stft_results=_spectral_helper(	da2.data,
 										da2.data,
 										axis=1,
@@ -560,28 +573,30 @@ def bicoherence_2D(	da):
 										noverlap=0,
 										return_onesided=False,
 										mode='stft')
-	X2D=xr.DataArray(stft_results[:,:,:,0], dims=['f','m','t'], coords=[f,m,t]).sortby('f').sortby('m')
-	N=X2D.shape[0]
+	m=np.round(m*np.pi*2).astype(int)
+	X2D=xr.DataArray(stft_results[:,:,:,0], dims=['f','m','t'], coords=[f,m,t]).sortby('m')
+# 	N=X2D.shape[0]
 	
-	def bispectrum_2D(signal_1, signal_2):
+# 	signal_1 = X2D.
+	
+	def bispectrum_2D(signal_1, signal_2, signal_3, f_units='Hz'):
 		
-		# convert indices to integers (makes it easier to index later on)
-		index=da.f.copy().data
-		df=index[1]-index[0]
-		index=np.round(index/df).astype(int)
+		f_old = signal_1.f.data
+		df = f_old[1]-f_old[0]
+		f_new = np.round(f_old/df).astype(int)
 		
 		# Solve for M1 = F(f1)*F(f2)
-		def M1(X2D, m1, m2,index=index,index1name='f2',index2name='f1'):
-			return xr.DataArray(	np.outer(X2D.sel(m=m1),X2D.sel(m=m1)),
-					 			    dims=[index1name,index2name],
-									coords={index1name:index,index2name:index})
+		def M1():
+			return xr.DataArray(	np.outer(signal_1, signal_2),
+					 			    dims=['f2','f1'],
+									coords={'f2':f_old,'f1':f_old})
 		
 		# Solve for M2 = F(f1+f2)
-		def M2(X2D, m1, m2, index=index,index1name='f2',index2name='f1'):
+		def M2():
 
-			f=index
-			m3=m1+m2
-			x=X2D.sel(m=m3)
+			f=f_new
+			x = signal_3.data
+			N=X2D.shape[0]
 			
 			# padding signal and index to account for the extremes of min(index)+min(index) and max(index)+max(index)
 			f_long=np.arange(f.min()*2, 2*(f.max()+(f[1]-f[0])), f[1]-f[0])
@@ -598,29 +613,97 @@ def bicoherence_2D(	da):
 			
 			# find M2 = F(f1+f2)
 			return xr.DataArray(	x_long.loc[fsumlist].data.reshape(N,N),
-					 			    dims=[index1name,index2name],
-									coords={index1name:f,index2name:f})
+					 			    dims=['f2','f1'],
+									coords={'f2':f_old,'f1':f_old})
 		
+		# bispectrum
+		m1=M1()
+		m2=np.conj(M2())
+		b=m1*m2
+# 		b['f1']=b.f1.data*df
+# 		b['f2']=b.f2.data*df
+# 		m1['f1']=m1.f1.data*df
+# 		m1['f2']=m1.f2.data*df
+# 		m2['f1']=m2.f1.data*df
+# 		m2['f2']=m2.f2.data*df
+		b.f1.attrs["units"] = f_units
+		b.f2.attrs["units"] = f_units
+		m1.f1.attrs["units"] = f_units
+		m1.f2.attrs["units"] = f_units
+		m2.f1.attrs["units"] = f_units
+		m2.f2.attrs["units"] = f_units
 		
-
-	# calculate bicoherence numerator and denominators
-	f_units='Hz'
-	for i,ti in enumerate(X2D.t.data): # TODO(John) Figure out how to vectorize this step
-		#print(i,ti)
-		b,FiFj,conjFij=bispectrum(X2D.sel(t=ti),returnAll=True,plot=False,f_units=f_units)
+# 		if firstQuadrantOnly==True:
+# 			b=b[b.f2>=0,b.f1>=0]
 		
-		if i==0:
-			numerator=FiFj*conjFij
-			denom1=_np.abs(FiFj)**2
-			denom2=_np.abs(conjFij)**2
-		else:
-			numerator+=FiFj*conjFij
-			denom1+=_np.abs(FiFj)**2
-			denom2+=_np.abs(conjFij)**2
+# 		if plot==True:
+# 			_plt.figure()
+# 			np.abs(b).plot()
 			
-	# finish bicoherence calc
-	bicoh=numerator**2/(denom1.data*denom2.data)
+# 		if returnAll==False:
+		return b, m1, m2
+# 		else:
+# 			return b, m1, m2
+		
+	def _bicoherence_2D_helper2(X2D, m1, m2):
+		# calculate bicoherence numerator and denominators
+		m3=m1+m2
+		
+		if m3 in X2D.m.data:
+			
+			for i,ti in enumerate(X2D.t.data): # TODO(John) Figure out how to vectorize this step
+				print(i,ti)
+				signal_1 = X2D.sel(t=ti, m=m1)
+				signal_2 = X2D.sel(t=ti, m=m2)
+				signal_3 = X2D.sel(t=ti, m=m3)
+				b,FiFj,conjFij=bispectrum_2D(signal_1, signal_2, signal_3)
+				
+				if i==0:
+					numerator=FiFj*conjFij
+					denom1=_np.abs(FiFj)**2
+					denom2=_np.abs(conjFij)**2
+				else:
+					numerator+=FiFj*conjFij
+					denom1+=_np.abs(FiFj)**2
+					denom2+=_np.abs(conjFij)**2
+					
+			# finish bicoherence calc
+			bicoh=numerator**2/(denom1.data*denom2.data)
+			
+			return bicoh.sortby('f1').sortby('f2')
+		
+		else:
+			print('invalid m3 value')
+			return []
+		
+	def _bicoherence_2D_helper1(X2D, m_range):
+		
+		m1_range,m2_range=np.meshgrid(m_range,m_range)
+		m1_range=m1_range.reshape(-1)
+		m2_range=m2_range.reshape(-1)
+		
+		b=_bicoherence_2D_helper2(X2D, 0, 0)
+		
+		data = xr.DataArray(np.zeros((b.shape[0], b.shape[1], len(m_range), len(m_range)), dtype=complex),
+							  dims=['f2','f1','m1','m2'],
+							  coords=[b.f2, b.f1, m_range.astype(int), m_range.astype(int)])
+		for m1,m2 in zip(m1_range,m2_range):
+			#m3=m1+m2
+			#print(m1,m2,m3)
+			
+			b = _bicoherence_2D_helper2(X2D, m1, m2)
+			if len(b)>0:
+				data.loc[:,:,m1,m2]=b
+			else:
+				data.loc[:,:,m1,m2]=_np.nan
+				
+		return data
+				
+# 	m_range=np.arange(-4,4)
+	result=_bicoherence_2D_helper1(X2D, m_range)
 	
+	return result
+
 
 def bicoherence(	da,
 					nperseg,
@@ -863,7 +946,7 @@ def bicoherence(	da,
 	if precondition_signal==True:
 		da=(da.copy()-da.mean(dim='t').data)/da.std(dim='t').data
 
-	dt,fsamp,fn,_,_,_=signal_spectral_properties(da,nperseg=nperseg,verbose=verbose).values()
+	dt,fsamp,fn,_,_=signal_spectral_properties(da,nperseg=nperseg,verbose=verbose).values()
 	
 	# Solve for the STFT results from each time window
 	f,t,stft_results=_spectral_helper(	da.data,
@@ -1081,31 +1164,127 @@ def monteCarloNoiseFloorCalculation(da,
 	
 #%% Examples
 
-def example_1_v2(mask='A',fft_scale='linear'):
+
+# def example_1_v3():
+# 	
+# 	M=64
+# 	N=128*4
+# 	dt=5e-1
+# 	
+# 	f_nyquist=1
+# 	f_a=0.220*f_nyquist#*_np.pi*2
+# 	f_b=0.375*f_nyquist#*_np.pi*2
+# 	
+# 	_np.random.seed(0)
+# 	noise=_np.random.normal(0,0.1,(M,N)).flatten()*0
+# 	
+# 	_np.random.seed(1)
+# 	phase_a=(_np.random.rand(M)-0.5)*_np.pi
+# 	
+# 	_np.random.seed(2)
+# 	phase_b=(_np.random.rand(M)-0.5)*_np.pi
+# 	
+# 	baseSignal=generate_signals(dt=dt, M=M, N=N, f=f_a,phase=phase_a)+generate_signals(dt=dt, M=M, N=N, f=f_b,phase=phase_b)+noise
+# 	
+# 	nperseg=N
+# 	bicoherence(baseSignal, nperseg=1000, plot=True)
 	
 	
+# def example_1_v2(mask='A',fft_scale='linear'):
+# 	
+# 	
+# 	
+# 	M=64
+# 	nperseg=128*4
+# 	dt=5e-1
+# 	t=np.arange(0,nperseg*M)*dt
+# 	
+# 	fN=1
+# 	fa=0.220*fN*_np.pi*2
+# 	fb=0.375*fN*_np.pi*2
+# 	
+# 	theta_a = 0
+# 	theta_b = 0.3569
+# 	
+# 	np.random.seed(0)
+# 	noise=np.random.normal(0,0.1,len(t))
+# 	baseSignal=generate_signals(t,fa,theta_a)+generate_signals(t,fb,theta_b)+noise
+# 	
+# 	y=_xr.DataArray(baseSignal, dims='t',coords=[t])
 	
-	M=64
-	nperseg=128*4
+def example_travelling_waves():
+	
+	import matplotlib.pyplot as plt
+	import numpy as np
+	import xarray as xr
+	
+	plt.close('all')
+	
+	### initialize examples
+	numberRecords=64
+	recordLength=128*4
+	spatialPoints=100
+	N=recordLength
+	M=numberRecords
+	O=spatialPoints
 	dt=5e-1
-	t=np.arange(0,nperseg*M)*dt
-	
+	t=np.arange(0,N*M)*dt
 	fN=1
-	fa=0.220*fN*_np.pi*2
-	fb=0.375*fN*_np.pi*2
+	fa=0.220*fN
+	fb=0.375*fN
+	nperseg=recordLength
+	x=np.linspace(0,2*np.pi,101)[:100]
+	fN_x=0.5/(x[1]-x[0])
+	ka=1
+	kb=2
 	
-	theta_a = 0
-	theta_b = 0.3569
+	def randomPhase(n=1,seed=0):
+		np.random.seed(seed)
+		return (np.random.rand(n)-0.5)*np.pi*2
+	
+	def sigGen(t,x,f,k,theta):
+		M=len(theta)
+		N=len(t)//M
+		T,Theta,X=np.meshgrid(t[0:N],theta,x, indexing='ij')
+		sig= xr.DataArray(1*np.cos(2*np.pi*T*f+Theta+k*X), dims=['N','M','X'], coords=[t[0:N], np.arange(M),x]).stack({'t':('M','N')}).transpose('t','X')
+		return xr.DataArray(sig.data, dims=['t','theta'],coords=[t,x])
+	
+	thetaa=randomPhase(M,seed=1)
+	thetab=randomPhase(M,seed=2)
 	
 	np.random.seed(0)
-	noise=np.random.normal(0,0.1,len(t))
-	baseSignal=generate_signals(t,fa,theta_a)+generate_signals(t,fb,theta_b)+noise
+	noise=np.random.normal(0,0.1,(N*M,len(x)))
 	
-	y=_xr.DataArray(baseSignal, dims='t',coords=[t])
+	baseSignal=sigGen(t,x,fa,ka,thetaa)+sigGen(t,x,fb,kb,thetab)+noise
+
+	x3=baseSignal+0.5*sigGen(t,x,fa+fb,ka+kb,thetaa+thetab)
+	bicoherence(	x3[:,0],
+				nperseg=nperseg,
+				windowFunc='hann',
+# 				mask=mask,
+				plot=True,
+				fft_scale='linear',
+# 				title=r'$y(t)=cos(2 \pi f_a t + \theta_a)+cos(2 \pi f_b t + \theta_b)$',
+				)
 	
+# 	from johnspythonlibrary2.Process.Spectral import dispersion_plot
+	from johnspythonlibrary2.HSVideo import dispersion_plot
+	dispersion_plot(x3, nperseg_dim1=1000)
 	
+	result_2D=bicoherence_2D(x3,nperseg=nperseg)
 	
-def example1(mask='A',fft_scale='linear'):
+# 	fig,ax=plt.subplots(4,4)
+	for i,m1 in enumerate(np.arange(0,4)*1):
+		for j,m2 in enumerate(np.arange(0,4)*-1):
+			fig,ax=plt.subplots()
+			np.abs(result_2D.sel(m1=m1,m2=m2, method='nearest')).plot(ax=ax, add_colorbar=True)
+# 			np.abs(result_2D.sel(m1=m1,m2=m2, method='nearest')).plot(ax=ax[i,j], add_colorbar=False)
+			ax.set_aspect('equal')	
+# 			ax[i,j].set_aspect('equal')	
+			
+
+	
+def example_stationary_waves(mask='A',fft_scale='linear'):
 	###  Y.C. Kim and E.J. Powers, IEEE Transactions on Plasma Science 7, 120 (1979).
 	
 	
@@ -1129,7 +1308,7 @@ def example1(mask='A',fft_scale='linear'):
 	
 	def randomPhase(n=1,seed=0):
 		np.random.seed(seed)
-		return (np.random.rand(n)-0.5)*np.pi
+		return (np.random.rand(n)-0.5)*np.pi*2
 	
 	def sigGen(t,f,theta):
 		M=len(theta)
