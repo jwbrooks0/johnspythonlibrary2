@@ -2,6 +2,29 @@
 import numpy as _np
 
 
+def binary_to_int(bin_num):
+	""" 
+	Converts binary number to int 
+	
+	Parameters
+	----------
+	bin_num : str
+		Binary number.  E.g. bin(100) = '0b1100100'
+		
+	Returns
+	-------
+	int
+		Integer (converted from binary)
+		
+	"""
+	return int(bin_num, 2)
+
+
+def int_to_binary(int_num):
+	""" Converts int to binary """
+	return bin(int_num)
+
+
 def round_float_to_arbitrary_resolution(value, resolution):
 	"""
 	
