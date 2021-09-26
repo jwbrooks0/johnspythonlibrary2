@@ -2,6 +2,12 @@
 import numpy as _np
 
 
+def time_as_str(format_str="%Y_%m_%d_%H_%M_%S"):
+	from datetime import datetime
+	
+	return datetime.now().strftime(format_str) 
+
+
 def binary_to_int(bin_num):
 	""" 
 	Converts binary number to int 
