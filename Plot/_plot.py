@@ -50,6 +50,40 @@ _mpl.rcParams.update({'figure.autolayout': True})
 ###################################################################################
 #%% figure/ax related
 
+
+def twinx_and_change_colors(	ax,
+								color='r'):
+	
+	ax_b = ax.twinx()
+	
+	# spine color
+	ax_b.spines['right'].set_color(color)
+	
+	# tick colors
+	ax_b.tick_params(axis='y', colors=color)
+	
+	# label color
+	ax_b.yaxis.label.set_color(color)
+	
+	return ax_b
+
+
+def twiny_and_change_colors(	ax,
+								color='r'):
+	
+	ax_b = ax.twiny()
+	
+	# spine color
+	ax_b.spines['top'].set_color(color)
+	
+	# tick colors
+	ax_b.tick_params(axis='x', colors=color)
+	
+	# label color
+	ax_b.xaxis.label.set_color(color)
+	
+	return ax_b
+
 def subTitle(	ax,
 				string,
 				xy=(0.5, .98),
