@@ -46,104 +46,42 @@ def polyFitData(da,
 	coord = da.coords[dim].data
 	
 	try:
-		coefs=_np.polyfit(	coord, 
-							da.data, 
-							deg=order)
+		coefs = _np.polyfit(	coord, 
+								da.data, 
+								deg=order)
 	except _np.linalg.LinAlgError:
-		coefs=_np.polyfit(	coord, 
-							da.data, 
-							deg=order)
+		coefs = _np.polyfit(	coord, 
+								da.data, 
+								deg=order)
 	try:
 		ffit = _np.poly1d(	coefs)
 	except _np.linalg.LinAlgError:
 		ffit = _np.poly1d(	coefs)
 		
 	da_fit=_xr.DataArray(	ffit(coord),
-							  dims=dim,
-								coords=[coord])
+							dims=dim,
+							coords=[coord])
 	if verbose:
 		print("fit coeficients:")
 		print(coefs)
 		
-	if plot==True:
+	if plot is True:
 		
-		x_highres=_np.linspace(coord[0],coord[-1],1000)
-		da_fit_highres=_xr.DataArray(	ffit(x_highres),
+		x_highres = _np.linspace(coord[0], coord[-1], 1000)
+		da_fit_highres = _xr.DataArray(	ffit(x_highres),
 										dims=dim,
-										coords=[_np.linspace(coord[0],coord[-1],1000)])
+										coords=[_np.linspace(coord[0], coord[-1], 1000)])
 		
-		fig,ax=_plt.subplots()
-		da.plot(ax=ax,label='raw',linestyle='',marker='x')
-		da_fit_highres.plot(ax=ax,label='fit')
+		fig,ax = _plt.subplots()
+		da.plot(ax=ax, label='raw' ,linestyle='', marker='x')
+		da_fit_highres.plot(ax=ax, label='fit')
 		
 		ax.legend()
 		
 	return da_fit, ffit
 
 
-
-def polyFitData_df(df,	
-				order=2, 
-				plot=True,
-				verbose=True):
-	""" 
-	Polynomial fit function.  
-	
-	Parameters
-	----------
-	df : pandas.core.frame.DataFrame
-		Dataframe with a single column
-		index = independent variable
-	order : int
-		order of polynomial fit.  1 = linear, 2 = quadratic, etc.
-	plot : bool
-		Causes a plot of the fit to be generated
-	verbose : bool
-		print additional details
-	
-	Returns
-	-------
-	dfFit : pandas.core.frame.DataFrame with a the fit
-		Dataframe with a single column
-		index = independent variable
-	ffit : numpy.poly1d
-		fit function
-	
-	Example
-	-------
-	::
-		
-		 x=np.arange(0,1,0.1)
-		 y=2*x+1
-		 df=_pd.DataFrame(y,index=x)
-		 polyFitData(df,order=1,plot=True)
-		 
-	"""
-	
-	coefs=_np.polyfit(	df.index.to_numpy(), 
-						df.iloc[:,0].to_numpy(), 
-						deg=order)
-	ffit = _np.poly1d(	coefs)
-	dfFit=_pd.DataFrame(	ffit(df.index.to_numpy()),
-								index=df.index.to_numpy())
-	if verbose:
-		print("fit coeficients:")
-		print(coefs)
-		
-	if plot==True:
-		x=_np.linspace(dfFit.index[0],dfFit.index[-1],1000)
-		y=ffit(x)
-		
-		fig,ax=_plt.subplots()
-		ax.plot(df,'x',linestyle='',label='data')
-		ax.plot(x,y,label='fit')
-		ax.legend()
-		
-	return dfFit,ffit
-
-
-
-def _rSquared(y,f):
+def _rSquared(y, f):
 	"""
 	calculates R^2 of data fit
 		
@@ -163,10 +101,10 @@ def _rSquared(y,f):
 	---------
 	https://en.wikipedia.org/wiki/Coefficient_of_determination
 	"""
-	yAve=_np.average(y);
-	SSres = _np.sum( (y-f)**2 )
-	SStot = _np.sum( (y-yAve)**2 )
-	return 1-SSres/SStot
+	yAve = _np.average(y);
+	SSres = _np.sum((y - f)**2)
+	SStot = _np.sum((y - yAve)**2)
+	return 1 - SSres / SStot
 
 	
 class _genericLeastSquaresFit:
@@ -237,24 +175,24 @@ class _genericLeastSquaresFit:
 		d=genericLeastSquaresFit(x1,[1,1,1],y2, _expFunction, y1,plot=True)
 	"""		   
 	
-	def __init__(self, x, paramsGuess, y, function,yTrue=[],plot=True ):
+	def __init__(self, x, paramsGuess, y, function, yTrue=[], plot=True ):
 
-		def fit_fun(paramsGuess,x,y):
+		def fit_fun(paramsGuess, x, y):
 			return function(x, *paramsGuess) - y
 
 		from scipy.optimize import least_squares
 		
-		self.x=x
-		self.y=y
-		self.yTrue=yTrue
+		self.x = x
+		self.y = y
+		self.yTrue = yTrue
 		
 		# perform least squares fit and record results
-		self.res=least_squares(fit_fun, paramsGuess, args=[x,y])  #args=(y)
-		self.yFit=function(x, *self.res.x) 
-		self.fitParams=self.res.x;
+		self.res = least_squares(fit_fun, paramsGuess, args=[x, y])  #args=(y)
+		self.yFit = function(x, *self.res.x) 
+		self.fitParams = self.res.x;
 		
 		# calculate r^2
-		self.rSquared=_rSquared(y,self.yFit)
+		self.rSquared = _rSquared(y, self.yFit)
 		
 		# print results to screen
 		print(r'R2 =  %.5E' % self.rSquared)
@@ -262,7 +200,7 @@ class _genericLeastSquaresFit:
 		print('\n'.join('{}: {}'.format(*k) for k in enumerate(self.res.x)))
 		
 		# plot data
-		if plot==True:
+		if plot is True:
 			if type(x) is _np.ndarray or len(x)==1:
 				self.plotOfFit().show()
 #			self.plotOfFitDep().plot()
@@ -280,27 +218,26 @@ class _genericLeastSquaresFit:
 		  
 		# make sure that there is only a single indep. variable
 		if type(self.x) is _np.ndarray or len(self.x)==1:
-			p1,ax1=_plt.subplots()
+			p1,ax1 = _plt.subplots()
 			ax1.set_ylabel('y')
 			ax1.set_xlabel('x')
-			ax1.set_title=(r'Fit results.  R$^2$ = %.5f' % self.rSquared)
+			ax1.set_title = (r'Fit results.  R$^2$ = %.5f' % self.rSquared)
 			
-			if isinstance(self.x,list):
-				x=self.x[0]
+			if isinstance(self.x, list):
+				x = self.x[0]
 			else:
-				x=self.x
+				x = self.x
 				
 			# raw data
-			ax1.plot(x,self.y,'b.',alpha=0.3,label='raw data')
+			ax1.plot(x, self.y, 'b.', alpha=0.3, label='raw data')
 			
 			# fit data
-			ax1.plot(x,self.yFit,'b',alpha=1,label='fit')
+			ax1.plot(x, self.yFit, 'b', alpha=1, label='fit')
 
 			return p1
 		
 
-
-def _cosFunction(x, a,b,c,d):
+def _cosFunction(x, a, b, c, d):
 	"""
 	Cosine function.  Used primarily with fitting functions.  
 	Output = a*_np.cos(x*d*2*_np.pi+b)+c
@@ -323,9 +260,8 @@ def _cosFunction(x, a,b,c,d):
 	: numpy.ndarray
 		Output = a*_np.cos(x*d*2*_np.pi+b)+c
 	"""
-	return a*_np.cos(x*d*2*_np.pi+b)+c
+	return a * _np.cos(x * d * 2 * _np.pi + b) + c
 	
-
 	
 class cosTimeFit:
 	"""
@@ -366,8 +302,11 @@ class cosTimeFit:
 		# values before everything fit correctly.
 
 	"""
-	def __init__(self,y,x,guess,plot=True):
-		self.fit=_genericLeastSquaresFit(x=x,paramsGuess=guess,y=y, 
-										function=_cosFunction,plot=plot)
+	def __init__(self, y, x, guess, plot=True):
+		self.fit = _genericLeastSquaresFit(	x=x, 
+											paramsGuess=guess, 
+											y=y, 
+											function=_cosFunction, 
+											plot=plot)
 
 
