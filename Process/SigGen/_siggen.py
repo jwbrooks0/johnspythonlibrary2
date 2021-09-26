@@ -29,7 +29,7 @@ def gaussian_pulse(sigma, t, amplitude=1, plot=False):
 	----------
 	  * http://www.cse.psu.edu/~rtc12/CSE486/lecture11_6pp.pdf
 	"""
-	out= _xr.DataArray( _np.exp(-t**2/(2*sigma**2)), dims='t', coords=[t])
+	out= _xr.DataArray( _np.exp(-t**2 / (2 * sigma**2)), dims='t', coords=[t])
 	if plot == True:
 		out.plot()
 	return out
@@ -56,7 +56,7 @@ def gaussian_1st_deriv(sigma, t, amplitude=1, plot=False):
 	  * http://www.cse.psu.edu/~rtc12/CSE486/lecture11_6pp.pdf
 	"""
 	# dt=t[1]-t[0]
-	out= _xr.DataArray( -t/(2*sigma**2)*_np.exp(-t**2/(2*sigma**2)) * amplitude * sigma * 3.298, dims='t', coords=[t])
+	out= _xr.DataArray( -t / (2 * sigma**2) * _np.exp(-t**2 / (2 * sigma**2)) * amplitude * sigma * 3.298, dims='t', coords=[t])
 	if plot == True:
 		fig,ax=_plt.subplots()
 		out.plot(ax=ax)
@@ -82,7 +82,7 @@ def squareWave(	freq,
 	"""
 	from scipy import signal as sg
 	
-	y = _xr.DataArray(	sg.square(2*_np.pi*freq*time, duty=duty_cycle),
+	y = _xr.DataArray(	sg.square(2 * _np.pi * freq * time, duty=duty_cycle),
 						dims=['t'],
 						coords={'t':time})
 	
@@ -95,8 +95,8 @@ def squareWave(	freq,
 
 
 def chirp(	t,
-			tStartStop=[0,1],
-			fStartStop=[1e3,1e4],
+			tStartStop=[0, 1],
+			fStartStop=[1e3, 1e4],
 			phi=270,
 			plot=False,
 			method='logarithmic'):
@@ -121,25 +121,25 @@ def chirp(	t,
 	from scipy.signal import chirp
 	
 	# find range of times to modify
-	iStart=findNearest(t,tStartStop[0])
-	iStop=findNearest(t,tStartStop[1])
+	iStart=findNearest(t, tStartStop[0])
+	iStop=findNearest(t, tStartStop[1])
 	
 	# create chirp signal using scipy function.  times are (temporarily) shifted such that the phase offset, phi, still makes sense
 	y=_np.zeros(len(t))
-	y[iStart:iStop]=chirp(t[iStart:iStop]-tStartStop[0],fStartStop[0],tStartStop[1]-tStartStop[0],fStartStop[1],method,phi=phi)
+	y[iStart:iStop] = chirp(t[iStart:iStop] - tStartStop[0], fStartStop[0], tStartStop[1] - tStartStop[0], fStartStop[1], method, phi=phi)
 	y= _xr.DataArray(	y,
 						dims=['t'],
 						coords={'t':t})
 
 	# optional plot
 	if plot==True:
-		fig,ax=_plt.subplots()
+		fig, ax = _plt.subplots()
 		ax.plot(y)
 		
 	return y
 
 
-def gaussianNoise(t,mean=0,stdDev=1,plot=False):
+def gaussianNoise(t, mean=0, stdDev=1, plot=False):
 	"""
 	Produces Gaussian noise based on the standard deviation
 	This is a wrapper for the numpy.random.normal function
@@ -175,12 +175,12 @@ def gaussianNoise(t,mean=0,stdDev=1,plot=False):
 
 	"""
 	
-	noise = _xr.DataArray(	_np.random.normal(mean,stdDev,t.shape),
+	noise = _xr.DataArray(	_np.random.normal(mean, stdDev, t.shape),
 							dims=['t'],
-							coords={'t':t})
+							coords={'t': t})
 	
 	if plot==True:
-		fig,ax=_plt.subplots()
+		fig, ax = _plt.subplots()
 		ax.plot(noise)
 		
 	return noise
@@ -188,7 +188,7 @@ def gaussianNoise(t,mean=0,stdDev=1,plot=False):
 
 #%% More complicated functions
 
-def tentMap(N=1000,plot=False,ICs={'x0':_np.sqrt(2)/2.0}):
+def tentMap(N=1000, plot=False, ICs={'x0': _np.sqrt(2) / 2.0}):
 	""" 
 	generate fake data using a tentmap 
 	
@@ -198,33 +198,33 @@ def tentMap(N=1000,plot=False,ICs={'x0':_np.sqrt(2)/2.0}):
 	----------
 	* https://en.wikipedia.org/wiki/Tent_map
 	"""
-	t=_np.arange(0,N+1)
-	x=_np.zeros(t.shape,dtype=_np.float64)
-	x[0]=ICs['x0']
-	def tentMap(x,mu=_np.float64(2-1e-15)):
-		for i in range(1,x.shape[0]):
-			if x[i-1]<0.5:
-				x[i]=mu*x[i-1]
-			elif x[i-1]>=0.5:
-				x[i]=mu*(1-x[i-1])
+	t = _np.arange(0, N+1)
+	x = _np.zeros(t.shape, dtype=_np.float64)
+	x[0] = ICs['x0']
+	def tentMap(x, mu=_np.float64(2 - 1e-15)):
+		for i in range(1, x.shape[0]):
+			if x[i-1] < 0.5:
+				x[i] = mu * x[i - 1]
+			elif x[i - 1] >= 0.5:
+				x[i] = mu * (1 - x[i - 1])
 			else:
 				raise Exception('error')
 		return x
 	
-	x=tentMap(x)
+	x = tentMap(x)
 	
 	# the actual data of interest is the first difference of x
-	xDelta=_xr.DataArray(	x[1:]-x[0:-1],
-						dims=['t'],
-						coords={'t':t[1:]},
-						attrs={'units':"au",
+	xDelta=_xr.DataArray(	x[1:] - x[0: -1],
+							dims=['t'],
+							coords={'t': t[1:]},
+							attrs={'units': "au",
 								 'standard_name': 'Amplitude'})
-	xDelta.t.attrs={'units':'au'}
+	xDelta.t.attrs = {'units': 'au'}
 	
-	if plot==True:
-		fig,ax=_plt.subplots(2,sharex=True)
-		ax[0].plot(t,x,linestyle='-',marker='.',linewidth=0.5,markersize=3,label='x')
-		xDelta.plot(ax=ax[1],linestyle='-',marker='.',linewidth=0.5,markersize=3,label='x derivative')
+	if plot is True:
+		fig, ax = _plt.subplots(2, sharex=True)
+		ax[0].plot(t, x, linestyle='-', marker='.', linewidth=0.5, markersize=3, label='x')
+		xDelta.plot(ax=ax[1], linestyle='-', marker='.', linewidth=0.5, markersize=3, label='x derivative')
 		ax[0].legend()
 		ax[1].legend()
 		
@@ -233,31 +233,35 @@ def tentMap(N=1000,plot=False,ICs={'x0':_np.sqrt(2)/2.0}):
 
 def saved_lorentzAttractor(	N=2000,
 							dt=0.05,
-							ICs={	'x0':-9.38131377,
-									'y0':-8.42655716 , 
-									'z0':29.30738524},
+							ICs={	'x0': -9.38131377,
+									'y0': -8.42655716 , 
+									'z0': 29.30738524},
 							plot=False,
 							removeMean=False,
 							normalize=False,
 							removeFirstNPoints=500,
-							args={	'sigma':10.0,
-									'b':8.0/3.0,
-									'r':28.0}):
+							args={	'sigma': 10.0,
+									'b': 8.0 / 3.0,
+									'r': 28.0}):
 	
-	filename='lorentz_attractor_N_%d_dt_%.6f_x0_%.3f_y0_%.3f_z0_%.3f.NetCDF'%(N,dt,ICs['x0'],ICs['y0'],ICs['z0'])
+	filename='lorentz_attractor_N_%d_dt_%.6f_x0_%.3f_y0_%.3f_z0_%.3f.NetCDF' % (N, dt, ICs['x0'], ICs['y0'], ICs['z0'])
 	
 	try:
-		ds=_xr.open_dataset(filename)
+		ds = _xr.open_dataset(filename)
 		print('loaded previously generated dataset')
 	except:
 		print('creating dataset')
-		ds=lorentzAttractor(N=N,dt=dt,ICs=ICs,plot=plot,removeMean=removeMean,
-							normalize=normalize,
-							removeFirstNPoints=removeFirstNPoints,
-							args=args)
+		ds = lorentzAttractor(	N=N, 
+								dt=dt, 
+								ICs=ICs, 
+								plot=plot, 
+								removeMean=removeMean,
+								normalize=normalize,
+								removeFirstNPoints=removeFirstNPoints,
+								args=args)
 		
 		ds.to_netcdf(filename)
-		ds=_xr.open_dataset(filename)
+		ds = _xr.open_dataset(filename)
 	
 	return ds
 		
@@ -330,16 +334,16 @@ def lorentz96(N=5, F=8, t_final=30.0, dt=0.01, plot=False):
 
 def lorentzAttractor(	N=2000,
 						dt=0.05,
-						ICs={	'x0':-9.38131377,
-								'y0':-8.42655716 , 
-								'z0':29.30738524},
+						ICs={	'x0': -9.38131377,
+								'y0': -8.42655716 , 
+								'z0': 29.30738524},
 						plot=False,
 						removeMean=False,
 						normalize=False,
 						removeFirstNPoints=500,
-						args={	'sigma':10.0,
-								'b':8.0/3.0,
-								'r':28.0}):
+						args={	'sigma': 10.0,
+								'b': 8.0 / 3.0,
+								'r': 28.0}):
 	"""
 	Solves the lorentz attractor nonlinear ODEs.
 	
@@ -366,110 +370,110 @@ def lorentzAttractor(	N=2000,
 	from scipy.integrate import solve_ivp
 	
 	## initialize
-	N+=removeFirstNPoints
-	T=N*dt
-	ICs=_np.array(list(ICs.items()))[:,1].astype(float)
+	N += removeFirstNPoints
+	T = N * dt
+	ICs = _np.array(list(ICs.items()))[:, 1].astype(float)
 	
 	## Solve Lorentz system of equations
-	def ODEs(t,y,*args):
-		X,Y,Z = y
-		sigma,b,r=args
-		derivs=	[	sigma*(Y-X),
-					-X*Z+r*X-Y,
-					X*Y-b*Z]
+	def ODEs(t, y, *args):
+		X, Y, Z = y
+		sigma, b, r = args
+		derivs =	[	sigma * (Y - X),
+						-X * Z + r * X - Y,
+						X * Y - b * Z]
 		return derivs
 	
-	t_eval=_np.arange(0,T,dt)
+	t_eval = _np.arange(0, T, dt)
 	psoln = solve_ivp(	ODEs,
-						[0,T],
+						[0, T],
 						ICs,  # initial conditions
 						args=args.values(),
 						t_eval=t_eval
 						)
-	x,y,z=psoln.y
+	x, y, z = psoln.y
 	
 	## Cleanup data
-	x=_xr.DataArray(	x,
+	x = _xr.DataArray(	x,
 						dims=['t'],
-						coords={'t':t_eval},
-						attrs={'units':"au",
-								 'long_name': 'Amplitude'})
-	x.t.attrs={'units':'au','long_name':'Time'}
-	y=_xr.DataArray(	y,
+						coords={'t': t_eval},
+						attrs={	'units': "au",
+								'long_name': 'Amplitude'})
+	x.t.attrs = {'units': 'au', 'long_name': 'Time'}
+	y = _xr.DataArray(	y,
 						dims=['t'],
-						coords={'t':t_eval},
-						attrs={'units':"au",
-								 'long_name': 'Amplitude'})
-	y.t.attrs={'units':'au','long_name':'Time'}
+						coords={'t': t_eval},
+						attrs={	'units': "au",
+								'long_name': 'Amplitude'})
+	y.t.attrs = {'units': 'au', 'long_name': 'Time'}
 	z=_xr.DataArray(	z,
 						dims=['t'],
-						coords={'t':t_eval},
-						attrs={'units':"au",
-								 'long_name': 'Amplitude'})
-	z.t.attrs={'units':'au','long_name':'Time'}
+						coords={'t': t_eval},
+						attrs={	'units': "au",
+								'long_name': 'Amplitude'})
+	z.t.attrs = {'units': 'au', 'long_name': 'Time'}
 	
-	if removeFirstNPoints>0:
-		x=x[removeFirstNPoints:]
-		y=y[removeFirstNPoints:]
-		z=z[removeFirstNPoints:]
+	if removeFirstNPoints > 0:
+		x = x[removeFirstNPoints:]
+		y = y[removeFirstNPoints:]
+		z = z[removeFirstNPoints:]
 	
-	if removeMean==True:
-		x-=x.mean()
-		y-=y.mean()
-		z-=z.mean()
+	if removeMean is True:
+		x -= x.mean()
+		y -= y.mean()
+		z -= z.mean()
 		
-	if normalize==True:
-		x/=x.std()
-		y/=y.std()
-		z/=z.std()
+	if normalize is True:
+		x /= x.std()
+		y /= y.std()
+		z /= z.std()
 		
 	ds=_xr.Dataset({	'x':x,
 						'y':y,
 						'z':z})
 			
 	## optional plots
-	if plot!=False:
-		fig,ax=_plt.subplots(3,sharex=True)
-		markersize=2
-		x.plot(ax=ax[0],marker='.',markersize=markersize)
-		y.plot(ax=ax[1],marker='.',markersize=markersize)
-		z.plot(ax=ax[2],marker='.',markersize=markersize)
-		ax[0].set_title('Lorentz Attractor\n'+r'($\sigma$, b, r)='+'(%.3f, %.3f, %.3f)'%(args['sigma'],args['b'],args['r'])+'\nICs = (%.3f, %.3f, %.3f)'%(ICs[0],ICs[1],ICs[2]))
+	if plot is not False:
+		fig, ax = _plt.subplots(3, sharex=True)
+		markersize = 2
+		x.plot(ax=ax[0], marker='.', markersize=markersize)
+		y.plot(ax=ax[1], marker='.', markersize=markersize)
+		z.plot(ax=ax[2], marker='.', markersize=markersize)
+		ax[0].set_title('Lorentz Attractor\n' + r'($\sigma$, b, r)=' + '(%.3f, %.3f, %.3f)' % (args['sigma'], args['b'], args['r']) + '\nICs = (%.3f, %.3f, %.3f)' % (ICs[0], ICs[1], ICs[2]))
 		
-	if plot=='all':
-		_plt.figure();_plt.plot(x,y)
-		_plt.figure();_plt.plot(y,z)
-		_plt.figure();_plt.plot(z,x)
+	if plot == 'all':
+		_plt.figure(); _plt.plot(x, y)
+		_plt.figure(); _plt.plot(y, z)
+		_plt.figure(); _plt.plot(z, x)
 	
 		import matplotlib as _mpl
 		_mpl.rcParams.update({'figure.autolayout': False})
 		fig = _plt.figure()
 		ax = fig.add_subplot(121, projection='3d')
-		ax.plot(x,y,zs=z)
+		ax.plot(x, y, zs=z)
 		ax.set_xlabel('x')
 		ax.set_ylabel('y')
 		ax.set_zlabel('z')		
-		ax.set_title('Lorentz Attractor\n'+r'($\sigma$, b, r)='+'(%.3f, %.3f, %.3f)'%(args['sigma'],args['b'],args['r'])+'\nICs = (%.3f, %.3f, %.3f)'%(ICs[0],ICs[1],ICs[2])+'\nState space')
+		ax.set_title('Lorentz Attractor\n' + r'($\sigma$, b, r)=' + '(%.3f, %.3f, %.3f)' % (args['sigma'], args['b'], args['r']) + '\nICs = (%.3f, %.3f, %.3f)' % (ICs[0], ICs[1], ICs[2]) + '\nState space')
 		
 		ax = fig.add_subplot(122, projection='3d')
-		ax.plot(x[6::3],x[3:-3:3],zs=x[:-6:3])
+		ax.plot(x[6::3], x[3:-3:3], zs=x[:-6:3])
 		ax.set_xlabel('x(t)')
 		ax.set_ylabel(r'x(t-$\tau$)')
 		ax.set_zlabel(r'x(t-2$\tau$)')
-		ax.set_title('Lorentz Attractor\n'+r'($\sigma$, b, r)='+'(%.3f, %.3f, %.3f)'%(args['sigma'],args['b'],args['r'])+'\nICs = (%.3f, %.3f, %.3f)'%(ICs[0],ICs[1],ICs[2])+'\nTime-lagged state space')
-		fig.tight_layout(pad=5,w_pad=5)
+		ax.set_title('Lorentz Attractor\n' + r'($\sigma$, b, r)=' + '(%.3f, %.3f, %.3f)' % (args['sigma'], args['b'], args['r']) + '\nICs = (%.3f, %.3f, %.3f)' % (ICs[0], ICs[1], ICs[2]) + '\nTime-lagged state space')
+		fig.tight_layout(pad=5, w_pad=5)
 		
 	return ds
 
 
 def predatorPrey(	N=100000,
 					T=100,
-					ICs={	'x0':0.9,
-							'y0':0.9},
-					args={	'alpha':2.0/3.0,
-							'beta':4.0/3.0,
-							'delta':1.0,
-							'gamma':1.0},
+					ICs={	'x0': 0.9,
+							'y0': 0.9},
+					args={	'alpha': 2.0 / 3.0,
+							'beta': 4.0 / 3.0,
+							'delta': 1.0,
+							'gamma': 1.0},
 					plot=False,
 					removeMean=False,
 					normalize=False):
@@ -492,69 +496,69 @@ def predatorPrey(	N=100000,
 	dt=T/N
 	
 	## Solve Lorentz system of equations
-	def ODEs(t,y,*args):
+	def ODEs(t, y, *args):
 		X,Y = y
-		alpha,beta,delta,gamma=args
+		alpha, beta, delta, gamma = args
 		#print(X,Y,alpha,beta,delta,gamma)
-		derivs=	[	alpha*X-beta*X*Y,
-					delta*X*Y-gamma*Y]
+		derivs=	[	alpha * X - beta * X * Y,
+					delta * X * Y - gamma * Y]
 		return derivs
 	
-	t_eval=_np.arange(0,T,dt)
+	t_eval = _np.arange(0, T, dt)
 	psoln = solve_ivp(	ODEs,
-						[0,T],
-						_np.array(list(ICs.items()))[:,1].astype(float),  # initial conditions
+						[0, T],
+						_np.array(list(ICs.items()))[:, 1].astype(float),  # initial conditions
 						args=args.values(),
 						t_eval=t_eval
 						)
-	x,y=psoln.y
+	x, y = psoln.y
 	
 	## Cleanup data
-	x=_xr.DataArray(	x,
+	x = _xr.DataArray(	x,
 						dims=['time'],
-						coords={'time':t_eval},
-						attrs={'units':"au",
+						coords={'time': t_eval},
+						attrs={'units': "au",
 								 'standard_name': 'Amplitude'})
-	x.time.attrs={'units':'au'}
-	y=_xr.DataArray(	y,
+	x.time.attrs = {'units': 'au'}
+	y = _xr.DataArray(	y,
 						dims=['time'],
-						coords={'time':t_eval},
-						attrs={'units':"au",
+						coords={'time': t_eval},
+						attrs={'units': "au",
 								 'standard_name': 'Amplitude'})
-	y.time.attrs={'units':'au'}
+	y.time.attrs = {'units': 'au'}
 	
-	if removeMean==True:
-		x-=x.mean()
-		y-=y.mean()
+	if removeMean is True:
+		x -= x.mean()
+		y -= y.mean()
 		
-	if normalize==True:
-		x/=x.std()
-		y/=y.std()
+	if normalize is True:
+		x /= x.std()
+		y /= y.std()
 		
-	ds=_xr.Dataset({	'x':x,
-						'y':y})
+	ds = _xr.Dataset({	'x': x,
+						'y': y})
 	
 	## Optional plots
-	if plot==True:
-		fig,ax=_plt.subplots(2,sharex=True)
+	if plot is True:
+		fig, ax = _plt.subplots(2, sharex=True)
 		ds.x.plot(ax=ax[0])
 		ds.y.plot(ax=ax[1])
 		
-		fig,ax=_plt.subplots()
-		ax.plot(ds.x.values,ds.y.values)
+		fig, ax = _plt.subplots()
+		ax.plot(ds.x.values, ds.y.values)
 	
 	return ds
 	
 	
 def coupledHarmonicOscillator(	N=10000,
 								T=1,
-								ICs={	'y1_0':0,
-										'x1_0':0.9,
-										'y2_0':0,
-										'x2_0':-1},
-								args={	'k':1,
-										'kappa':1,
-										'm':1e-4},
+								ICs={	'y1_0': 0,
+										'x1_0': 0.9,
+										'y2_0': 0,
+										'x2_0': -1},
+								args={	'k': 1,
+										'kappa': 1,
+										'm': 1e-4},
 								plot=False):
 	"""
 	Solve a coupled harmonic oscillator problem. See reference for details.
@@ -572,64 +576,64 @@ def coupledHarmonicOscillator(	N=10000,
 	
 	import matplotlib.pyplot as _plt
 	
-	dt=T/N
+	dt  = T / N
 	
 	from scipy.integrate import solve_ivp
 	 
-	def ODEs(t,y,*args):
-		y1,x1,y2,x2 = y
-		k,kappa,m=args
-		derivs=	[	-(k+kappa)/m*x1+kappa/m*x2,
+	def ODEs(t, y, *args):
+		y1, x1, y2, x2 = y
+		k, kappa, m = args
+		derivs = [	-(k + kappa) / m * x1 + kappa / m * x2,
 					y1,  
- 					-(k+kappa)/m*x2+kappa/m*x1,
+ 					-(k + kappa) / m * x2 + kappa / m * x1,
 					y2]
 		return derivs
 
-	time=_np.arange(0,T,dt)
+	time = _np.arange(0, T, dt)
 	psoln = solve_ivp(	ODEs,
-						t_span=[0,T],
+						t_span=[0, T],
 						y0=_np.array(list(ICs.values())),  # initial conditions
 						args=args.values(),
 						t_eval=time
 					)
 	
-	y1,x1,y2,x2 =psoln.y
+	y1, x1, y2, x2 = psoln.y
 	
 	x1=_xr.DataArray(	x1,
 						dims=['time'],
-						coords={'time':time},
-						attrs={'units':"au",
+						coords={'time': time},
+						attrs={'units': "au",
 								 'standard_name': 'Amplitude'})
-	x1.time.attrs={'units':'au'}
+	x1.time.attrs = {'units': 'au'}
 	x2=_xr.DataArray(	x2,
 						dims=['time'],
-						coords={'time':time},
-						attrs={'units':"au",
+						coords={'time': time},
+						attrs={'units': "au",
 								 'standard_name': 'Amplitude'})
-	x2.time.attrs={'units':'s'}
+	x2.time.attrs={'units': 's'}
 	
 	if plot==True:
-		fig,ax=_plt.subplots(2,sharex=True)
-		x1.plot(ax=ax[0],marker='.')
-		x2.plot(ax=ax[1],marker='.')
-		ax[0].set_title('Coupled harmonic oscillator\n'+r'(k, kappa, m)='+'(%.3f, %.3f, %.6f)'%(args['k'],args['kappa'],args['m'])+'\nICs = (%.3f, %.3f, %.3f, %.3f)'%(ICs['y1_0'],ICs['x1_0'],ICs['y2_0'],ICs['x2_0']))
+		fig, ax = _plt.subplots(2, sharex=True)
+		x1.plot(ax=ax[0], marker='.')
+		x2.plot(ax=ax[1], marker='.')
+		ax[0].set_title('Coupled harmonic oscillator\n' + r'(k, kappa, m)='+'(%.3f, %.3f, %.6f)' % (args['k'], args['kappa'], args['m']) + '\nICs = (%.3f, %.3f, %.3f, %.3f)' % (ICs['y1_0'], ICs['x1_0'], ICs['y2_0'], ICs['x2_0']))
 
-	ds=_xr.Dataset(	{'x1':x1,
-					 'x2':x2})
+	ds=_xr.Dataset(	{'x1': x1,
+					 'x2': x2})
 	
 	return ds
 
 
 def coupledHarmonicOscillator_nonlinear(	N=500,
 											dt=0.1,
-											ICs={	'y1_0':0,
-													'x1_0':1,
-													'y2_0':0,
-													'x2_0':0},
-											args={	'f1':45,
-													'f2':150,
-													'm':1,
-													'E':1e5},
+											ICs={	'y1_0': 0,
+													'x1_0': 1,
+													'y2_0': 0,
+													'x2_0': 0},
+											args={	'f1': 45,
+													'f2': 150,
+													'm': 1,
+													'E': 1e5},
 											plot=False,
 											verbose=False):
 	"""
@@ -649,63 +653,56 @@ def coupledHarmonicOscillator_nonlinear(	N=500,
 
 	"""
 	
-	f1,f2,m,E=args.values()
-	k1=(2*_np.pi*f1)**2*m
-	k2=((2*_np.pi*f2)**2*m-k1)/2
-# 	args={	'k1':k1,
-# 			'k2':k2,
-# 			'm1':m,
-# 			'm2':m,
-# 			'E':E}
+	f1, f2, m, E = args.values()
+	k1 = (2 * _np.pi * f1)**2 * m
+	k2 = ((2 * _np.pi * f2)**2 * m - k1) / 2
 	
 	import matplotlib.pyplot as _plt
 	
-# 	dt
-	
 	from scipy.integrate import solve_ivp
 	 
-	def ODEs(t,y,*args):
-		y1,x1,y2,x2 = y
-		k1,k2,m1,m2,E=args
+	def ODEs(t, y, *args):
+		y1, x1, y2, x2 = y
+		k1, k2, m1, m2, E = args
 		if verbose:
-			print(-k1*x1/m1,+k2*(x2-x1)/m1,E*x1**2/m1)
-		derivs=	[	-k1*x1/m1+k2*(x2-x1)/m1+E*x1**2/m1,
+			print(-k1 * x1 / m1, +k2 * (x2 - x1) / m1, E * x1**2 / m1)
+		derivs=	[	-k1 * x1 / m1 + k2 * (x2 - x1) / m1 + E * x1**2 / m1,
 					y1,  
- 					-k1*x2/m2-k2*(x2-x1)/m2,
+ 					-k1 * x2 / m2 - k2 * (x2 - x1) / m2,
 					y2]
 		return derivs
 
-	time=_np.arange(0,N)*dt
-	T=time[-1]
+	time = _np.arange(0, N) * dt
+	T = time[-1]
 	psoln = solve_ivp(	ODEs,
-						t_span=[0,T],
+						t_span=[0, T],
 						y0=_np.array(list(ICs.values())),  # initial conditions
-						args=(k1,k2,m,m,E),
+						args=(k1, k2, m, m, E),
 						t_eval=time
 					)
 	
-	y1,x1,y2,x2 =psoln.y
+	y1, x1, y2, x2 = psoln.y
 	
 	x1=_xr.DataArray(	x1,
 						dims=['t'],
-						coords={'t':time},
-						attrs={'units':"au",
+						coords={'t': time},
+						attrs={'units': "au",
 								 'standard_name': 'Amplitude'})
-	x1.t.attrs={'units':'au'}
-	x2=_xr.DataArray(	x2,
+	x1.t.attrs = {'units': 'au'}
+	x2 = _xr.DataArray(	x2,
 						dims=['t'],
-						coords={'t':time},
-						attrs={'units':"au",
+						coords={'t': time},
+						attrs={'units': "au",
 								 'standard_name': 'Amplitude'})
-	x2.t.attrs={'units':'s'}
+	x2.t.attrs = {'units': 's'}
 	
-	if plot==True:
-		fig,ax=_plt.subplots(2,sharex=True)
-		x1.plot(ax=ax[0],marker='.')
-		x2.plot(ax=ax[1],marker='.')
-		ax[0].set_title('Coupled harmonic oscillator\n'+r'(f1, f2, m, E)='+'(%.3f, %.3f, %.3f,%.3f)'%(f1,f2,m,E)+'\nICs = (%.3f, %.3f, %.3f, %.3f)'%(ICs['y1_0'],ICs['x1_0'],ICs['y2_0'],ICs['x2_0']))
+	if plot is True:
+		fig, ax = _plt.subplots(2, sharex=True)
+		x1.plot(ax=ax[0], marker='.')
+		x2.plot(ax=ax[1], marker='.')
+		ax[0].set_title('Coupled harmonic oscillator\n' + r'(f1, f2, m, E)=' + '(%.3f, %.3f, %.3f,%.3f)' % (f1, f2, m, E) + '\nICs = (%.3f, %.3f, %.3f, %.3f)' % (ICs['y1_0'], ICs['x1_0'], ICs['y2_0'], ICs['x2_0']))
 
-	ds=_xr.Dataset(	{'x1':x1,
-					 'x2':x2})
+	ds=_xr.Dataset(	{'x1': x1,
+					 'x2': x2})
 	
 	return ds
