@@ -1,1 +1,0 @@
-from ._pandas import *
