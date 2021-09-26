@@ -10,7 +10,7 @@ from johnspythonlibrary2.Plot import subTitle as _subTitle, finalizeFigure as _f
 from johnspythonlibrary2.Process.Misc import check_dims as _check_dims
 # from johnspythonlibrary2.Process.Spectral import fft as _fft
 import xarray as _xr
-
+from deprecated import deprecated
 
 
 
@@ -147,95 +147,95 @@ def fft_max_freq(da_fft,positiveOnly=True):
 		raise Exception('invalid input type')
 	
 	
-# depricated
-def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
-	"""
-	Simple wrapper for fft from scipy
-	
-	Parameters
-	----------
-	df : pandas.core.frame.DataFrame
-		dataframe of time dependent data
-		index = time
-	plot : bool
-		(optional) Plot results
-	trimNegFreqs : bool
-		(optional) True - only returns positive frequencies
-	normalizeAmplitude : bool
-		(optional) True - normalizes the fft (output) amplitudes to match the time series (input) amplitudes
-		
-	Returns
-	-------
-	dfFFT : pandas.core.frame.DataFrame
-		complex FFT of df
-	
-	References
-	-----------
-	https://stackoverflow.com/questions/25735153/plotting-a-fast-fourier-transform-in-python
-	
-	Example
-	-------
-	::
-		
-		import numpy as np
-		
-		dt=2e-6
-		f=1e3
-		t=np.arange(0,10e-3,dt)
-		y=np.sin(2*np.pi*t*f)
-		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
-							index=t,
-							columns=['a','b','c'])
-		df_fft=fft_df(df,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
-		
-	"""
-	
-	if type(df)!=_pd.core.frame.DataFrame:
-		if type(df)==_pd.core.series.Series:
-			df=_pd.DataFrame(df)
-		else:
-			raise Exception('Input data not formatted correctly')
-	
-	# initialize
-	
-	# fft
-	from numpy.fft import fft
-	dt=df.index[1]-df.index[0]
-	freq = _fftpack.fftfreq(df.shape[0],d=dt)
-	dfFFT=df.apply(fft,axis=0).set_index(freq)
-# 	dfFFT=df.apply(_fftpack.fft,axis=0).set_index(freq)
-	
-	# options
-	if normalizeAmplitude==True:
-		N=df.shape[0]
-		dfFFT*=1.0/N # 2/N if negative freqs have already been trimmed
-	if trimNegFreqs==True:
-		dfFFT=dfFFT[dfFFT.index>=0]
-		
-	# optional plot of results
-	if plot==True:
-		
-		dfAmp=dfFFT.abs()
-		dfPhase=phase_df(dfFFT)
-		for i,(key,val) in enumerate(df.iteritems()):
-# 			f,(ax1,ax2,ax3)=_plt.subplots(nrows=32)
-			f,(ax1,ax2)=_plt.subplots(nrows=2)
-			
-			ax1.plot(val)
-			ax1.set_ylabel('Orig. signal')
-			ax1.set_xlabel('Time')
-			ax1.set_title(key)
-			
-			ax2.loglog(dfPhase.index,dfAmp[key],marker='.')
-			ax2.set_ylabel('Amplitude')
-			
-# 			ax3.plot(dfPhase.index,dfPhase[key],marker='.',linestyle='')
-# 			ax3.set_ylabel('Phase')
-			ax2.set_xlabel('Frequency')
-# 			ax3.set_ylim([-_np.pi,_np.pi])
-		
-	# return results
-	return dfFFT
+# # depricated
+# def fft_df(df,plot=False,trimNegFreqs=False,normalizeAmplitude=False):
+# 	"""
+# 	Simple wrapper for fft from scipy
+# 	
+# 	Parameters
+# 	----------
+# 	df : pandas.core.frame.DataFrame
+# 		dataframe of time dependent data
+# 		index = time
+# 	plot : bool
+# 		(optional) Plot results
+# 	trimNegFreqs : bool
+# 		(optional) True - only returns positive frequencies
+# 	normalizeAmplitude : bool
+# 		(optional) True - normalizes the fft (output) amplitudes to match the time series (input) amplitudes
+# 		
+# 	Returns
+# 	-------
+# 	dfFFT : pandas.core.frame.DataFrame
+# 		complex FFT of df
+# 	
+# 	References
+# 	-----------
+# 	https://stackoverflow.com/questions/25735153/plotting-a-fast-fourier-transform-in-python
+# 	
+# 	Example
+# 	-------
+# 	::
+# 		
+# 		import numpy as np
+# 		
+# 		dt=2e-6
+# 		f=1e3
+# 		t=np.arange(0,10e-3,dt)
+# 		y=np.sin(2*np.pi*t*f)
+# 		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
+# 							index=t,
+# 							columns=['a','b','c'])
+# 		df_fft=fft_df(df,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
+# 		
+# 	"""
+# 	
+# 	if type(df)!=_pd.core.frame.DataFrame:
+# 		if type(df)==_pd.core.series.Series:
+# 			df=_pd.DataFrame(df)
+# 		else:
+# 			raise Exception('Input data not formatted correctly')
+# 	
+# 	# initialize
+# 	
+# 	# fft
+# 	from numpy.fft import fft
+# 	dt=df.index[1]-df.index[0]
+# 	freq = _fftpack.fftfreq(df.shape[0],d=dt)
+# 	dfFFT=df.apply(fft,axis=0).set_index(freq)
+# # 	dfFFT=df.apply(_fftpack.fft,axis=0).set_index(freq)
+# 	
+# 	# options
+# 	if normalizeAmplitude==True:
+# 		N=df.shape[0]
+# 		dfFFT*=1.0/N # 2/N if negative freqs have already been trimmed
+# 	if trimNegFreqs==True:
+# 		dfFFT=dfFFT[dfFFT.index>=0]
+# 		
+# 	# optional plot of results
+# 	if plot==True:
+# 		
+# 		dfAmp=dfFFT.abs()
+# 		dfPhase=phase_df(dfFFT)
+# 		for i,(key,val) in enumerate(df.iteritems()):
+# # 			f,(ax1,ax2,ax3)=_plt.subplots(nrows=32)
+# 			f,(ax1,ax2)=_plt.subplots(nrows=2)
+# 			
+# 			ax1.plot(val)
+# 			ax1.set_ylabel('Orig. signal')
+# 			ax1.set_xlabel('Time')
+# 			ax1.set_title(key)
+# 			
+# 			ax2.loglog(dfPhase.index,dfAmp[key],marker='.')
+# 			ax2.set_ylabel('Amplitude')
+# 			
+# # 			ax3.plot(dfPhase.index,dfPhase[key],marker='.',linestyle='')
+# # 			ax3.set_ylabel('Phase')
+# 			ax2.set_xlabel('Frequency')
+# # 			ax3.set_ylim([-_np.pi,_np.pi])
+# 		
+# 	# return results
+# 	return dfFFT
 
 
 	
@@ -387,6 +387,8 @@ def fft(	da,
 			zeroTheZeroFrequency=False,
 			realAmplitudeUnits=False,
 			fft_scale='log',
+			fft_units='Hz',
+			fft_dim_name='f',
 			verbose=False):
 	"""
 	Simple wrapper for fft from scipy
@@ -395,13 +397,25 @@ def fft(	da,
 	----------
 	da : xarray.DataArray or xarray.Dataset
 		dataarray of time dependent data
-		coord1 = time or t (units in seconds)
+		if dataset, the function is applied to each dataarray
 	plot : bool
 		(optional) Plot results
 	trimNegFreqs : bool
 		(optional) True - only returns positive frequencies
 	normalizeAmplitude : bool
 		(optional) True - normalizes the fft (output) amplitudes to match the time series (input) amplitudes
+	sortFreqIndex : bool
+		Sort the frequency coordinate in the dataarray in ascending order
+	returnAbs : bool
+		Returns the absolute value of the FFT results
+	zeroTheZeroFrequency : bool
+		Zeros the value at f=0
+	realAmplitudeUnits : bool
+		Attempts to adjust the amplitude so that it returns physical units
+	fft_scale : str
+		The y-scale for the fft plot
+	verbose : str
+		Prints misc. details of the function to screen
 		
 	Returns
 	-------
@@ -426,7 +440,7 @@ def fft(	da,
 		da=xr.DataArray( 	y,
 							dims=['t'],
 							coords={'t':t})
-		fft_result=fft_v2(da,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
+		fft_result=fft(da,plot=True,trimNegFreqs=False,normalizeAmplitude=False)
 		
 		
 	Example 2::
@@ -465,7 +479,7 @@ def fft(	da,
 	"""
 	import xarray as xr
 	from numpy.fft import fft as fft_np
-# 	from scipy.fft import fft as fft_np
+ 	# from scipy.fft import fft as fft_np
 	
 	# check input
 	if type(da) not in [xr.core.dataarray.DataArray,xr.core.dataset.Dataset]:
@@ -479,48 +493,36 @@ def fft(	da,
 						realAmplitudeUnits=realAmplitudeUnits,
 						zeroTheZeroFrequency=zeroTheZeroFrequency)
 
-	if 't' in da.dims: 
-		time=_np.array(da.t)
-	elif 'theta' in da.dims:
-		time=_np.array(da.theta)
-	else:
-		raise Exception('Time dimension needs to be labeled t')
+	x = da.coords[da.dims[0]]
 		
 	if verbose==True:
-		signal_spectral_properties(da,verbose=True)
+		signal_spectral_properties(da, verbose=True)
 	
 	# do fft
-	dt=time[1]-time[0]
-	freq = _fftpack.fftfreq(len(time),d=dt)
+	dx = float(x[1] - x[0])
+	freq = _fftpack.fftfreq(len(x), d=dx)
 	fft_results=xr.DataArray(	fft_np(da.data),
-								dims=['f'],
-								coords={'f':freq})
+								dims=[fft_dim_name],
+								coords=[freq])
 	fft_results.attrs["units"] = "au"
-	fft_results.f.attrs["units"] = "Hz"
+	fft_results.f.attrs["units"] = fft_units
 	fft_results.f.attrs["long_name"] = 'Frequency'
 	fft_results.attrs["long_name"] = 'FFT amplitude'
 	
 	# options
-	if realAmplitudeUnits==True:
+	if realAmplitudeUnits is True:
 		N=da.t.shape[0]
 		fft_results*=2.0/N 
-	if trimNegFreqs==True:
+	if trimNegFreqs is True:
 		fft_results=fft_results.where(fft_results.f>=0).dropna(dim='f')
-	if sortFreqIndex == True:
-		fft_results=fft_results.sortby('f')
-	if returnAbs == True:
+	if sortFreqIndex is True:
+		fft_results=fft_results.sortby(fft_dim_name)
+	if returnAbs is True:
 		fft_results=_np.abs(fft_results)
-	if zeroTheZeroFrequency == True:
+	if zeroTheZeroFrequency is True:
 		fft_results.loc[0] = 0	
-	elif normalizeAmplitude==True:
+	elif normalizeAmplitude is True:
 		fft_results/=fft_results.sum()
-		
-	
-	if 'theta' in da.dims:
-		fft_results=fft_results.rename({'f':'m'})
-		fft_results.m.attrs["units"] = ""
-		fft_results.m.attrs["long_name"] = 'Mode number'
-		
 		
 	# optional plot of results
 	if plot==True:
@@ -709,7 +711,7 @@ def fft_average(	da,
 	
 	
 	
-def _fftPlot(da_orig, da_fft,fft_scale='log', fig=None):
+def _fftPlot(da_orig, da_fft, fft_scale='log', fig=None):
 
 	if 'f' in da_fft.dims:
 		da_temp=_np.abs(da_fft.copy()).sortby('f')
@@ -807,100 +809,100 @@ def fftSingleFreq(da,f,plot=False):
 
 
 
-def ifft_df(	dfFFT,
-				t=None,
-				plot=False,
-				invertNormalizedAmplitude=True,
-				returnRealOnly=True):
-	
-	"""
-	Examples
-	--------
-	
-	Example1::
-		
-		import numpy as np
-		dt=2e-6
-		f=1e3
-		t=np.arange(0,10e-3,dt)
-		y=np.sin(2*np.pi*t*f)
-		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
-							index=t,
-							columns=['a','b','c'])
-		dfFFT=fft_df(df,plot=False,normalizeAmplitude=False)
-		
-		df2=ifft_df(dfFFT)
-		
-		for key,val in df.iteritems():
-			
-			_plt.figure()
-			_plt.plot(df.index,val)
-			sig=df2[key]
-			sig2=_pd.DataFrame(sig.abs())*np.exp(phase_df(sig))
-			_plt.plot(df2.index,sig)
-			
-			
-	Example2::
-			
-		import pandas as pd
-		import numpy as np
-		import johnspythonlibrary2 as jpl2
-		import matplotlib.pyplot as plt
-		
-		# input signal
-		dt=2e-6
-		f=1e3
-		t=np.arange(0,10e-3,dt)
-		y1=jpl2.Process.SigGen.chirp(t,[1e-3,9e-3],[1e3,1e5])
-		df1=pd.DataFrame(y1,index=t)
-		
-		# filter type 1 : butterworth filter
-		y2=jpl2.Process.Filters.butterworthFilter(df1,10e3,plot=False)
-		df2=pd.DataFrame(y2,index=t)
-		
-		# filter type 2 : IFFT reconstructed Butterworth filter
-		tf=jpl2.Process.TF.calcTF(df1,df2,plot=False)
-		dfFFT=fft_df(df1,plot=False,normalizeAmplitude=False)
-		df3=ifft_df(pd.DataFrame(tf['lowpassFiltered']*dfFFT[0]))
-		
-		# plots
-		fig,ax=plt.subplots(2,sharex=True)
-		ax[0].plot(df1,label='Input signal')
-		ax[0].plot(df2,label='Output signal')
-		ax[1].plot(df1,label='Input signal')
-		ax[1].plot(df3,label='Output signal')
-		_plot.finalizeSubplot( 	ax[0],
-								subtitle='Butterworth filter')
-		_plot.finalizeSubplot( 	ax[1],
-								subtitle='IFFT reconstructed Butterworth filter')
-		
-	"""
-	
-	if type(dfFFT)==_pd.core.series.Series:
-		dfFFT=_pd.DataFrame(dfFFT)
-	
-	# create a time basis if not provided
-	if t==None:
-		N=dfFFT.shape[0]
-		df=dfFFT.index[1]-dfFFT.index[0]
-		dt=1/df/N
-		t=_np.arange(0,N)*dt
-		
-	# IFFT function
-	from numpy.fft import ifft
-	#from scipy.fftpack.ifft
-	dfIFFT=dfFFT.apply(ifft,axis=0).set_index(t)
-	
-	# option
-	if returnRealOnly==True:
-		dfIFFT=_pd.DataFrame(_np.real(dfIFFT),index=dfIFFT.index,columns=dfIFFT.columns)
-	
-	# plots
-	if plot==True:
-		fig,ax=_plt.subplots()
-		ax.plot(dfIFFT)
-		
-	return dfIFFT
+# def ifft_df(	dfFFT,
+# 				t=None,
+# 				plot=False,
+# 				invertNormalizedAmplitude=True,
+# 				returnRealOnly=True):
+# 	
+# 	"""
+# 	Examples
+# 	--------
+# 	
+# 	Example1::
+# 		
+# 		import numpy as np
+# 		dt=2e-6
+# 		f=1e3
+# 		t=np.arange(0,10e-3,dt)
+# 		y=np.sin(2*np.pi*t*f)
+# 		df=_pd.DataFrame( 	np.array([y,y*1.1,y*1.2]).transpose(),
+# 							index=t,
+# 							columns=['a','b','c'])
+# 		dfFFT=fft_df(df,plot=False,normalizeAmplitude=False)
+# 		
+# 		df2=ifft_df(dfFFT)
+# 		
+# 		for key,val in df.iteritems():
+# 			
+# 			_plt.figure()
+# 			_plt.plot(df.index,val)
+# 			sig=df2[key]
+# 			sig2=_pd.DataFrame(sig.abs())*np.exp(phase_df(sig))
+# 			_plt.plot(df2.index,sig)
+# 			
+# 			
+# 	Example2::
+# 			
+# 		import pandas as pd
+# 		import numpy as np
+# 		import johnspythonlibrary2 as jpl2
+# 		import matplotlib.pyplot as plt
+# 		
+# 		# input signal
+# 		dt=2e-6
+# 		f=1e3
+# 		t=np.arange(0,10e-3,dt)
+# 		y1=jpl2.Process.SigGen.chirp(t,[1e-3,9e-3],[1e3,1e5])
+# 		df1=pd.DataFrame(y1,index=t)
+# 		
+# 		# filter type 1 : butterworth filter
+# 		y2=jpl2.Process.Filters.butterworthFilter(df1,10e3,plot=False)
+# 		df2=pd.DataFrame(y2,index=t)
+# 		
+# 		# filter type 2 : IFFT reconstructed Butterworth filter
+# 		tf=jpl2.Process.TF.calcTF(df1,df2,plot=False)
+# 		dfFFT=fft_df(df1,plot=False,normalizeAmplitude=False)
+# 		df3=ifft_df(pd.DataFrame(tf['lowpassFiltered']*dfFFT[0]))
+# 		
+# 		# plots
+# 		fig,ax=plt.subplots(2,sharex=True)
+# 		ax[0].plot(df1,label='Input signal')
+# 		ax[0].plot(df2,label='Output signal')
+# 		ax[1].plot(df1,label='Input signal')
+# 		ax[1].plot(df3,label='Output signal')
+# 		_plot.finalizeSubplot( 	ax[0],
+# 								subtitle='Butterworth filter')
+# 		_plot.finalizeSubplot( 	ax[1],
+# 								subtitle='IFFT reconstructed Butterworth filter')
+# 		
+# 	"""
+# 	
+# 	if type(dfFFT)==_pd.core.series.Series:
+# 		dfFFT=_pd.DataFrame(dfFFT)
+# 	
+# 	# create a time basis if not provided
+# 	if t==None:
+# 		N=dfFFT.shape[0]
+# 		df=dfFFT.index[1]-dfFFT.index[0]
+# 		dt=1/df/N
+# 		t=_np.arange(0,N)*dt
+# 		
+# 	# IFFT function
+# 	from numpy.fft import ifft
+# 	#from scipy.fftpack.ifft
+# 	dfIFFT=dfFFT.apply(ifft,axis=0).set_index(t)
+# 	
+# 	# option
+# 	if returnRealOnly==True:
+# 		dfIFFT=_pd.DataFrame(_np.real(dfIFFT),index=dfIFFT.index,columns=dfIFFT.columns)
+# 	
+# 	# plots
+# 	if plot==True:
+# 		fig,ax=_plt.subplots()
+# 		ax.plot(dfIFFT)
+# 		
+# 	return dfIFFT
 
 
 def ifft(	daFFT,
@@ -1018,145 +1020,145 @@ def ifft(	daFFT,
 	return daIFFT
 	
 
-def stft_df(	df,
-				numberSamplesPerSegment=1000,
-				numberSamplesToOverlap=500,
-				frequencyResolutionScalingFactor=1.,
-				plot=False,
-				verbose=True,
-				logScale=False):
-	"""
-	Short time fourier transform across a range of frequencies
-	
-	Parameters
-	----------
-	df : pandas.core.frame.DataFrame
-		1D DataFrame of signal
-		index = time
-	numberSamplesPerSegment : int
-		width of the moving window
-	numberSamplesToOverlap : int
-		number of samples to share with the previous window
-		default is N/2 where N=numberSamplesPerSegment
-		N-1 is also a good value for detailed analysis but uses a LOT of 
-		memory and processing power
-	frequencyResolutionScalingFactor : float
-		adjust to greater than 1 to increase the number of frequency bins
-		default is 1.0
-		2.0, 3.0 , 4.0, etc. are reasonable values
-	plot : bool
-		plots results
-	verbose : bool
-		prints misc. info related to the frequency limits
-		
-	Returns
-	-------
-	dfResult : pandas dataframe
-		index is time. columns is frequency.  values are the complex results at each time and frequency.	
-	
-	Examples
-	--------
-	Example1::
-		
-		# create fake signal.
-		import numpy as np
-		import xarray as xr
-		
-		fs = 10e3
-		N = 1e5
-		amp = 2 * np.sqrt(2)
-		noise_power = 0.01 * fs / 2
-		time = np.arange(N) / float(fs)
-		mod = 500*np.cos(2*np.pi*0.25*time)
-		carrier = amp * np.sin(2*np.pi*3e3*time + mod)
-		noise = np.random.normal(scale=np.sqrt(noise_power),
-		                         size=time.shape)
-		noise *= np.exp(-time/3)
-		x = carrier + noise + 1*np.cos(2*np.pi*time*2000)
-		df = _pd.DataFrame(x,index=time)
-		
-		# function call
-		dfResult=stft(df,plot=True)
-		
-		
-	Example2::
-		
-		import numpy as np
-		import xarray as xr
-		
-		# create fake signal.
-		fs = 10e3
-		N = 1e5
-		amp = 2 * np.sqrt(2)
-		noise_power = 0.01 * fs / 2
-		time = np.arange(N) / float(fs)
-		mod = 200*np.cos(2*np.pi*0.25e1*time)
-		carrier = amp * np.sin(2*np.pi*1e3*time + mod)
-		noise = np.random.normal(scale=np.sqrt(noise_power),
-		                         size=time.shape)
-		noise *= np.exp(-time/5)
-		x = carrier + noise + 1*np.cos(2*np.pi*time*2000)
-		df = _pd.DataFrame(x,index=time)
-		
-		# function call
-		dfResult=stft(df,plot=True)
-		
-	Notes
-	-----
-		1. The sampling rate sets the upper limit on frequency resolution
-		2. numberSamplesPerSegment sets the lower limit on the (effective) frequency resolution 
-		3. numberSamplesPerSegment sets an (effective) upper limit on the time responsiveness of the algorithm (meaning, if the frequency rapidly shifts from one value to another)
+# def stft_df(	df,
+# 				numberSamplesPerSegment=1000,
+# 				numberSamplesToOverlap=500,
+# 				frequencyResolutionScalingFactor=1.,
+# 				plot=False,
+# 				verbose=True,
+# 				logScale=False):
+# 	"""
+# 	Short time fourier transform across a range of frequencies
+# 	
+# 	Parameters
+# 	----------
+# 	df : pandas.core.frame.DataFrame
+# 		1D DataFrame of signal
+# 		index = time
+# 	numberSamplesPerSegment : int
+# 		width of the moving window
+# 	numberSamplesToOverlap : int
+# 		number of samples to share with the previous window
+# 		default is N/2 where N=numberSamplesPerSegment
+# 		N-1 is also a good value for detailed analysis but uses a LOT of 
+# 		memory and processing power
+# 	frequencyResolutionScalingFactor : float
+# 		adjust to greater than 1 to increase the number of frequency bins
+# 		default is 1.0
+# 		2.0, 3.0 , 4.0, etc. are reasonable values
+# 	plot : bool
+# 		plots results
+# 	verbose : bool
+# 		prints misc. info related to the frequency limits
+# 		
+# 	Returns
+# 	-------
+# 	dfResult : pandas dataframe
+# 		index is time. columns is frequency.  values are the complex results at each time and frequency.	
+# 	
+# 	Examples
+# 	--------
+# 	Example1::
+# 		
+# 		# create fake signal.
+# 		import numpy as np
+# 		import xarray as xr
+# 		
+# 		fs = 10e3
+# 		N = 1e5
+# 		amp = 2 * np.sqrt(2)
+# 		noise_power = 0.01 * fs / 2
+# 		time = np.arange(N) / float(fs)
+# 		mod = 500*np.cos(2*np.pi*0.25*time)
+# 		carrier = amp * np.sin(2*np.pi*3e3*time + mod)
+# 		noise = np.random.normal(scale=np.sqrt(noise_power),
+# 		                         size=time.shape)
+# 		noise *= np.exp(-time/3)
+# 		x = carrier + noise + 1*np.cos(2*np.pi*time*2000)
+# 		df = _pd.DataFrame(x,index=time)
+# 		
+# 		# function call
+# 		dfResult=stft(df,plot=True)
+# 		
+# 		
+# 	Example2::
+# 		
+# 		import numpy as np
+# 		import xarray as xr
+# 		
+# 		# create fake signal.
+# 		fs = 10e3
+# 		N = 1e5
+# 		amp = 2 * np.sqrt(2)
+# 		noise_power = 0.01 * fs / 2
+# 		time = np.arange(N) / float(fs)
+# 		mod = 200*np.cos(2*np.pi*0.25e1*time)
+# 		carrier = amp * np.sin(2*np.pi*1e3*time + mod)
+# 		noise = np.random.normal(scale=np.sqrt(noise_power),
+# 		                         size=time.shape)
+# 		noise *= np.exp(-time/5)
+# 		x = carrier + noise + 1*np.cos(2*np.pi*time*2000)
+# 		df = _pd.DataFrame(x,index=time)
+# 		
+# 		# function call
+# 		dfResult=stft(df,plot=True)
+# 		
+# 	Notes
+# 	-----
+# 		1. The sampling rate sets the upper limit on frequency resolution
+# 		2. numberSamplesPerSegment sets the lower limit on the (effective) frequency resolution 
+# 		3. numberSamplesPerSegment sets an (effective) upper limit on the time responsiveness of the algorithm (meaning, if the frequency rapidly shifts from one value to another)
 
-	"""
-	from scipy.signal import stft as scipystft
-	import numpy as np
-	
-	if type(df)==_pd.core.series.Series:
-		df=_pd.DataFrame(df)
-	
-	dt=df.index[1]-df.index[0]
-	fs=1./dt
-	
-	if verbose:
-		
-		print("Sampling rate: %.3e Hz"%fs)
-		
-		timeWindow=dt*numberSamplesPerSegment
-		print("Width of sliding time window: %.3e s"%timeWindow)
-	
-		# lowest frequency to get at least one full wavelength
-		fLow=1./(numberSamplesPerSegment*dt)
-		print("Lowest freq. to get at least one full wavelength: %.2f" % fLow )
-	
-		# frequency upper limit
-		nyF=fs/2.
-		print("Nyquist freq. (freq. upperlimit): %.2f" % nyF)
-	
-	fOut,tOut,zOut=scipystft(df.iloc[:,0].values,fs,nperseg=numberSamplesPerSegment,noverlap=numberSamplesToOverlap,nfft=df.shape[0]*frequencyResolutionScalingFactor)
-	zOut*=2 # TODO(John) double check this scaling factor.   Then cite a reason for it.  (I don't like arbitrary factors sitting around)
-	tOut+=df.index[0]
-	
-	dfResult=_pd.DataFrame(zOut.transpose(),index=tOut,columns=fOut)
+# 	"""
+# 	from scipy.signal import stft as scipystft
+# 	import numpy as np
+# 	
+# 	if type(df)==_pd.core.series.Series:
+# 		df=_pd.DataFrame(df)
+# 	
+# 	dt=df.index[1]-df.index[0]
+# 	fs=1./dt
+# 	
+# 	if verbose:
+# 		
+# 		print("Sampling rate: %.3e Hz"%fs)
+# 		
+# 		timeWindow=dt*numberSamplesPerSegment
+# 		print("Width of sliding time window: %.3e s"%timeWindow)
+# 	
+# 		# lowest frequency to get at least one full wavelength
+# 		fLow=1./(numberSamplesPerSegment*dt)
+# 		print("Lowest freq. to get at least one full wavelength: %.2f" % fLow )
+# 	
+# 		# frequency upper limit
+# 		nyF=fs/2.
+# 		print("Nyquist freq. (freq. upperlimit): %.2f" % nyF)
+# 	
+# 	fOut,tOut,zOut=scipystft(df.iloc[:,0].values,fs,nperseg=numberSamplesPerSegment,noverlap=numberSamplesToOverlap,nfft=df.shape[0]*frequencyResolutionScalingFactor)
+# 	zOut*=2 # TODO(John) double check this scaling factor.   Then cite a reason for it.  (I don't like arbitrary factors sitting around)
+# 	tOut+=df.index[0]
+# 	
+# 	dfResult=_pd.DataFrame(zOut.transpose(),index=tOut,columns=fOut)
 
-	if plot==True:
-		
-		if logScale==False:
-			fig,ax,cax=_plot.subplotsWithColormaps(1)
-			levels=np.linspace(0,dfResult.abs().max().max(),61)
-			pc=ax.contourf(dfResult.index,dfResult.columns,np.abs(dfResult.values.transpose()),levels=levels,cmap='Blues')
-			fig.colorbar(pc,ax=ax,cax=cax)
-			_plot.finalizeSubplot(ax,
-								 xlabel='Time (s)',
-								 ylabel='Frequency (Hz)',
-								 legendOn=False)
-			_plot.finalizeFigure(fig)
-		else:
-			raise Exception('Not implemented yet...')
-			#TODO implement stft spectrogram plot with logscale on the zaxis (colorbar) 
-			# starting reference : https://matplotlib.org/3.1.0/gallery/images_contours_and_fields/contourf_log.html
-			
-			
-	return dfResult
+# 	if plot==True:
+# 		
+# 		if logScale==False:
+# 			fig,ax,cax=_plot.subplotsWithColormaps(1)
+# 			levels=np.linspace(0,dfResult.abs().max().max(),61)
+# 			pc=ax.contourf(dfResult.index,dfResult.columns,np.abs(dfResult.values.transpose()),levels=levels,cmap='Blues')
+# 			fig.colorbar(pc,ax=ax,cax=cax)
+# 			_plot.finalizeSubplot(ax,
+# 								 xlabel='Time (s)',
+# 								 ylabel='Frequency (Hz)',
+# 								 legendOn=False)
+# 			_plot.finalizeFigure(fig)
+# 		else:
+# 			raise Exception('Not implemented yet...')
+# 			#TODO implement stft spectrogram plot with logscale on the zaxis (colorbar) 
+# 			# starting reference : https://matplotlib.org/3.1.0/gallery/images_contours_and_fields/contourf_log.html
+# 			
+# 			
+# 	return dfResult
 
 
 
@@ -1328,129 +1330,129 @@ def stft(	da,
 	return da_stft
 	
 	
-# retire this function?
-def stftSingleFrequency_df(df,
-						   freq,
-						   windowSizeInWavelengths=2,
-						   plot=False,
-						   verbose=True,):
-	"""
-	Short-time Fourier transform of a single frequency.  Uses a Hann window
-	
-	Parameters
-	----------
-	df : pandas.core.frame.DataFrame
-		columns contain signals
-		index = time
-	f : float
-		frequency (in Hz) to do the analysis
-	windowSizeInWavelengths : float
-		width of the moving stft window, units in wavelengths at frequency, freq
-	plot : bool
-		plot results
-	verbose : bool
-		print results and related frequency information
-		
-	Returns
-	-------
-	dfComplex : pandas.core.frame.DataFrame
-		STFT complex results		
-	dfAmp : 
-		STFT amplitude	
-	dfPhase :
-		STFT phase	
-		
-	References
-	----------
-	https://en.wikipedia.org/wiki/Short-time_Fourier_transform
-	https://en.wikipedia.org/wiki/Window_function#Hann_and_Hamming_windows
-	
-	Example
-	-------
-	::
-		
-		import numpy as np
-		import pandas as pd
-		
-		dt=2e-6
-		t=np.arange(0,10e-3,dt)
-		f=1.5e3
-		y=np.sin(2*np.pi*t*f+0.25*np.pi)
-		
-		N=t.shape[0]
-		n=np.arange(0,N)
-		hannWindow=np.sin(np.pi*n/(N-1.))**2
-		hannWindow/=np.sum(hannWindow)*1.0/N  	# normalize
-		
-		df=pd.DataFrame(np.array([y,y*1.1,y*1.2]).transpose(),index=t,columns=['a','b','c'])
-		
-		dfComplex,dfAmp,dfPhase=stftSingleFrequency_df(df,f,plot=True)
-	"""
-	
-	import numpy as np
-	
-	# initial calculations
-	dt=df.index[1]-df.index[0]
-	fs=1./dt
-	N=np.ceil(windowSizeInWavelengths*fs/freq).astype(int)
-	dN=1
-	M=df.shape[0]
-	
-	# calculate hann window
-	n=np.arange(0,N)
-	hannWindow=np.sin(np.pi*n/(N-1.))**2
-	hannWindow/=np.sum(hannWindow)*1.0/N  	# normalize
-	dfHann=_pd.DataFrame([hannWindow]*df.shape[1]).transpose()
-			
-	# calculate steps
-	steps=np.arange(0,M-N,dN)
-		
-	if verbose:
-		# time window
-		timeWindow=dt*N 
-		print("Time window: %.3e s"%timeWindow)
-	
-		# lowest frequency to get a full wavelength
-		fLow=1./(N*dt)
-		print("Lowest freq. to get 1 full wavelength, %.2f" % fLow )
-	
-		# highest frequency
-		nyF=fs/2.
-		print("Nyquist freq., %.2f" % nyF)
-	
-	# initialize arrays
-	dfAmp=_pd.DataFrame(index=df.index[steps+int(N/2)],
-							columns=df.columns,
-							dtype=complex)
-	dfComplex=_pd.DataFrame(index=df.index[steps+int(N/2)],
-							columns=df.columns,
-							dtype=complex)
-	dfPhase=_pd.DataFrame(index=df.index[steps+int(N/2)],
-							columns=df.columns,
-							dtype=float)
-	
-	# perform analysis
-	#TODO optomize this section of code.  should be a convolution function somewhere
-	for i in range(0,len(steps)):
-		temp=_pd.DataFrame(df.iloc[steps[i]:steps[i]+N].values,
-					index=dt*(n-n.mean()),
-					columns=df.columns)
-		temp=_xr.DataArray(temp.values, dims='t',coords=[steps+int(N/2)])
-		dfOut=fftSingleFreq(temp*dfHann.values,freq,plot=False)
-			
-		dfComplex.iloc[i,:]=dfOut.loc['fft']
-		dfAmp.iloc[i,:]=dfOut.loc['amp']
-		dfPhase.iloc[i,:]=dfOut.loc['phase']
-		
-	if plot==True:
-		for i,(key,val) in enumerate(df.iteritems()):
-			
-			fig,(ax1,ax2)=_plt.subplots(2,sharex=True)
-			ax1.plot(val)
-			ax1.plot(dfAmp[key])
-			ax2.plot(dfPhase[key],'.')
-		
-	return dfComplex,dfAmp,dfPhase
+# # retire this function?
+# def stftSingleFrequency_df(df,
+# 						   freq,
+# 						   windowSizeInWavelengths=2,
+# 						   plot=False,
+# 						   verbose=True,):
+# 	"""
+# 	Short-time Fourier transform of a single frequency.  Uses a Hann window
+# 	
+# 	Parameters
+# 	----------
+# 	df : pandas.core.frame.DataFrame
+# 		columns contain signals
+# 		index = time
+# 	f : float
+# 		frequency (in Hz) to do the analysis
+# 	windowSizeInWavelengths : float
+# 		width of the moving stft window, units in wavelengths at frequency, freq
+# 	plot : bool
+# 		plot results
+# 	verbose : bool
+# 		print results and related frequency information
+# 		
+# 	Returns
+# 	-------
+# 	dfComplex : pandas.core.frame.DataFrame
+# 		STFT complex results		
+# 	dfAmp : 
+# 		STFT amplitude	
+# 	dfPhase :
+# 		STFT phase	
+# 		
+# 	References
+# 	----------
+# 	https://en.wikipedia.org/wiki/Short-time_Fourier_transform
+# 	https://en.wikipedia.org/wiki/Window_function#Hann_and_Hamming_windows
+# 	
+# 	Example
+# 	-------
+# 	::
+# 		
+# 		import numpy as np
+# 		import pandas as pd
+# 		
+# 		dt=2e-6
+# 		t=np.arange(0,10e-3,dt)
+# 		f=1.5e3
+# 		y=np.sin(2*np.pi*t*f+0.25*np.pi)
+# 		
+# 		N=t.shape[0]
+# 		n=np.arange(0,N)
+# 		hannWindow=np.sin(np.pi*n/(N-1.))**2
+# 		hannWindow/=np.sum(hannWindow)*1.0/N  	# normalize
+# 		
+# 		df=pd.DataFrame(np.array([y,y*1.1,y*1.2]).transpose(),index=t,columns=['a','b','c'])
+# 		
+# 		dfComplex,dfAmp,dfPhase=stftSingleFrequency_df(df,f,plot=True)
+# 	"""
+# 	
+# 	import numpy as np
+# 	
+# 	# initial calculations
+# 	dt=df.index[1]-df.index[0]
+# 	fs=1./dt
+# 	N=np.ceil(windowSizeInWavelengths*fs/freq).astype(int)
+# 	dN=1
+# 	M=df.shape[0]
+# 	
+# 	# calculate hann window
+# 	n=np.arange(0,N)
+# 	hannWindow=np.sin(np.pi*n/(N-1.))**2
+# 	hannWindow/=np.sum(hannWindow)*1.0/N  	# normalize
+# 	dfHann=_pd.DataFrame([hannWindow]*df.shape[1]).transpose()
+# 			
+# 	# calculate steps
+# 	steps=np.arange(0,M-N,dN)
+# 		
+# 	if verbose:
+# 		# time window
+# 		timeWindow=dt*N 
+# 		print("Time window: %.3e s"%timeWindow)
+# 	
+# 		# lowest frequency to get a full wavelength
+# 		fLow=1./(N*dt)
+# 		print("Lowest freq. to get 1 full wavelength, %.2f" % fLow )
+# 	
+# 		# highest frequency
+# 		nyF=fs/2.
+# 		print("Nyquist freq., %.2f" % nyF)
+# 	
+# 	# initialize arrays
+# 	dfAmp=_pd.DataFrame(index=df.index[steps+int(N/2)],
+# 							columns=df.columns,
+# 							dtype=complex)
+# 	dfComplex=_pd.DataFrame(index=df.index[steps+int(N/2)],
+# 							columns=df.columns,
+# 							dtype=complex)
+# 	dfPhase=_pd.DataFrame(index=df.index[steps+int(N/2)],
+# 							columns=df.columns,
+# 							dtype=float)
+# 	
+# 	# perform analysis
+# 	#TODO optomize this section of code.  should be a convolution function somewhere
+# 	for i in range(0,len(steps)):
+# 		temp=_pd.DataFrame(df.iloc[steps[i]:steps[i]+N].values,
+# 					index=dt*(n-n.mean()),
+# 					columns=df.columns)
+# 		temp=_xr.DataArray(temp.values, dims='t',coords=[steps+int(N/2)])
+# 		dfOut=fftSingleFreq(temp*dfHann.values,freq,plot=False)
+# 			
+# 		dfComplex.iloc[i,:]=dfOut.loc['fft']
+# 		dfAmp.iloc[i,:]=dfOut.loc['amp']
+# 		dfPhase.iloc[i,:]=dfOut.loc['phase']
+# 		
+# 	if plot==True:
+# 		for i,(key,val) in enumerate(df.iteritems()):
+# 			
+# 			fig,(ax1,ax2)=_plt.subplots(2,sharex=True)
+# 			ax1.plot(val)
+# 			ax1.plot(dfAmp[key])
+# 			ax2.plot(dfPhase[key],'.')
+# 		
+# 	return dfComplex,dfAmp,dfPhase
 
 
 
