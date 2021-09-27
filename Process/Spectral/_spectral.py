@@ -520,7 +520,8 @@ def fft(	da,
 	if returnAbs is True:
 		fft_results=_np.abs(fft_results)
 	if zeroTheZeroFrequency is True:
-		fft_results.loc[0] = 0	
+		fft_results.loc[0] = _np.nan	
+		# fft_results.loc[0] = 0	
 	elif normalizeAmplitude is True:
 		fft_results/=fft_results.sum()
 		
