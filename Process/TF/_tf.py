@@ -1,99 +1,9 @@
 
 import numpy as _np
-#import pandas as _pd
-#import scipy as _sp
 import matplotlib.pyplot as _plt
-#import johnspythonlibraries as jpl
 import xarray as _xr
 
 from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot, finalizeFigure as _finalizeFigure
-
-
-
-# def fftSignalReconstruct_depricated(s1A,s2A,s1B,s2B=None,numModes=None,plot=False):
-# 	"""
-# 	Creates a transfer function between an input and output signal (i.e. tf=H(s)=FFT(s1B)/FFT(s1A)) and applies it to s2A to reconstruct s2B.  
-
-# 	Parameters
-# 	----------
-# 	s1A : pandas.core.series.Series
-# 		Input signal used to create the transfer fuction.  Time series.
-# 	s2A : pandas.core.series.Series.  Time series.
-# 		Input signal that is used to reconstruct s2B with tf
-# 	s1B : pandas.core.series.Series.  Time series.
-# 		Output signal used to create the transfer fuction
-# 	s2B : pandas.core.series.Series.  Time series.
-# 		(Optional) The actual s2B signal.  If provied, it will be plotted alongside the reconstructed s2B for comparison. The anaylsis does not use it otherwise. 
-# 	numModes : int
-# 		The first N number of frequencies to use with the reconstruction.
-# 		If None, the code uses all frequencies.
-# 	plot : bool
-# 		True - Provides an optional plot of the results
-
-# 	Returns
-# 	-------
-# 	s2B_recon : pandas.core.series.Series
-# 		The reconstructed s2B signal.  Time series.
-# 		
-# 	Examples
-# 	--------
-# 	::
-# 		
-# 		from johnspythonlibrary2.Process.SigGen import chirp
-# 		from johnspythonlibrary2.Process.Filters import butterworth
-# 		from johnspythonlibrary2.Process.SigGen import gaussianNoise
-# 		import xarray as _xr
-# 		import numpy as _np
-# 		
-# 		t=_np.arange(0,20e-3,2e-6)
-# 		fStart=1e3
-# 		fStop=1e5
-# 		s1A=_xr.DataArray(	chirp(t,[0.5e-3,19.46e-3],[fStart,fStop]),
-# 							dims=['t'],
-# 							coords={'t':t})
-# 		s2A=_xr.DataArray(	gaussianNoise(y1.shape),
-# 							dims=['t'],
-# 							coords={'t':t})
-# 		f_corner=1e4
-# 		s1B=_xr.DataArray(	butterworth(s1A,f_corner,filterType='high',plot=False),
-# 							dims=['t'],
-# 							coords={'t':t})
-# 		ds=_xr.Dataset({'s1A':s1A,
-# 				  's1B':s1B,
-# 				  's2A':s2A,})
-# 		
-
-# 	"""
-# 	
-# 	# calculate TF from the first half of signals 1 and 2 (i.e. s1A and s2A)
-# 	tf=calcTF(s1A,s2A,plot=True)
-
-# 	# check TF by reconstructing s2A from s1A and comparing it with the actual s2A
-# 	if plot==True:
-# 		_fftSignalReconstructFromTF(s1A,tf,plot=plot,s2=s2A)
-
-# 	def trimFreqs(df,numF=50):
-# 		fmax=1/df.shape[0]*numF
-# 		df=df.copy()
-# 		df[(df.index>=fmax) | (df.index<-fmax)]=0
-# 		return df
- 
-# 	# trim tf based on the number of modes (unique frequencies) to maintain.
-# 	if type(numModes)!=type(None):
-# 		tf_trimmed=trimFreqs(tf,numModes)
-# 	
-# 	# use tf and s2A to reconstruct s2B.  
-# 	s2B_recon=_fftSignalReconstructFromTF(s1B,tf_trimmed,plot=plot,s2=s2B)
-
-# 	# (Optional) Plot
-# 	if plot==True:
-# 		fig,ax=_plt.subplots()
-# 		if type(s2B)!=type(None):
-# 			ax.plot(s2B,linewidth=0.75,label=s2A.name+" Original")
-# 		ax.plot(s2B_recon,linewidth=1,color='limegreen',label=s2A.name+' Reconstruction')
-# 		_finalizeSubplot(ax )
-# 		
-# 	return s2B_recon
 
 
 def fftSignalReconstruct(ds,numModes=None,plot=False):
@@ -307,6 +217,7 @@ def phaseCalcFromComplexSignal(daComplex,plot=False):
 def bodePlotFromTF(	daTF,
 					fig=None,
 					ax=None,
+					label=None,
 					degScaleForPhase=True,
 					dBScaleForAmplitude=False,
 					semilogXAxis=False):
@@ -357,7 +268,7 @@ def bodePlotFromTF(	daTF,
 	else:
 		amp=_dB(amp)
 		y0Label=r'unitless (dB)'
-	amp.plot(ax=ax[0],linestyle='-')
+	amp.plot(ax=ax[0],linestyle='-', label=label)
 	
 	# phase
 	phase=phaseCalcFromComplexSignal(daTF)
@@ -375,12 +286,13 @@ def bodePlotFromTF(	daTF,
 		y1Ticks=[-_np.pi,-_np.pi*0.5,0,_np.pi*0.5,_np.pi]
 		y1TicksLabels=[r'$-\pi$',r'$-\pi/2$',r'$0$',r'$\pi/2$',r'$\pi$']
 		pass
-	phase.plot(ax=ax[1],linestyle='',marker='.')
+	phase.plot(ax=ax[1],linestyle='',marker='.', label=label)
 	
 	# finalize plot
 	_finalizeSubplot(	ax[0],
 						ylabel=y0Label,
 						subtitle='Magnitude',
+						yscale='log'
 						)
 	_finalizeSubplot(	ax[1],
 						ylabel=y1Label,
@@ -390,6 +302,7 @@ def bodePlotFromTF(	daTF,
 						yticks=y1Ticks,
 						ytickLabels=y1TicksLabels,
 						)
+	ax[0].set_yscale('log')
 	if semilogXAxis==True:
 		ax[0].set_xscale('log')
 		ax[0].set_xlim([0,amp.f.max()])
@@ -465,8 +378,8 @@ def calcTF(	daInput,
 		tf1=tf1[(tf1.f>=fStart)&(tf1.f<=fStop)]
 		tf2=tf2[(tf2.f>=fStart)&(tf2.f<=fStop)]
 		fig,ax=_plt.subplots(2,sharex=True)
-		bodePlotFromTF(tf1,fig,ax,semilogXAxis=True)
-		bodePlotFromTF(tf2,fig,ax,semilogXAxis=True)
+		bodePlotFromTF(tf1,fig,ax,semilogXAxis=True, label='Highpass')
+		bodePlotFromTF(tf2,fig,ax,semilogXAxis=True, label='Lowpass')
 		ax[0].set_xlim([tf1.f[0],tf1.f.max()])
 
 		
@@ -501,14 +414,41 @@ def calcTF(	daInput,
 		_plt.gca().set_xlim([fStart,fStop])
 		_plt.gca().set_xscale('log')
 		
+	Example3::
+		
+		print('work in progress')
+		from johnspythonlibrary2.Process.SigGen import chirp
+		import johnspythonlibrary2 as jpl2
+		import numpy as _np
+		import matplotlib.pyplot as _plt
+		
+		t =_np.arange(0,1e0,1e-7)
+		f_lim = [1e2, 1e6]
+		y_original = chirp(t, [t[0], t[-1]], fStartStop=f_lim, plot=False)
+		f_cutoff = 1.00123e4
+		
+		plot = False
+		y_boxcar = jpl2.Process.Filters.boxcar_convolution_filter(y_original, width_in_time = 1/f_cutoff, plot=plot)
+		y_gaussian = jpl2.Process.Filters.gaussianFilter(y_original, 1/f_cutoff, 'low', plot=plot )
+
+		tf_boxcar = calcTF(y_original, y_boxcar)
+		tf_gaussian = calcTF(y_original, y_gaussian)
+		
+		fig, ax = _plt.subplots(2, sharex=True)
+		bodePlotFromTF(tf_boxcar, fig=fig, ax=ax, label='boxcar, lp', semilogXAxis=True)
+		bodePlotFromTF(tf_gaussian, fig=fig, ax=ax, label='gaussian, lp', semilogXAxis=True)
+		ax[0].set_xlim(f_lim)
+		ax[0].axvline(f_cutoff, color='r', linestyle='--', label='f_cutoff')
+		ax[0].legend()
+		
 	"""
 	
 	from johnspythonlibrary2.Process.Spectral import fft
 	
 	# standard calculation
 	if 'fRange' not in daInput.dims:
-		Xin=fft(daInput,trimNegFreqs=False)
-		Xout=fft(daOutput,trimNegFreqs=False)
+		Xin=fft(daInput,trimNegFreqs=True)
+		Xout=fft(daOutput,trimNegFreqs=True)
 		
 		daTF=_xr.DataArray(	Xout/Xin,
 							 dims='f',
