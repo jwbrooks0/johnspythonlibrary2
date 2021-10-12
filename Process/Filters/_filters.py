@@ -1,12 +1,188 @@
 
 import numpy as _np
 import matplotlib.pyplot as _plt
+from scipy.signal import decimate as _decimate
 from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot
 import xarray as _xr
+from deprecated import deprecated as _deprecated
 
 
+# %% windowing
+
+def hann_window_1D(array, hann_width, plot=False):
+	"""
+	
+	Example
+	-------
+	Example 1 ::
+		
+		array = _np.random.rand(1000)
+		hann_width = 500
+		array_hann = hann_window_1D(array, hann_width, plot=True)
+
+	Example 2 ::
+		
+		# xarray
+		
+		array = _xr.DataArray(_np.random.rand(1000), dims='t', coords=[np.arange(1000)*0.1])
+		hann_width = 500
+		array_hann = hann_window_1D(array, hann_width, plot=True)
+
+	"""
+	if type(array) == _xr.core.dataarray.DataArray:
+		xr_array = array.copy()
+		array = array.data
+		data_xr = True
+	else:
+		data_xr = False
+	
+	from scipy.signal import hann
+	if hann_width == array.shape[0]:
+		y_hann = hann(hann_width)
+	elif hann_width < array.shape[0]:
+		y_hann = zero_pad(hann(hann_width), array.shape[0])
+	else:
+		raise Exception('Array should be longer than hann_width')
+		
+	y_out = y_hann * array
+	
+	if plot is True:
+		fig, ax = _plt.subplots()
+		ax.plot(array, label='Original data')
+		ax.plot(y_hann, label='Hann window', linestyle='--', linewidth=2)
+		ax.plot(y_out, label='Hann applied to data')
+		ax.legend()
+		
+	if data_xr is True:
+		xr_array.data = y_out
+		y_out = xr_array
+	
+	return y_out
+
+
+def hann_window_1D_to_2D_data(array, hann_width, axis=0, plot=False):
+	"""
+	
+	Example
+	-------
+	Example 1 ::
+		
+		array = _np.random.rand(1000, 1200)
+		hann_width = 500
+		axis = 0
+		array_hann = hann_window_1D_to_2D_data(array, hann_width, axis=axis, plot=True)
+
+	Example 2 ::
+		
+		array = _np.random.rand(1000, 1200)
+		hann_width = 500
+		axis = 1
+		array_hann = hann_window_1D_to_2D_data(array, hann_width, axis=axis, plot=True)
+
+	Example 3 ::
+		
+		# xr example
+		
+		array = _xr.DataArray(_np.random.rand(1000, 1200), dims=['x', 'y'], coords=[_np.arange(1000), _np.arange(1200)])
+		hann_width = 500
+		axis = 1
+		array_hann = hann_window_1D_to_2D_data(array, hann_width, axis=axis, plot=True)
+
+	"""
+	if type(array) == _xr.core.dataarray.DataArray:
+		xr_array = array.copy()
+		array = array.data
+		data_xr = True
+	else:
+		data_xr = False
+	
+	from scipy.signal import hann
+	if hann_width == array.shape[axis]:
+		y_hann = hann(hann_width)
+	elif hann_width < array.shape[axis]:
+		y_hann = zero_pad(hann(hann_width), array.shape[axis])
+	else:
+		raise Exception('Array should be longer than hann_width')
+		
+	if axis == 0:
+		y_hann = _np.repeat(y_hann[..., _np.newaxis], array.shape[1], axis=1)
+	elif axis == 1:
+		y_hann = _np.repeat(y_hann[_np.newaxis, ...], array.shape[0], axis=0)
+		
+	y_out = y_hann * array
+	
+	if plot is True:
+		fig, ax = _plt.subplots(3, sharex=True)
+		ax[0].contourf(array, label='Original data')
+		ax[1].contourf(y_hann, label='Hann window', linestyle='--', linewidth=2)
+		ax[2].contourf(y_out, label='Hann applied to data')
+
+	if data_xr is True:
+		xr_array.data = y_out
+		y_out = xr_array
+		
+	return y_out
+
+
+def zero_pad(array: _np.ndarray, target_length: int, axis: int = 0):
+	"""
+	Pads an array along a specified axis with zeros
+	
+	Example
+	-------
+	Example 1 ::
+		
+		# a 2D case where np.remainder(pad_size, 2) == 0
+		
+		array = _np.arange(5*7).reshape(5,7)
+		axis = 1
+		target_length = 11
+		b = zero_pad(array, target_length=target_length, axis=axis)
+
+	Example 2 ::
+		
+		# a 2D case where np.remainder(pad_size, 2) != 0
+		
+		array = _np.arange(5*7).reshape(5,7)
+		axis = 1
+		target_length = 12
+		b = zero_pad(array, target_length=target_length, axis=axis)
+
+	Example 3 ::
+		
+		# check the 1D case
+		
+		array = _np.arange(5) + 1
+		axis = 0
+		target_length = 10
+		b = zero_pad(array, target_length=target_length, axis=axis)
+
+	References
+	----------
+	 *  https://stackoverflow.com/questions/19349410/how-to-pad-with-zeros-a-tensor-along-some-axis-python
+	"""
+	
+	pad_size = (target_length - array.shape[axis]) / 2
+	if pad_size <= 0:
+		raise Exception('Target length must be larger than the array')
+
+	if _np.remainder(pad_size, 1) == 0:
+		pad_sizes = (int(pad_size), int(pad_size))
+	else:
+		pad_sizes = (int(pad_size), int(pad_size+1))
+		
+	npad = [(0, 0)] * array.ndim
+	npad[axis] = pad_sizes
+
+	return _np.pad(array, pad_width=npad, mode='constant', constant_values=0)
+
+
+# %% downsampling
+
+@_deprecated(reason='Replaced by downsample().')
 def downsample_and_antialiasing(da, downsample_factor=10, plot=False):
-	from scipy.signal import decimate, resample
+
+	from scipy.signal import decimate #, resample
 	
 	t_orig = da.coords[da.dims[0]].data
 	t_new = t_orig[::downsample_factor]
@@ -19,7 +195,60 @@ def downsample_and_antialiasing(da, downsample_factor=10, plot=False):
 		ax.legend()
 		
 	return da_new
+
+
+def downsample(da, downsample_factor=10, antialiasing=True, plot=False):
+	"""
 	
+
+	Parameters
+	----------
+	da : xr.DataArray
+		1D dataarray to be downsampled
+	downsample_factor : int
+		The factor to downsampled by.  
+	antialiasing : bool
+		Downsampling can be done with and without an antialiasing filter. The default is True (i.e. with antialiasing)
+	plot : bool
+		Optional plot of the results
+
+	Returns
+	-------
+	da_new : xr.DataArray
+		The downsampled dataarray
+
+	Example
+	-------
+	Example 1 ::
+		
+		dt = 1e-6
+		t = _np.arange(0, 1e4) * dt
+		da = _xr.DataArray(_np.sin(2 * _np.pi * 1e3 * t) + _np.random.rand(len(t)))
+		da_downsampled = downsample(da, downsample_factor=20, plot=True)
+		da_downsampled = downsample(da, downsample_factor=20, plot=True, antialiasing=False)
+	
+	"""
+	# downsample time
+	t_orig = da.coords[da.dims[0]].data
+	t_new = t_orig[::downsample_factor]
+	
+	# downsample data (with or without antialiasing)
+	if antialiasing is True:
+		da_new = _xr.DataArray(_decimate(da.data, q=downsample_factor, ftype='fir'), dims=da.dims, coords=[t_new])
+	else:
+		da_new = _xr.DataArray(da.data[::downsample_factor], dims=da.dims, coords=[t_new])
+	
+	# optional plot of results
+	if plot is True:
+		fig, ax = _plt.subplots()
+		da.plot(ax=ax, label='orig')
+		da_new.plot(ax=ax, label='downsampled')
+		ax.legend()
+		
+	return da_new
+	
+
+# %% low and highpass filtering
 
 def filtfilt(	da,
 				cornerFreq,
@@ -182,9 +411,37 @@ def filtfilt(	da,
 							ylabel='Signal amplitude')
 		
 	return daOut
+
+
+def boxcar_convolution_filter(	da, 
+								width_in_time, 
+								filter_type='low', 
+								mode='reflect',
+								plot=False):
+	from scipy.ndimage import uniform_filter1d
 		
+	dt = _np.mean(da.t[1:].data - da.t[:-1].data)
+	width = _np.round(width_in_time / dt).astype(int)
+	da_lp = _xr.DataArray(uniform_filter1d(da.data, size=width, mode=mode), dims=da.dims, coords=da.coords)
+	da_hp = da - da_lp.data
+	
+	if plot is True:
+		fig, ax = _plt.subplots()
+		da.plot(ax=ax, label='Original')
+		da_lp.plot(ax=ax, label='Lowpass')
+		da_hp.plot(ax=ax, label='Highpass')
+		ax.legend()
 		
-def gaussianFilter(da, timeFWHM, filterType='high', plot=False):
+	if filter_type == 'high':
+		return da_hp
+	else:
+		return da_lp
+	
+		
+def gaussianFilter(	da, 
+				    timeFWHM, 
+					filterType='high', 
+					plot=False):
 	"""
 	Low and highpass filters using scipy's gaussian convolution filter
 	
