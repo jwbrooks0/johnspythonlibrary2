@@ -18,9 +18,9 @@ Pillow			# image processing tools
 # glob3			# unix-like filenames.  includes using wildcards * in filepaths.  # throws errors when pip install glob3 ...?
 sh			# shell scripting library
 deprecated		# has a decorator for flagging deprecated functions
-# pathos		# multiprocessing sublibrary #TODO I think I'm not longer using this library
+# pathos		# multiprocessing sublibrary #TODO I think I'm no longer using this library
 seaborn			# additional plotting functions, colormaps, etc
-h5py			# loading matlab data
+h5py			# functions related to the hdf5 data structure
 mat73			# loading matlab data (better)
 sk-video
 pyvisa			# used to talk with instruments over USB, GPIB, Ethernet, etc
