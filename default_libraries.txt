@@ -4,8 +4,9 @@
 # NOTE.  Make sure python3-dev is installed first.  sudo apt install python3-dev 
  
 ### python libraries
-spyder==3.3.6	# this is the final release of spyder v3.  I find spyder v4 to be buggy still, and I keep coming back to spyder v3.  
-#spyder			# spyder v4 
+#spyder==3.3.6	# this is the final release of spyder v3. 
+spyder==4.2.5  # this is the final release of spyder v4
+#spyder			# spyderm, latest version
 matplotlib		# plotting package
 numpy			# data arrays and scientific tool library
 pandas			# data structures, 1 dimentional
