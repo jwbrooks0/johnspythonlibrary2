@@ -134,7 +134,7 @@ def chirp(	t,
 	# optional plot
 	if plot==True:
 		fig, ax = _plt.subplots()
-		ax.plot(y)
+		y.plot(ax=ax)
 		
 	return y
 
