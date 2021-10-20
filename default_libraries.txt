@@ -4,8 +4,9 @@
 # NOTE.  Make sure python3-dev is installed first.  sudo apt install python3-dev 
  
 ### python libraries
-spyder==3.3.6	# this is the final release of spyder v3.  I find spyder v4 to be buggy still, and I keep coming back to spyder v3.  
-#spyder			# spyder v4 
+#spyder==3.3.6	# this is the final release of spyder v3. 
+spyder==4.2.5  # this is the final release of spyder v4
+#spyder			# spyderm, latest version
 matplotlib		# plotting package
 numpy			# data arrays and scientific tool library
 pandas			# data structures, 1 dimentional
@@ -18,9 +19,9 @@ Pillow			# image processing tools
 # glob3			# unix-like filenames.  includes using wildcards * in filepaths.  # throws errors when pip install glob3 ...?
 sh			# shell scripting library
 deprecated		# has a decorator for flagging deprecated functions
-# pathos		# multiprocessing sublibrary #TODO I think I'm not longer using this library
+# pathos		# multiprocessing sublibrary #TODO I think I'm no longer using this library
 seaborn			# additional plotting functions, colormaps, etc
-h5py			# loading matlab data
+h5py			# functions related to the hdf5 data structure
 mat73			# loading matlab data (better)
 sk-video
 pyvisa			# used to talk with instruments over USB, GPIB, Ethernet, etc
