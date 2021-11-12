@@ -6,138 +6,8 @@ import xarray as _xr
 
 # from scipy.signal import gaussian as _gaussian
 
-#%% Basic signal generation
 
-
-def gaussian_pulse(sigma, t, amplitude=1, plot=False):
-	"""
-	Basic gaussian pulse with units in time
-	std_time is the standard deviation of the pulse with units of t
-	
-	Example
-	-------
-	
-	Example 1::
-		
-		dt=1e-9
-		t=np.arange(0,0.001+dt/2,dt)
-		t-=t.mean()
-		std_time=1e-4
-		gaussian_pulse(std_time, t=t, plot=True)
-		
-	References
-	----------
-	  * http://www.cse.psu.edu/~rtc12/CSE486/lecture11_6pp.pdf
-	"""
-	out= _xr.DataArray( _np.exp(-t**2 / (2 * sigma**2)), dims='t', coords=[t])
-	if plot == True:
-		out.plot()
-	return out
-
-
-def gaussian_1st_deriv(sigma, t, amplitude=1, plot=False):
-	"""
-	Basic gaussian pulse with units in time
-	std_time is the standard deviation of the pulse with units of t
-	
-	Example
-	-------
-	
-	Example 1::
-		
-		dt=1e-9
-		t=np.arange(0,0.001+dt/2,dt)
-		t-=t.mean()
-		std_time=1e-4
-		s=gaussian_1st_deriv(sigma = std_time, t=t, plot=True)
-		
-	References
-	----------
-	  * http://www.cse.psu.edu/~rtc12/CSE486/lecture11_6pp.pdf
-	"""
-	# dt=t[1]-t[0]
-	out= _xr.DataArray( -t / (2 * sigma**2) * _np.exp(-t**2 / (2 * sigma**2)) * amplitude * sigma * 3.298, dims='t', coords=[t])
-	if plot == True:
-		fig,ax=_plt.subplots()
-		out.plot(ax=ax)
-	return out
-
-
-def squareWave(	freq,
-				time,
-				duty_cycle=0.5,
-				plot=False):
-	"""
-	
-	Examples
-	--------
-	Example 1::
-		
-		freq=1e2
-		dt=1e-5
-		time=np.arange(10000)*dt
-		
-		fig,ax=plt.subplots()
-		ax.plot(	squareWave(freq,time))
-	"""
-	from scipy import signal as sg
-	
-	y = _xr.DataArray(	sg.square(2 * _np.pi * freq * time, duty=duty_cycle),
-						dims=['t'],
-						coords={'t':time})
-	
-	# optional plot
-	if plot==True:
-		fig,ax=_plt.subplots()
-		ax.plot(y)
-		
-	return y
-
-
-def chirp(	t,
-			tStartStop=[0, 1],
-			fStartStop=[1e3, 1e4],
-			phi=270,
-			plot=False,
-			method='logarithmic'):
-	"""
-	Creates an exponential (also called a "logarithmic") chirp waveform
-	
-	Wrapper for scipy function.
-	
-	Example
-	-------
-	::
-	
-		import numpy as np
-		t=np.arange(0,.005,6e-6);
-		f0=1e3
-		f1=2e4
-		t0=1e-3
-		t1=4e-3
-		y=chirp(t,[t0,t1],[f0,f1],plot=True)
-		
-	"""
-	from scipy.signal import chirp
-	
-	# find range of times to modify
-	iStart=findNearest(t, tStartStop[0])
-	iStop=findNearest(t, tStartStop[1])
-	
-	# create chirp signal using scipy function.  times are (temporarily) shifted such that the phase offset, phi, still makes sense
-	y=_np.zeros(len(t))
-	y[iStart:iStop] = chirp(t[iStart:iStop] - tStartStop[0], fStartStop[0], tStartStop[1] - tStartStop[0], fStartStop[1], method, phi=phi)
-	y= _xr.DataArray(	y,
-						dims=['t'],
-						coords={'t':t})
-
-	# optional plot
-	if plot==True:
-		fig, ax = _plt.subplots()
-		y.plot(ax=ax)
-		
-	return y
-
+# %% Noise
 
 def gaussianNoise(t, mean=0, stdDev=1, plot=False):
 	"""
@@ -236,7 +106,145 @@ def uniform_noise(t, min_to_max_amp=1, mean=0, plot=False):
 	return noise
 
 
-#%% More complicated functions
+# %% Pulses
+
+def gaussian_pulse(sigma, t, amplitude=1, plot=False):
+	"""
+	Basic gaussian pulse with units in time
+	std_time is the standard deviation of the pulse with units of t
+	
+	Example
+	-------
+	
+	Example 1::
+		
+		dt=1e-9
+		t=np.arange(0,0.001+dt/2,dt)
+		t-=t.mean()
+		std_time=1e-4
+		gaussian_pulse(std_time, t=t, plot=True)
+		
+	References
+	----------
+	  * http://www.cse.psu.edu/~rtc12/CSE486/lecture11_6pp.pdf
+	"""
+	out= _xr.DataArray( _np.exp(-t**2 / (2 * sigma**2)), dims='t', coords=[t])
+	if plot == True:
+		out.plot()
+	return out
+
+
+def gaussian_1st_deriv(sigma, t, amplitude=1, plot=False):
+	"""
+	Basic gaussian pulse with units in time
+	std_time is the standard deviation of the pulse with units of t
+	
+	Example
+	-------
+	
+	Example 1::
+		
+		dt=1e-9
+		t=np.arange(0,0.001+dt/2,dt)
+		t-=t.mean()
+		std_time=1e-4
+		s=gaussian_1st_deriv(sigma = std_time, t=t, plot=True)
+		
+	References
+	----------
+	  * http://www.cse.psu.edu/~rtc12/CSE486/lecture11_6pp.pdf
+	"""
+	# dt=t[1]-t[0]
+	out= _xr.DataArray( -t / (2 * sigma**2) * _np.exp(-t**2 / (2 * sigma**2)) * amplitude * sigma * 3.298, dims='t', coords=[t])
+	if plot == True:
+		fig,ax=_plt.subplots()
+		out.plot(ax=ax)
+	return out
+
+
+
+
+# %% Basic waveforms
+
+
+def squareWave(	freq,
+				time,
+				duty_cycle=0.5,
+				plot=False):
+	"""
+	
+	Examples
+	--------
+	Example 1::
+		
+		freq=1e2
+		dt=1e-5
+		time=np.arange(10000)*dt
+		
+		fig,ax=plt.subplots()
+		ax.plot(	squareWave(freq,time))
+	"""
+	from scipy import signal as sg
+	
+	y = _xr.DataArray(	sg.square(2 * _np.pi * freq * time, duty=duty_cycle),
+						dims=['t'],
+						coords={'t':time})
+	
+	# optional plot
+	if plot==True:
+		fig,ax=_plt.subplots()
+		ax.plot(y)
+		
+	return y
+
+
+def chirp(	t,
+			tStartStop=[0, 1],
+			fStartStop=[1e3, 1e4],
+			phi=270,
+			plot=False,
+			method='logarithmic'):
+	"""
+	Creates an exponential (also called a "logarithmic") chirp waveform
+	
+	Wrapper for scipy function.
+	
+	Example
+	-------
+	::
+	
+		import numpy as np
+		t=np.arange(0,.005,6e-6);
+		f0=1e3
+		f1=2e4
+		t0=1e-3
+		t1=4e-3
+		y=chirp(t,[t0,t1],[f0,f1],plot=True)
+		
+	"""
+	from scipy.signal import chirp
+	
+	# find range of times to modify
+	iStart=findNearest(t, tStartStop[0])
+	iStop=findNearest(t, tStartStop[1])
+	
+	# create chirp signal using scipy function.  times are (temporarily) shifted such that the phase offset, phi, still makes sense
+	y=_np.zeros(len(t))
+	y[iStart:iStop] = chirp(t[iStart:iStop] - tStartStop[0], fStartStop[0], tStartStop[1] - tStartStop[0], fStartStop[1], method, phi=phi)
+	y= _xr.DataArray(	y,
+						dims=['t'],
+						coords={'t':t})
+
+	# optional plot
+	if plot==True:
+		fig, ax = _plt.subplots()
+		y.plot(ax=ax)
+		
+	return y
+
+
+
+# %% More complicated functions
 
 def tentMap(N=1000, plot=False, ICs={'x0': _np.sqrt(2) / 2.0}):
 	""" 
