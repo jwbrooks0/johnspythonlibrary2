@@ -186,6 +186,56 @@ def gaussianNoise(t, mean=0, stdDev=1, plot=False):
 	return noise
 
 
+
+def uniform_noise(t, min_to_max_amp=1, mean=0, plot=False):
+	"""
+	Produces random noise using a uniform distribution.  
+	Uses the np.random.rand() function.
+
+	Parameters
+	----------
+	shape : tuple of ints
+		Shape of desired noise; such as generated from np.shape()
+	min_to_max_am : float
+		"Amplitude" of the noise. The default is 1.
+	mean : float
+		Offset value. The default is 0.
+	plot : bool, optional
+		Optional plot of results
+
+	Returns
+	-------
+	noise : numpy array
+		Array containing the generated noise.  
+		
+	Examples
+	--------
+	
+	Example 1::
+		
+		t=np.arange(0,10e-3,2e-6)
+		y1=np.sin(2*np.pi*t*1e3)
+		noise = uniform_noise(t, mean=0, min_to_max_amp=0.5)
+		y2=y1+ noise
+		fig,ax=plt.subplots()
+		noise.plot(ax=ax, label='noise')
+		ax.plot(t,y2,label='signal with noise')
+		ax.plot(t,y1,label='signal without noise')
+		ax.legend()
+
+	"""
+	
+	noise = _xr.DataArray(	(_np.random.rand(len(t)) - 0.5) * min_to_max_amp + mean,
+							dims=['t'],
+							coords={'t': t})
+	
+	if plot==True:
+		fig, ax = _plt.subplots()
+		ax.plot(noise)
+		
+	return noise
+
+
 #%% More complicated functions
 
 def tentMap(N=1000, plot=False, ICs={'x0': _np.sqrt(2) / 2.0}):
