@@ -27,6 +27,7 @@ sk-video
 pyvisa			# used to talk with instruments over USB, GPIB, Ethernet, etc
 pyserial 		# used to talk with instruments over serial (eg. RS232) connections.
 netCDF4			# needed for xarray to save/load hdf5 files
+h5netcdf 		# needed for xarray to save/load hdf5 files
 scikit-image	# image processing tools
 
 ### Spyder settings - I've also included a few of my favorite settings for my spyder environment.
