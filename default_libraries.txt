@@ -5,8 +5,8 @@
  
 ### python libraries
 #spyder==3.3.6	# this is the final release of spyder v3. 
-spyder==4.2.5  # this is the final release of spyder v4
-#spyder			# spyderm, latest version
+#spyder==4.2.5  # this is the final release of spyder v4
+spyder			# spyderm, latest version
 matplotlib		# plotting package
 numpy			# data arrays and scientific tool library
 pandas			# data structures, 1 dimentional
