@@ -1,6 +1,25 @@
 
 import numpy as _np
 import pandas as _pd
+import matplotlib.pyplot as _plt
+
+
+def find_zero_crossings(da, plot=False):
+	from PyAstronomy.pyaC import zerocross1d
+	
+	x = da.coords[da.dims[0]].values
+	y = da.values
+	
+	xvals = zerocross1d(x, y)
+	
+	if plot is True:
+		fig, ax = _plt.subplots()
+		ax.plot(x, _np.zeros(len(x)), linestyle='--', color='grey')
+		da.plot(ax=ax, label='signal')
+		ax.plot(xvals, _np.zeros(len(xvals)), linestyle='', marker='x', label='zero-crossings', color='r')
+		ax.legend()
+	
+	return xvals
 
 
 def check_dims(da, dims=['t']):
