@@ -62,6 +62,7 @@ def hann_window_1D(array, hann_width, plot=False):
 
 def hann_window_1D_to_2D_data(array, hann_width, axis=0, plot=False):
 	"""
+	Apply a 1D-hann window to a 2D dataarray along the specified axis
 	
 	Example
 	-------
