@@ -4,6 +4,29 @@ import pandas as _pd
 import matplotlib.pyplot as _plt
 
 
+def symlog(arr):
+	""" 
+	Converts an array to `symlog' scale.  Equivalent to the symlog scale in matplotlib
+	
+	References
+	----------
+	 * https://pythonmatplotlibtips.blogspot.com/2018/11/x-symlog-with-shift.html
+	 
+	"""
+
+	shift=0
+	
+	logv_im = _np.abs(arr.imag) * (10.**shift)
+	logv_im[_np.where(logv_im<1.)] = 1.
+	logv_im = _np.sign(arr.imag) * _np.log10(logv_im)
+	
+	logv_re = _np.abs(arr.real) * (10.**shift)
+	logv_re[_np.where(logv_re<1.)] = 1.
+	logv_re = _np.sign(arr.real) * _np.log10(logv_re)
+	
+	return logv_re + logv_im * 1j
+
+
 def find_zero_crossings(da, plot=False):
 	from PyAstronomy.pyaC import zerocross1d
 	
