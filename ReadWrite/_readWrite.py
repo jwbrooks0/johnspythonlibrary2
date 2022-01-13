@@ -27,11 +27,11 @@ def xr_dataarray_to_csv(data, filename='test.csv'):
 	out.to_csv(filename)
 	
 
-def csv_to_xr(filename, delimiter=',', row_number_of_col_names='infer', first_column_is_index=True, number_of_rows=None, dim_dtype=None):
+def csv_to_xr(filename, delimiter=',', row_number_of_col_names='infer', first_column_is_index=True, number_of_rows=None, dim_dtype=None, skiprows=None):
 
 	# filename='C:\\Users\\jwbrooks\\python\\nrl_code\\vna_impedance\\test29_mikeN_balun_board_S_measurements\\sn3_cal1.csv'
 	
-	data = _pd.read_csv(filename, delimiter=delimiter, header=row_number_of_col_names, skip_blank_lines=True)
+	data = _pd.read_csv(filename, delimiter=delimiter, header=row_number_of_col_names, skip_blank_lines=True, skiprows=skiprows)
 	
 	if type(number_of_rows) != type(None):
 		data = data.iloc[:number_of_rows, :]
@@ -517,3 +517,59 @@ def hdf5_to_xr(		hdf5_file, group_name):
 	else:
 		return ds
 
+
+def xr_DataTree_to_hdf5(dt, hdf5_filename, mode='w'):
+	
+	## write data to file
+	dt.to_netcdf(	'example_data_1.hdf5', 
+					mode=mode,
+					# format='NETCDF4', # I think that NETCDF4 is the default.
+					engine='h5netcdf',
+					# encoding=encoding, # TODO implement encoding to allow for compression
+					invalid_netcdf=True
+					)
+	
+	
+def hdf5_to_xr_DataTree():
+	print("presently not implemented.  I think there is a bug in the DataTree code that needs to be resolved first.")
+	
+	# example code
+	if False:
+		import numpy as np
+		import xarray as xr
+		import datatree as dt
+	
+	
+		## create example datatree
+		t1 = np.arange(0, 1e0, 1e-4)
+		t1 = xr.DataArray(t1, dims='t', coords=[t1], attrs={'units': 's', 'long_name': 'time'})
+		t2 = np.arange(0, 1e-1, 1e-6)
+		t2 = xr.DataArray(t2, dims='t', coords=[t2], attrs={'units': 's', 'long_name': 'time'})
+	
+		a1 = xr.DataArray(np.random.rand(len(t1)), dims='t', coords=[t1], name='data_A1', attrs={'units': 'au', 'long_name': 'data A1'})
+		a2 = xr.DataArray(np.random.rand(len(t1)), dims='t', coords=[t1], name='data_A2', attrs={'units': 'au', 'long_name': 'data A2'})
+		a = xr.Dataset({a1.name: a1, a2.name: a2})
+	
+		b1 = xr.DataArray(np.random.rand(len(t2)), dims='t', coords=[t2], name='data_B', attrs={'units': 'au', 'long_name': 'data B'})
+		b = b1.to_dataset()
+	
+		c1 = xr.DataArray(np.random.rand(len(t2)), dims='t', coords=[t2], name='data_C1', attrs={'units': 'au', 'long_name': 'data C1'})
+		c2 = xr.DataArray(np.random.rand(len(t2)), dims='t', coords=[t2], name='data_C2', attrs={'units': 'au', 'long_name': 'data C2'})
+		c = xr.Dataset({c1.name: c1, c2.name: c2})
+	
+		data = dt.DataTree.from_dict({'data1': a, 'data2/b': b, 'data2/c': c})
+	
+		## write data to file
+		data.to_netcdf(	'example_data_1.hdf5', 
+						mode='w',
+		# 				format='NETCDF4', 
+						engine='h5netcdf',
+						# encoding=encoding,
+						invalid_netcdf=True
+						)
+	
+		## read data from file
+		data2 = dt.open_datatree('example_data_1.hdf5', 
+								  engine='h5netcdf')
+		
+		return data2
