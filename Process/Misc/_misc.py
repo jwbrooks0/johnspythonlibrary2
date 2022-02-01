@@ -2,11 +2,14 @@
 import numpy as _np
 import pandas as _pd
 import matplotlib.pyplot as _plt
+import xarray as _xr
 
 
 def symlog(arr):
 	""" 
 	Converts an array to `symlog' scale.  Equivalent to the symlog scale in matplotlib
+	
+	# TODO distinguish between a real and complex version of this function
 	
 	References
 	----------
