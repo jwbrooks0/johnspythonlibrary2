@@ -3,6 +3,7 @@ import numpy as _np
 import pandas as _pd
 import matplotlib.pyplot as _plt
 import xarray as _xr
+from scipy.optimize import curve_fit as _curve_fit
 
 
 def polyFitData(da,	
@@ -310,3 +311,37 @@ class cosTimeFit:
 											plot=plot)
 
 
+def gaussian_fit(da, guess=(1, 0, 1), plot=False, title=None):
+	
+	def gaussian(x, a, x0, sigma):
+		return a * _np.exp( -0.5 * ((x - x0) / sigma)**2)
+# 	
+# 	def log_gaussian(x, a, x0, sigma):
+# 		return _np.log10(gaussian(x, a, x0, sigma))
+# 	
+# 	if apply_log is True:
+# 		fit_func = log_gaussian
+# 		da = _np.log10(da.copy())
+# 	else:
+	fit_func = gaussian
+		
+	x = da.coords[da.dims[0]].values.copy()
+	y = da.values.copy()
+	y_max = y.max()
+	
+	fit_params, _ = _curve_fit(fit_func, xdata=x, ydata=y / y_max, p0=guess) #, bounds=([0, -_np.inf, 0], [_np.inf, _np.inf, _np.inf]))
+	fit_params[0] *= y_max
+	x_fit = _np.linspace(x.min(), x.max(), 100)
+	y_fit = _xr.DataArray(gaussian(x_fit, *fit_params), dims=da.dims, coords=[x_fit])
+	
+	if plot is True:
+		fig, ax = _plt.subplots()
+		y_fit.plot(ax=ax, label='Fit')
+		da.plot(ax=ax, label='Raw', linestyle='', marker='x')
+		ax.set_title(title + '\n' + str(fit_params))
+		ax.legend()
+		
+	return fit_params
+		
+		
+	
