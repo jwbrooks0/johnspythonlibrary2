@@ -7,6 +7,27 @@ import xarray as _xr
 from deprecated import deprecated as _deprecated
 
 
+# %% interpolating
+
+
+def interpolate(da, x_new, plot=False):
+	
+	from scipy.interpolate import interp1d
+	
+	dim = da.dims[0]
+	x = da.coords[dim].values
+	y = da.values
+	interp_func = interp1d(x, y)
+	da_new = _xr.DataArray(interp_func(x_new), dims=dim, coords=[x_new], attrs=da.attrs)
+	
+	if plot is True:
+		fig, ax = _plt.subplots()
+		da.plot(ax=ax, label='original')
+		da_new.plot(ax=ax, label='interpolated')
+		
+	return da_new
+
+
 # %% windowing
 
 def hann_window_1D(array, hann_width, plot=False):
@@ -247,6 +268,62 @@ def downsample(da, downsample_factor=10, antialiasing=True, plot=False):
 		ax.legend()
 		
 	return da_new
+
+
+# %% smoothing
+
+def smooth_data(da, method='gaussian', method_parameters=dict(sigma=5), axis=-1, plot=False):
+	"""
+	Smooths data (low-pass filter).  Presently supports 'gaussian', 'boxcar'='uniform', and 'savgol'.
+	This is a wrapper for several scipy-filters. 
+
+	Parameters
+	----------
+	da : xarray DataArray
+		Input data
+	method : str, optional
+		Smoothing method. The default is 'gaussian'.
+	method_parameters : dict, optional
+		Dictionary for parameters to pass to the scipy smoothing function. The default is dict(sigma=5).
+	axis : int, optional
+		Axis in da over which to apply the filter.  Meaning, this function can work on any axis. The default is -1.
+	plot : bool
+		Optional plot of results. The default is False.
+
+	Returns
+	-------
+	da_smoothed : xarray DataArray
+		Smoothed data
+
+	"""
+	
+	# remove NaNs
+	da.data[_np.isnan(da).data]=0
+	
+	# filter
+	if method == 'gaussian': # method_parameters=dict(sigma=5)
+		from scipy.ndimage import gaussian_filter1d
+		da_smoothed = gaussian_filter1d(da, axis=axis, **method_parameters)
+	elif method == 'boxcar':
+		from scipy.ndimage import uniform_filter1d # method_parameters=dict(size=5)
+		da_smoothed = uniform_filter1d(da, axis=axis, **method_parameters)
+	elif method == 'savgol':
+		from scipy.signal import savgol_filter # method_parameters=dict(window_length=10, polyorder=2)
+		if _np.iscomplex(da[0]) is False:
+			da_smoothed = savgol_filter(da, axis=axis, **method_parameters)
+		else:
+			da_smoothed = savgol_filter(da.real, axis=axis, **method_parameters) + 1j * savgol_filter(da.imag, axis=axis, **method_parameters)
+			
+	else:
+		raise Exception('method not recognized')
+	da_smoothed = _xr.DataArray(da_smoothed, dims=da.dims, coords=da.coords, attrs=da.attrs)
+	
+	if plot is True:
+		fig, ax = _plt.subplots()
+		da.plot(ax=ax, label='before')
+		da_smoothed.plot(ax=ax, label='after')
+	
+	return da_smoothed
 	
 
 # %% low and highpass filtering
