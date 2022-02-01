@@ -521,7 +521,7 @@ def hdf5_to_xr(		hdf5_file, group_name):
 def xr_DataTree_to_hdf5(dt, hdf5_filename, mode='w'):
 	
 	## write data to file
-	dt.to_netcdf(	'example_data_1.hdf5', 
+	dt.to_netcdf(	hdf5_filename, 
 					mode=mode,
 					# format='NETCDF4', # I think that NETCDF4 is the default.
 					engine='h5netcdf',
