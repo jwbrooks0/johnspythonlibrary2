@@ -31,6 +31,7 @@ netCDF4			# needed for xarray to save/load hdf5 files
 h5netcdf 		# needed for xarray to save/load hdf5 files
 scikit-image		# image processing tools
 scikit-rf		# RF engineering tools
+mcculw			# library for Measurement Computing hardware.  You'll also need to download the MCC DAQ software from https://www.voidtools.com/downloads/ for additional drivers.
 
 ### Spyder settings - I've also included a few of my favorite settings for my spyder environment.
 # Consider reverting to the default settings first.  I've had issues where it pulls in an old spyder config file from outside the virtualenv.
