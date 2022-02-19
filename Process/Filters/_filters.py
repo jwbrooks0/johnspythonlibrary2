@@ -10,23 +10,36 @@ from deprecated import deprecated as _deprecated
 # %% interpolating
 
 
-def interpolate(da, x_new, plot=False):
+def interpolate(da, x_new, plot=False, fill_value=_np.nan):
+	""" wrapper for scipy's interp1d() function.  Works with xarray DataArrays and Datasets """
 	
 	from scipy.interpolate import interp1d
 	
-	dim = da.dims[0]
-	x = da.coords[dim].values
-	y = da.values
-	interp_func = interp1d(x, y)
-	da_new = _xr.DataArray(interp_func(x_new), dims=dim, coords=[x_new], attrs=da.attrs)
-	
-	if plot is True:
-		fig, ax = _plt.subplots()
-		da.plot(ax=ax, label='original')
-		da_new.plot(ax=ax, label='interpolated')
+	# if DataArray
+	if type(da) == _xr.core.dataarray.DataArray:
 		
-	return da_new
+		dim = da.dims[0]
+		x = da.coords[dim].values
+		y = da.values
+		interp_func = interp1d(x, y, fill_value=fill_value, bounds_error=False)
+		da_new = _xr.DataArray(interp_func(x_new), dims=dim, coords=[x_new], attrs=da.attrs).dropna(list(da.dims)[-1])
+		
+		if plot is True:
+			fig, ax = _plt.subplots()
+			da.plot(ax=ax, label='original')
+			da_new.plot(ax=ax, label='interpolated')
+		
+		return da_new
+	
+	# if Dataset, inerpolate each Dataset
+	elif type(da) == _xr.core.dataset.Dataset:
+		keys=list(da.keys())
+		ds_new = _xr.Dataset()
+		
+		for key in keys:
+			ds_new[key] = interpolate(da[key], x_new=x_new, plot=plot)
 
+		return ds_new
 
 # %% windowing
 
