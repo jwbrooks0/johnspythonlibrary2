@@ -30,13 +30,90 @@ def symlog(arr):
 	return logv_re + logv_im * 1j
 
 
-def find_zero_crossings(da, plot=False):
-	from PyAstronomy.pyaC import zerocross1d
+
+
+def find_zero_crossings(da, rising_or_falling=None, plot=False):
+	
+	## Astropy's zerocross1d but with a slight modification
+	def _zerocross1d(x, y, rising_or_falling=None, getIndices=False):
+	  """
+	    Find the zero crossing points in 1d data.
+	    
+	    Find the zero crossing events in a discrete data set.
+	    Linear interpolation is used to determine the actual
+	    locations of the zero crossing between two data points
+	    showing a change in sign. Data point which are zero
+	    are counted in as zero crossings if a sign change occurs
+	    across them. Note that the first and last data point will
+	    not be considered whether or not they are zero. 
+	    
+	    Parameters
+	    ----------
+	    x, y : arrays
+	        Ordinate and abscissa data values.
+	    getIndices : boolean, optional
+	        If True, also the indicies of the points preceding
+	        the zero crossing event will be returned. Defeualt is
+	        False.
+	    
+	    Returns
+	    -------
+	    xvals : array
+	        The locations of the zero crossing events determined
+	        by linear interpolation on the data.
+	    indices : array, optional
+	        The indices of the points preceding the zero crossing
+	        events. Only returned if `getIndices` is set True.
+	  """
+	  
+	  # Check sorting of x-values
+	  if _np.any((x[1:] - x[0:-1]) <= 0.0):
+	    raise Exception("The x-values must be sorted in ascending order!")
+	  
+	  # Indices of points *before* zero-crossing
+	  indi = _np.where(y[1:]*y[0:-1] < 0.0)[0]
+	  
+	  # (optional) check to see if the zero crossing is rising or falling.
+	  if rising_or_falling == 'rising':
+		    dy = y[indi+1] - y[indi]
+		    indi = indi[dy>=0]
+	  elif rising_or_falling == 'falling':
+		    dy = y[indi+1] - y[indi]
+		    indi = indi[dy<=0]
+	  
+	  # Find the zero crossing by linear interpolation
+	  dx = x[indi+1] - x[indi]
+	  dy = y[indi+1] - y[indi]
+	  zc = -y[indi] * (dx/dy) + x[indi]
+	  
+	  # What about the points, which are actually zero
+	  zi = _np.where(y == 0.0)[0]
+	  # Do nothing about the first and last point should they
+	  # be zero
+	  zi = zi[_np.where((zi > 0) & (zi < x.size-1))]
+	  # Select those point, where zero is crossed (sign change
+	  # across the point)
+	  zi = zi[_np.where(y[zi-1]*y[zi+1] < 0.0)]
+	  
+	  # Concatenate indices
+	  zzindi = _np.concatenate((indi, zi)) 
+	  # Concatenate zc and locations corresponding to zi
+	  zz = _np.concatenate((zc, x[zi]))
+	  
+	  # Sort by x-value
+	  sind = _np.argsort(zz)
+	  zz, zzindi = zz[sind], zzindi[sind]
+	  
+	  if not getIndices:
+	    return zz
+	  else:
+	    return zz, zzindi
+	  
 	
 	x = da.coords[da.dims[0]].values
 	y = da.values
 	
-	xvals = zerocross1d(x, y)
+	xvals = _zerocross1d(x, y, rising_or_falling=rising_or_falling)
 	
 	if plot is True:
 		fig, ax = _plt.subplots()
