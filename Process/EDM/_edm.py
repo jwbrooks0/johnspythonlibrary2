@@ -1808,7 +1808,7 @@ def SMIParameterScan(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False,numberCPUs=
 										E=E,
 										tau=tau,
 										da_s2B=s2B,
-										plot=True)
+										plot=False)
 		return E, tau, rho
 	
 	# Create unique list of each pair of (E,tau)
