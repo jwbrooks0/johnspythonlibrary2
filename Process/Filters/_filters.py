@@ -214,22 +214,22 @@ def zero_pad(array: _np.ndarray, target_length: int, axis: int = 0):
 
 # %% downsampling
 
-@_deprecated(reason='Replaced by downsample().')
-def downsample_and_antialiasing(da, downsample_factor=10, plot=False):
+# @_deprecated(reason='Replaced by downsample().')
+# def downsample_and_antialiasing(da, downsample_factor=10, plot=False):
 
-	from scipy.signal import decimate #, resample
-	
-	t_orig = da.coords[da.dims[0]].data
-	t_new = t_orig[::downsample_factor]
-	da_new = _xr.DataArray(decimate(da.data, q=downsample_factor, ftype='fir'), dims=da.dims, coords=[t_new])
-	
-	if plot is True:
-		fig, ax = _plt.subplots()
-		da.plot(ax=ax, label='orig')
-		da_new.plot(ax=ax, label='downsampled')
-		ax.legend()
-		
-	return da_new
+# 	from scipy.signal import decimate #, resample
+# 	
+# 	t_orig = da.coords[da.dims[0]].data
+# 	t_new = t_orig[::downsample_factor]
+# 	da_new = _xr.DataArray(decimate(da.data, q=downsample_factor, ftype='fir'), dims=da.dims, coords=[t_new])
+# 	
+# 	if plot is True:
+# 		fig, ax = _plt.subplots()
+# 		da.plot(ax=ax, label='orig')
+# 		da_new.plot(ax=ax, label='downsampled')
+# 		ax.legend()
+# 		
+# 	return da_new
 
 
 def downsample(da, downsample_factor=10, antialiasing=True, plot=False):
