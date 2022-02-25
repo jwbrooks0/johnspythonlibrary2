@@ -4,7 +4,7 @@ import pandas as _pd
 import matplotlib.pyplot as _plt
 from scipy import fftpack as _fftpack
 from scipy.signal import welch as _welch
-from scipy.signal.spectral import _spectral_helper
+#from scipy.signal.spectral import _spectral_helper
 from johnspythonlibrary2 import Plot as _plot
 from johnspythonlibrary2.Plot import subTitle as _subTitle, finalizeFigure as _finalizeFigure, finalizeSubplot as _finalizeSubplot
 from johnspythonlibrary2.Process.Misc import check_dims as _check_dims
