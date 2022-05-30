@@ -46,25 +46,25 @@ def polyFitData(da,
 	dim = da.dims[0]
 	coord = da.coords[dim].data
 	
-	try:
-		coefs = _np.polyfit(	coord, 
-								da.data, 
-								deg=order)
-	except _np.linalg.LinAlgError:
-		coefs = _np.polyfit(	coord, 
-								da.data, 
-								deg=order)
-	try:
-		ffit = _np.poly1d(	coefs)
-	except _np.linalg.LinAlgError:
-		ffit = _np.poly1d(	coefs)
+	# perform fit
+	fit_coefs, cov = _np.polyfit(	coord, 
+							da.data, 
+							deg=order,
+							full=False,
+							cov=True)
+	fit_coef_error = _np.sqrt(_np.diag(cov))
 		
+	# create fit line from fit results
+	ffit = _np.poly1d(fit_coefs)
 	da_fit=_xr.DataArray(	ffit(coord),
 							dims=dim,
 							coords=[coord])
+	
 	if verbose:
 		print("fit coeficients:")
-		print(coefs)
+		print(fit_coefs)
+		print("fit errors:")
+		print(fit_coef_error)
 		
 	if plot is True:
 		
@@ -79,7 +79,7 @@ def polyFitData(da,
 		
 		ax.legend()
 		
-	return da_fit, ffit
+	return da_fit, ffit, fit_coefs, fit_coef_error
 
 
 def _rSquared(y, f):
