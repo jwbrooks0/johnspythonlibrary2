@@ -322,10 +322,123 @@ def saved_lorentzAttractor(	N=2000,
 		ds = _xr.open_dataset(filename)
 	
 	return ds
+
+
+
+def lorentz96_fast_slow(	I=25, 
+							J=15, 
+							F=8, 
+							t_final=1000.0, 
+							dt=0.001, 
+							params=dict(h=1, b=10, c=10),
+							plot=False,
+							):
+	
+	"""
+	Parameters
+	----------
+	I : int
+		Number of x equations
+	J : int
+		Number of y equations
+	F : int
+		Forcing value
+	t_final : float
+		Duration of simulation
+	dt : float
+		Time step
+	params : dict
+		Dictionary of misc function parameters
+	plot : bool
+		Optional plot
 		
+	References
+	----------
+	 * https://cdanfort.w3.uvm.edu/research/2014-frank-ijbc.pdf
+	"""
+	print("Work in progress")
+	
+	# temporarily specify all inputs to help with debugging
+	if True:
+		I = 25
+		J = 15
+		F = 8
+		params = dict(h=1, b=10, c=10)
+		t_final = 1000.0
+		dt = 0.001
+	
+	# assign parameter values
+	h = params['h']
+	b = params['b']
+	c = params['c']
+	
+	# library
+	from scipy.integrate import odeint
 		
+	# Lorentz function
+	def L96(xy, t):
+		"""Lorenz 96 fast-slow model with constant forcing"""
+		x = xy[:I]
+		y = xy[I:].reshape(J, I)
+		
+		dxdt = (x.take(range(1, I + 1), mode='wrap') - x.take(range(-2, I - 2), mode='wrap')) * x.take(range(-1, I - 1), mode='wrap') - x + F - h * c / b * y.sum(axis=0)
+		dydt = c * b * y.take(range(1, J + 1), mode='wrap', axis=0) * (y.take(range(-1, J - 1), mode='wrap', axis=0) - y.take(range(1, J + 1), mode='wrap', axis=0)) - c * y + h * c / b * _np.tile(x, (J, 1))
+			
+		d_dt = _np.concatenate((dxdt, dydt.reshape(-1)))
+		return d_dt
+	
+	# setup time
+	t = _np.arange(0.0, float(t_final), dt)
+	
+	# setup ICs
+	x0 = F * _np.ones(I)  # Initial state (equilibrium)
+	y0 = F * _np.ones((J, I))  # Initial state (equilibrium)
+	x0[0] += 0.01  # Add small perturbation to the first variable
+	
+	# solve
+	out = odeint(func=L96, y0=_np.concatenate((x0, y0.reshape(-1))), t=t)
+	
+	# format as xarray
+	x_out = out[:, :I]
+	y_out = out[:, I:].reshape((len(t), J, I))
+	i = _np.arange(0, I)
+	j = _np.arange(0, J)
+	x_out = _xr.DataArray(x_out, dims=['t', 'i'], coords=[t, i])
+	y_out = _xr.DataArray(y_out, dims=['t', 'j', 'i'], coords=[t, j, i])
+	
+	# only return the second half of the data
+	x_out = x_out[(len(t)//2):, :]
+	y_out = y_out[(len(t)//2):, :, :]
+	
+	# TEMPORARY.  Plot FFT of each signal
+	if True:
+		from johnspythonlibrary2.Process.Spectral import fft
+		
+		x_sel = x_out.sel(i=I//2)
+		x_sel -= x_sel.mean()
+		fft(x_sel, plot=True, trimNegFreqs=True)
+		
+		y_sel = y_out.sel(i=I//2, j=J//2)
+		y_sel -= y_sel.mean()
+		fft(y_sel, plot=True, trimNegFreqs=True)
+	
+	return x_out, y_out
+
+
 def lorentz96(N=5, F=8, t_final=30.0, dt=0.01, plot=False):
 	"""
+	Parameters
+	----------
+	N : int
+		number of variables
+	F : float
+		Forcing value
+	t_final : float
+		Duration of simulation
+	dt : float
+		Time step
+	plot : bool
+		Optional plot
 	
 	References
 	----------
@@ -355,11 +468,7 @@ def lorentz96(N=5, F=8, t_final=30.0, dt=0.01, plot=False):
 	# subfunction
 	def L96(x, t):
 		"""Lorenz 96 model with constant forcing"""
-		# Setting up vector
-		d = _np.zeros(N)
-		# Loops over indices (with operations and Python underflow indexing handling edge cases)
-		for i in range(N):
-			d[i] = (x[(i + 1) % N] - x[i - 2]) * x[i - 1] - x[i] + F
+		d = (x.take(range(1,N+1), mode='wrap') - x.take(range(-2,N-2), mode='wrap')) * x.take(range(-1, N-1), mode='wrap') - x + F
 		return d
 	
 	# setup time
@@ -415,13 +524,15 @@ def lorentzAttractor(	N=2000,
 	Example 1::
 		
 		_plt.close('all')
-		x,y,z=solveLorentz( 	N=5000,
-						dt=0.02,
-						IC=[-9.38131377, -8.42655716 , 29.30738524],
-						plot='all',
-						removeMean=True,
-						normalize=True,
-						removeFirstNPoints=500)
+		x, y, z = lorentzAttractor( N=5000,
+									dt = 0.02,
+									ICs={	'x0': -9.38131377,
+											'y0': -8.42655716 , 
+											'z0': 29.30738524},
+									plot = 'all',
+									removeMean = True,
+									normalize = True,
+									removeFirstNPoints = 500)
 						
 	"""
 	
@@ -545,7 +656,28 @@ def predatorPrey(	N=100000,
 	Examples
 	--------
 	Example 1::
-		predatorPrey(plot=True)
+		
+		predatorPrey( 	N=100000,
+						T=100,
+						ICs={	'x0': 0.9,
+								'y0': 0.9},
+						args={	'alpha': 2.0 / 3.0,
+								'beta': 4.0 / 3.0,
+								'delta': 1.0,
+								'gamma': 1.0},
+						plot = True)
+		
+	Example 2::
+		
+		predatorPrey( 	N=100000,
+						T=100,
+						ICs={	'x0': 10,
+								'y0': 15},
+						args={	'alpha': 1.1,
+								'beta': 0.4,
+								'delta': 0.1,
+								'gamma': 0.4},
+						plot = True)
 	"""
 	
 	from scipy.integrate import solve_ivp
@@ -576,13 +708,13 @@ def predatorPrey(	N=100000,
 						dims=['time'],
 						coords={'time': t_eval},
 						attrs={'units': "au",
-								 'standard_name': 'Amplitude'})
+								 'standard_name': 'prey'})
 	x.time.attrs = {'units': 'au'}
 	y = _xr.DataArray(	y,
 						dims=['time'],
 						coords={'time': t_eval},
 						attrs={'units': "au",
-								 'standard_name': 'Amplitude'})
+								 'standard_name': 'predator'})
 	y.time.attrs = {'units': 'au'}
 	
 	if removeMean is True:
@@ -604,6 +736,8 @@ def predatorPrey(	N=100000,
 		
 		fig, ax = _plt.subplots()
 		ax.plot(ds.x.values, ds.y.values)
+		ax.set_xlabel('x, prey')
+		ax.set_ylabel('y, predator')
 	
 	return ds
 	
@@ -624,7 +758,7 @@ def coupledHarmonicOscillator(	N=10000,
 	Examples
 	--------
 	Example1 ::
-		x1,x2=coupledHarmonicOscillator(plot=True,N=1e5,T=10)
+		ds = coupledHarmonicOscillator(plot=True, N=1e4, T=1)
 	
 	References
 	----------
@@ -676,6 +810,11 @@ def coupledHarmonicOscillator(	N=10000,
 		x2.plot(ax=ax[1], marker='.')
 		ax[0].set_title('Coupled harmonic oscillator\n' + r'(k, kappa, m)='+'(%.3f, %.3f, %.6f)' % (args['k'], args['kappa'], args['m']) + '\nICs = (%.3f, %.3f, %.3f, %.3f)' % (ICs['y1_0'], ICs['x1_0'], ICs['y2_0'], ICs['x2_0']))
 
+		fig, ax = _plt.subplots()
+		ax.plot(x1.values, x2.values)
+		ax.set_xlabel('x1')
+		ax.set_xlabel('x2')
+
 	ds=_xr.Dataset(	{'x1': x1,
 					 'x2': x2})
 	
@@ -700,10 +839,10 @@ def coupledHarmonicOscillator_nonlinear(	N=500,
 	Examples
 	--------
 	Example1 ::
-		x1,x2=coupledHarmonicOscillator_nonlinear(N=10000,dt=1e-3,plot=True,verbose=True).values()
+		ds = coupledHarmonicOscillator_nonlinear(N=10000, dt=1e-3, plot=True, verbose=False)
 		nperseg=2000
 		from johnspythonlibrary2.Process.Spectral import fft_average
-		fft_average(x1,plot=True,nperseg=nperseg,noverlap=nperseg//2)
+		fft_average(ds.x1,plot=True,nperseg=nperseg,noverlap=nperseg//2)
 	
 	References
 	----------
@@ -759,7 +898,12 @@ def coupledHarmonicOscillator_nonlinear(	N=500,
 		x1.plot(ax=ax[0], marker='.')
 		x2.plot(ax=ax[1], marker='.')
 		ax[0].set_title('Coupled harmonic oscillator\n' + r'(f1, f2, m, E)=' + '(%.3f, %.3f, %.3f,%.3f)' % (f1, f2, m, E) + '\nICs = (%.3f, %.3f, %.3f, %.3f)' % (ICs['y1_0'], ICs['x1_0'], ICs['y2_0'], ICs['x2_0']))
-
+		
+		fig, ax = _plt.subplots()
+		ax.plot(x1.values, x2.values)
+		ax.set_xlabel('x1')
+		ax.set_xlabel('x2')
+		
 	ds=_xr.Dataset(	{'x1': x1,
 					 'x2': x2})
 	
