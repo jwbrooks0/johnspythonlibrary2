@@ -39,7 +39,7 @@ def filter_video(	da,
 
 #%% saving video/images
 
-def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, vmax=int(2**12)):
+def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, vmax=int(2**12), cmap='bwr'):
 	import imageio
 	
 	files=[]
@@ -48,7 +48,7 @@ def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, 
 	for i,ti in enumerate(video.t):
 # 		print(i,float(ti))
 		fig,ax=_plt.subplots()
-		video.sel(t=ti).plot(ax=ax,vmin=vmin,vmax=vmax)
+		video.sel(t=ti).plot(ax=ax,vmin=vmin,vmax=vmax, cmap=cmap)
 		ax.set_title('t=%.9f s'%ti)
 		fig.savefig('image_%.10d.png'%i,dpi=dpi)
 		files.append('image_%.10d.png'%i)
@@ -440,7 +440,7 @@ def loadSequentialRawImages_v2(	partialFileName,
 	y = np.arange(video.shape[1])
 	if video.shape[3] == 1: # greyscale
 
-		video_out=xr.DataArray(	video,
+		video_out=xr.DataArray(	video[:, :, :, 0],
 								dims=['t', 'y', 'x'],
 								coords={	't': t,
 											'x': x,
