@@ -2,6 +2,43 @@
 import numpy as _np
 import pandas as _pd
 import scipy as _sp
+import xarray as _xr
+import matplotlib.pyplot as _plt
+
+
+def earth_mover_distance(y1, y2):
+	"""
+	
+	Example
+	-------
+	
+	::
+		
+		# create signal
+		t = _np.arange(0, 10000) * 1e-5
+		y1 = _xr.DataArray(np.sin(2 * _np.pi * 1e3 * t))
+		
+		# perform EMD over a range of noise values
+		results = []
+		amplitudes = 10 ** _np.arange(-4, 1.1, 0.1)
+		for amp in amplitudes:
+			y1_noisy = y1.copy() + (_np.random.rand(len(t)) - 0.5) * amp
+			results.append(earth_mover_distance(y1, y1_noisy))
+			
+		# plot results
+		fig, ax = _plt.subplots()
+		ax.plot(amplitudes, results, marker='x')
+		ax.set_xscale('log')
+		ax.set_yscale('log')
+		ax.set_xlabel('Noise amplitude')
+		ax.set_ylabel('EMD')
+
+ 
+	"""
+	
+	from scipy.stats import wasserstein_distance as emd
+	
+	return emd(y1, y2)
 
 
 def crossCorrelation(y1,y2,mode='same'):
