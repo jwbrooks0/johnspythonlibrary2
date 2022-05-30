@@ -1,6 +1,8 @@
 
 import numpy as _np
 import matplotlib.pyplot as _plt
+
+from mpl_toolkits.axes_grid1 import make_axes_locatable as _make_axes_locatable
 from johnspythonlibrary2.Plot import subTitle as _subTitle, finalizeFigure as _finalizeFigure #, finalizeSubplot as _finalizeSubplot
 from johnspythonlibrary2.Process.Spectral import fft_average, signal_spectral_properties
 from johnspythonlibrary2.Process.Misc import subtract_mean_and_normalize_by_std, check_dims
@@ -58,7 +60,7 @@ def _bicoherence_helper(stft, f_units='Hz'):
 	# calculate bicoherence numerator and denominators
 	for i,ti in enumerate(stft.t.data): # TODO(John) Figure out how to vectorize this step
 		#print(i,ti)
-		b,FiFj,conjFij=bispectrum(stft.sel(t=ti),returnAll=True,plot=False,f_units=f_units)
+		b,FiFj,conjFij=_bispectrum(stft.sel(t=ti),returnAll=True,plot=False,f_units=f_units)
 		
 		if i==0:
 			numerator=FiFj*conjFij
@@ -75,7 +77,37 @@ def _bicoherence_helper(stft, f_units='Hz'):
 	return bicoh
 
 
-def bispectrum(	da,
+def _bispectrum_helper(stft, f_units='Hz'):
+	""" 
+	subfunction for calculating the bicoherence 
+	
+	Parameters
+	----------
+	stft : xarray.DataArray
+		This is the stft results just prior to calculating the bicoherence
+	"""
+
+	# calculate bicoherence numerator and denominators
+	for i,ti in enumerate(stft.t.data): # TODO(John) Figure out how to vectorize this step
+		#print(i,ti)
+		b,FiFj,conjFij=_bispectrum(stft.sel(t=ti),returnAll=True,plot=False,f_units=f_units)
+		
+		if i==0:
+			numerator=FiFj*conjFij
+# 			denom1=_np.abs(FiFj)**2
+# 			denom2=_np.abs(conjFij)**2
+		else:
+			numerator+=FiFj*conjFij
+# 			denom1+=_np.abs(FiFj)**2
+# 			denom2+=_np.abs(conjFij)**2
+			
+	# finish bicoherence calc
+	bicoh=numerator**2 # /(denom1.data*denom2.data)
+	
+	return bicoh
+
+
+def _bispectrum(	da,
 				firstQuadrantOnly=False,
 				plot=False,
 				returnAll=False,
@@ -166,12 +198,12 @@ def bispectrum(	da,
 	m1['f2']=m1.f2.data*df
 	m2['f1']=m2.f1.data*df
 	m2['f2']=m2.f2.data*df
-	b.f1.attrs["units"] = f_units
-	b.f2.attrs["units"] = f_units
-	m1.f1.attrs["units"] = f_units
-	m1.f2.attrs["units"] = f_units
-	m2.f1.attrs["units"] = f_units
-	m2.f2.attrs["units"] = f_units
+	b.f1.attrs = {'units': f_units, 'long_name': r'$f_1$'}
+	b.f2.attrs = {'units': f_units, 'long_name': r'$f_2$'}
+	m1.f1.attrs = {'units': f_units, 'long_name': r'$f_1$'}
+	m1.f2.attrs = {'units': f_units, 'long_name': r'$f_2$'}
+	m2.f1.attrs = {'units': f_units, 'long_name': r'$f_1$'}
+	m2.f2.attrs = {'units': f_units, 'long_name': r'$f_2$'}
 	
 	if firstQuadrantOnly==True:
 		b=b[b.f2>=0,b.f1>=0]
@@ -705,6 +737,81 @@ def bicoherence_2D(da, nperseg=500, verbose=True, precondition_signal=False, win
 	return result
 
 
+def bicoherence_plot(da, 
+					 bicoh, 
+					 nperseg, 
+					 vmin=None, 
+					 vmax=None, 
+					 title=None, 
+					 drawRedLines = [], 
+					 hz_to_kHz=False):
+
+	if vmin is None:
+		vmin = float(_np.abs(bicoh).min())
+	if vmax is None:
+		vmax = float(_np.abs(bicoh).max())
+		
+	if hz_to_kHz is True:
+		da['t'] = da['t'] * 1e3
+		f1 = bicoh.f1
+		f2 = bicoh.f2
+		
+		f_units = 'kHz'
+		f1 = f1 * 1e-3
+		f2 = f2 * 1e-3
+		f1.attrs = {'units': f_units, 'long_name': r'$f_1$'}
+		f2.attrs = {'units': f_units, 'long_name': r'$f_2$'}
+		bicoh['f1'] = f1
+		bicoh['f2'] = f2
+	else:
+		f_units = 'Hz'
+
+	fig = _plt.figure(  )
+	
+	# subplot 1
+	ax1 = _plt.subplot(111)
+	ax1.set_aspect('equal')
+	
+	levels = _np.linspace(vmin, vmax, 20 + 1)
+	im = _np.abs(bicoh).plot(ax=ax1, levels=levels, add_colorbar=False, vmin=vmin, vmax=vmax )
+
+	# trick to get the subplots to line up correctly
+	divider = _make_axes_locatable(ax1)
+	ax2 = divider.append_axes("bottom", size="50%", pad=0.5, sharex = ax1)
+	cax = divider.append_axes("right", size="5%", pad=0.08)
+	cbar = _plt.colorbar( im, ax=ax1, cax=cax, ticks= _np.linspace(vmin, vmax, 6))
+	cbar.set_label('$b^2$')
+	
+	# subplot 2
+	fft_results=fft_average(	da,
+								nperseg=nperseg,
+								noverlap=0,
+								trimNegFreqs=False,
+								sortFreqIndex=True,
+								f_units=f_units,
+								realAmplitudeUnits=True)
+	# fft_results/=fft_results.sum() # normalize
+	_np.abs(fft_results).plot(ax=ax2, yscale='log')
+	ax2.set_ylabel('Spectral\ndensity (au)')
+	
+	# optional, draw red lines
+	for y0 in drawRedLines:
+		f1 = bicoh.coords['f1'].data
+		f2 = bicoh.coords['f2'].data
+		ax1.plot(f1, y0-f1, color='r', linestyle='--', linewidth=0.5)
+
+	# finalize
+	_subTitle(ax1,'Bicoherence',
+			xy=(0.98, .98),
+			horizontalalignment='right',)
+	_subTitle(ax2,'FFT')
+	fig.set_size_inches(6,4)
+	ax1.set_title(title)
+	_finalizeFigure(fig)
+	
+	return fig
+
+
 def bicoherence(	da,
 					nperseg,
 					plot=False,
@@ -715,7 +822,9 @@ def bicoherence(	da,
 					f_units='Hz',
 					verbose=True,
 					fft_scale='log',
-					precondition_signal=True):
+					precondition_signal=True,
+					vmin=0,
+					vmax=1):
 	"""
 	Bicoherence and bispectrum analysis.  This algorithm is based on [Kim1979].
 	
@@ -942,9 +1051,9 @@ def bicoherence(	da,
 		da=da.rename({'time':'t'})
 	if 't' not in da.dims:
 		raise Exception('Time dimension, t, not present.  Instead, %s found'%(str(da.dims)))
-		
+				
 	if precondition_signal==True:
-		da=(da.copy()-da.mean(dim='t').data)/da.std(dim='t').data
+		da = (da.copy() - da.mean(dim='t').data) / da.std(dim='t').data
 
 	dt,fsamp,fn,_,_=signal_spectral_properties(da,nperseg=nperseg,verbose=verbose).values()
 	
@@ -994,8 +1103,96 @@ def bicoherence(	da,
 	else:
 		raise Exception('Improper mask value encountered : %s'%(str(mask)))
 		
-	bicoh.f1.attrs['units']=f_units
-	bicoh.f2.attrs['units']=f_units
+	bicoh.f1.attrs = {'units': f_units, 'long_name': r'$f_1$'}
+	bicoh.f2.attrs = {'units': f_units, 'long_name': r'$f_2$'}
+	
+	if plot==True:
+		bicoherence_plot(da, bicoh, nperseg, vmin, vmax)
+			
+		
+	return bicoh
+
+
+def bispectral_analysis(	da,
+					nperseg,
+					plot=False,
+					windowFunc='hann',
+					title='',
+					mask='A',
+					drawRedLines=[],
+					f_units='Hz',
+					verbose=True,
+					fft_scale='log',
+					precondition_signal=True):
+	"""
+	
+
+	"""
+	import numpy as np
+	from mpl_toolkits.axes_grid1 import make_axes_locatable
+	from scipy.signal.spectral import _spectral_helper
+	import pandas as pd
+	import xarray as xr
+	import matplotlib.pyplot as plt
+	
+	if 'time' in da.dims:
+		da=da.rename({'time':'t'})
+	if 't' not in da.dims:
+		raise Exception('Time dimension, t, not present.  Instead, %s found'%(str(da.dims)))
+		
+	if precondition_signal==True:
+		da=(da.copy()-da.mean(dim='t').data)/da.std(dim='t').data
+
+	dt,fsamp,fn,_,_=signal_spectral_properties(da,nperseg=nperseg,verbose=verbose).values()
+	
+	# Solve for the STFT results from each time window
+	f,t,stft_results=_spectral_helper(	da.data,
+										da.data,
+										fs=1/(da.t.data[1]-da.t.data[0]),
+										window=windowFunc,
+										nperseg=nperseg,
+										noverlap=0,
+										return_onesided=False,
+										mode='stft')
+	
+	df=pd.DataFrame(stft_results,index=f,columns=t) #TODO remove pandas step
+	df.index.name='f'
+	df.columns.name='t'
+	da2=xr.DataArray(df).sortby('f')
+	
+	
+	bispect = _bispectrum_helper(da2, f_units=f_units)
+	
+	# options
+	if mask=='AB':
+		f1=bispect.coords['f1']
+		f2=bispect.coords['f2']
+		
+		a=(f1<=f2)&(f1>=-f2)
+		b=(a*1.0).values
+		b[b==0]=np.nan
+		bispect*=b
+		#bicoh=bicoh[bicoh.f2>=0,:]
+		bispect=bispect[:,bispect.f1>=0]
+		bispect=bispect[bispect.f2<=fn/2]
+	elif mask=='A':
+		f1=bispect.coords['f1']
+		f2=bispect.coords['f2']
+		
+		a=(f2<=f1)&(f2>=-f1)
+		b=(a*1.0).values
+		b[b==0]=np.nan
+		bispect*=b
+		bispect=bispect[bispect.f2>=0,:]
+		bispect=bispect[:,bispect.f1>=0]
+		bispect=bispect[bispect.f2<=fn/2]
+	elif mask=='none' or mask=='None':
+		pass
+	else:
+		raise Exception('Improper mask value encountered : %s'%(str(mask)))
+		
+	bispect.f1.attrs['units']=f_units
+	bispect.f2.attrs['units']=f_units
 	
 	if plot==True:
 		
@@ -1004,13 +1201,17 @@ def bicoherence(	da,
 		# subplot 1
 		ax1 = plt.subplot(111)
 		ax1.set_aspect('equal')
-		im=np.abs(bicoh).plot(ax=ax1,levels=np.linspace(0,np.abs(bicoh).max(),20+1),add_colorbar=False)
+		vmin = np.abs(bispect).min()
+		vmax = np.abs(bispect).max()
+		import matplotlib.colors as colors
+		norm = colors.LogNorm(vmin=vmin, vmax=vmax)
+		im=np.abs(bispect).plot(ax=ax1, norm=norm, add_colorbar=False, levels=20) # levels=np.linspace(,,20+1),
 
 		# trick to get the subplots to line up correctly
 		divider = make_axes_locatable(ax1)
 		ax2 = divider.append_axes("bottom", size="50%", pad=.5,sharex = ax1)
 		cax = divider.append_axes("right", size="5%", pad=0.08)
-		cbar=plt.colorbar( im, ax=ax1, cax=cax, ticks= np.linspace(0,np.abs(bicoh).max(),6) )
+		cbar=plt.colorbar( im, ax=ax1, cax=cax, ticks= np.linspace(0,np.abs(bispect).max(),6) )
 		cbar.set_label('$b^2$')
 		
 		# subplot 2
@@ -1027,12 +1228,12 @@ def bicoherence(	da,
 		
 		# optional, draw red lines
 		for y0 in drawRedLines:
-			f1=bicoh.coords['f1'].data
-			f2=bicoh.coords['f2'].data
+			f1=bispect.coords['f1'].data
+			f2=bispect.coords['f2'].data
 			ax1.plot(f1,y0-f1,color='r',linestyle='--',linewidth=0.5)
 	
 		# finalize
-		_subTitle(ax1,'Bicoherence',
+		_subTitle(ax1,'Bispectrum',
 				xy=(0.98, .98),
 				horizontalalignment='right',)
 		_subTitle(ax2,'FFT')
@@ -1041,7 +1242,7 @@ def bicoherence(	da,
 		_finalizeFigure(fig)
 			
 		
-	return bicoh
+	return bispect
 
 
 def monteCarloNoiseFloorCalculation(da,
