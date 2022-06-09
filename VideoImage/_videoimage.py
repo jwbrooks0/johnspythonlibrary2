@@ -39,7 +39,7 @@ def filter_video(	da,
 
 #%% saving video/images
 
-def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, vmax=int(2**12), cmap='bwr'):
+def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, vmax=int(2**12), cmap='bwr', fps=1.0/5):
 	import imageio
 	
 	files=[]
@@ -56,7 +56,7 @@ def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, 
 	_plt.ion()
 	
 	print('compiling gif')
-	with imageio.get_writer(filename, mode='I') as writer:
+	with imageio.get_writer(filename, mode='I', duration=fps) as writer:
 	    for file in files:
 	        image = imageio.imread(file)
 	        writer.append_data(image)
