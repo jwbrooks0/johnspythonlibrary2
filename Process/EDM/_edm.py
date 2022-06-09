@@ -23,7 +23,7 @@ from scipy.stats import binned_statistic_dd as _binned_statistic_dd
 # load my external libraries
 from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot, finalizeFigure as _finalizeFigure, subTitle as _subtitle
 from johnspythonlibrary2.Process.SigGen import lorentzAttractor, tentMap, saved_lorentzAttractor#, coupledHarmonicOscillator, predatorPrey, 
-
+from johnspythonlibrary2.Process.Statistics import earth_mover_distance as _earth_mover_distance
 
 ###################################################################################
 #%% signal generation
@@ -1443,6 +1443,7 @@ def forecast(s,E,T,tau=1,knn=None,plot=False,weightingMethod=None):
 		_finalizeFigure(fig)
 		
 	return rho, results, future_actual
+
 
 
 def SMIReconstruction(	da_s1A,
