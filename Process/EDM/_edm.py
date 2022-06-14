@@ -22,17 +22,20 @@ from scipy.stats import binned_statistic_dd as _binned_statistic_dd
 
 # load my external libraries
 from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot, finalizeFigure as _finalizeFigure, subTitle as _subtitle
-
+from johnspythonlibrary2.Process.SigGen import lorentzAttractor, tentMap, saved_lorentzAttractor#, coupledHarmonicOscillator, predatorPrey, 
+from johnspythonlibrary2.Process.Statistics import earth_mover_distance as _earth_mover_distance
 
 ###################################################################################
 #%% signal generation
 # various generated signals to test code in this library
 
-# load my external signal generation functions
-from johnspythonlibrary2.Process.SigGen import lorentzAttractor, tentMap, saved_lorentzAttractor#, coupledHarmonicOscillator, predatorPrey, 
 
 
-def twoSpeciesWithBidirectionalCausality(N,tau_d=0,IC=[0.2,0.4],plot=False,params={'Ax':3.78,'Ay':3.77,'Bxy':0.07,'Byx':0.08}):
+def twoSpeciesWithBidirectionalCausality(	N,
+											tau_d=0,
+											IC=[0.2, 0.4],
+											plot=False,
+											params={'Ax': 3.78, 'Ay': 3.77, 'Bxy': 0.07, 'Byx': 0.08}):
 	"""
 	Coupled two equation system with bi-directional causality.  
 	
@@ -48,8 +51,8 @@ def twoSpeciesWithBidirectionalCausality(N,tau_d=0,IC=[0.2,0.4],plot=False,param
 	Examples 1 and 2::
 	
 		N=3000
-		twoSpeciesWithBidirectionalCausality(N,plot=True)
-		twoSpeciesWithBidirectionalCausality(N,tau_d=2,plot=True)
+		twoSpeciesWithBidirectionalCausality(N, plot=True)
+		twoSpeciesWithBidirectionalCausality(N, tau_d=2, plot=True)
 
 	"""
 	
@@ -853,7 +856,7 @@ def reconstruct(sx,edm_map,time_basis=None, sy=None,plot=False):
 	return sy_recon
 
 
-def splitData(s,split='half',reset_indices=True):
+def splitData(s, split='half', reset_indices=True):
 	""" 
 	split data, s, into a first and second signal.  By default, this splits s into half. 
 	
@@ -891,29 +894,70 @@ def splitData(s,split='half',reset_indices=True):
 		sX,sY,s_out=splitData(s_in,split=10)
 		
 	"""
+	# TODO update this function handle fused signals
+	
 	# check input type
-	s=check_dataArray(s)
-		
-	# reset indices
-	if reset_indices==True:
-		if type(s) == _xr.core.dataarray.DataArray:
-			s[s.dims[0]]=_np.arange(0,s.shape[0])
-		elif type(s) == _pd.core.series.Series:
-			s.index=_np.arange(0,s.shape[0])
-		
-	if split=='half':
-		# make sure s has an even number of points.  if not, truncate last point to make it contain an even number of points
-		if _np.mod(s.shape[0],2)==1:
-			s=s[:-1]
-		N=s.shape[0]//2
-	elif type(split) == int:
-		N=split
+	if type(s) == list:
+		s_temp = []
+		for temp in s:
+			s_temp.append(check_dataArray(temp))
+		s = s_temp
 	else:
-		raise Exception('Improperly defined value for split.  Should be an integer.')
+		s=check_dataArray(s)
+			
+	if type(s) == list:
 		
-	# split s
-	sX=s[0:N]
-	sY=s[N:]
+		s_temp = []
+		sX_temp = []
+		sY_temp = []
+		for temp in s:
+			temp = temp.copy()
+			# reset indices
+			if reset_indices==True:
+				if type(temp) == _xr.core.dataarray.DataArray:
+					temp[temp.dims[0]]=_np.arange(0,temp.shape[0])
+				elif type(s) == _pd.core.series.Series:
+					temp.index=_np.arange(0,temp.shape[0])
+				
+			if split=='half':
+				# make sure s has an even number of points.  if not, truncate last point to make it contain an even number of points
+				if _np.mod(temp.shape[0],2)==1:
+					temp=temp[:-1]
+				N=temp.shape[0]//2
+			elif type(split) == int:
+				N=split
+			else:
+				raise Exception('Improperly defined value for split.  Should be an integer.')
+			
+			s_temp.append(temp)
+			sX_temp.append(temp[0:N])
+			sY_temp.append(temp[N:])
+		s = s_temp
+		sX = sX_temp
+		sY = sY_temp
+		  
+		
+	else:
+		# reset indices
+		if reset_indices==True:
+			if type(s) == _xr.core.dataarray.DataArray:
+				s[s.dims[0]]=_np.arange(0,s.shape[0])
+			elif type(s) == _pd.core.series.Series:
+				s.index=_np.arange(0,s.shape[0])
+			
+		if split=='half':
+			# make sure s has an even number of points.  if not, truncate last point to make it contain an even number of points
+			if _np.mod(s.shape[0],2)==1:
+				s=s[:-1]
+			N=s.shape[0]//2
+		elif type(split) == int:
+			N=split
+		else:
+			raise Exception('Improperly defined value for split.  Should be an integer.')
+			
+		# split s
+		sX=s[0:N]
+		sY=s[N:]
 	
 	return sX,sY,s
 
@@ -1098,10 +1142,13 @@ def reconstruction_binned(x, y, m=100,E=2,tau=1,plot=True, interp_method='neares
 	
 	# reconstruct
 	syB_recon = apply_M_map(M, PxB, time=sxB.t.data[(E-1)*tau:], interp_method=interp_method)
+	M.attrs['E'] = E
+	M.attrs['tau'] = tau
+	
+	rho = calcCorrelationCoefficient(syB[(E-1)*tau:], syB_recon)
 	
 	if plot==True:
 		
-		rho = calcCorrelationCoefficient(syB[(E-1)*tau:], syB_recon)
 		
 		fig,ax=_plt.subplots(2,1,sharex=True)
 		
@@ -1113,6 +1160,7 @@ def reconstruction_binned(x, y, m=100,E=2,tau=1,plot=True, interp_method='neares
 		ax[1].legend()
 		_finalizeFigure(fig,figSize=[6,4])
 	
+	return syB_recon, rho, M
 
 
 def upsample(x,y_undersampled,sampling_factor, m=100,E=2,tau=1,plot=True,y_orig=None, interp_method='nearest'):
@@ -1397,6 +1445,7 @@ def forecast(s,E,T,tau=1,knn=None,plot=False,weightingMethod=None):
 	return rho, results, future_actual
 
 
+
 def SMIReconstruction(	da_s1A,
 						da_s1B,
 						da_s2A,
@@ -1554,6 +1603,8 @@ def SMIReconstruction(	da_s1A,
 		da_s2B['t']=_np.arange(da_s2B.t.shape[0])
 	except:
 		pass
+	E = int(E)
+	tau = int(tau)
 		
 	# define number of nearest neighbors if not previously defined
 	if type(knn)==type(None) or knn==0:
@@ -1565,6 +1616,7 @@ def SMIReconstruction(	da_s1A,
 	## convert to time-lagged space
 	if type(da_s1A)==list:
 		fuse=True
+		print('#TODO known bug: if the fused s1 entries have different amplitudes, the present code will weight the larger numbers.  Need to normalize...')
 	else:
 		fuse=False
 	P1A=convertToTimeLaggedSpace(da_s1A, E, tau, fuse=fuse)
@@ -1733,7 +1785,7 @@ def ccm(	s1A,
 	return rho_1to2, rho_2to1
 
 
-def SMIParameterScan(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False,numberCPUs=_cpu_count()-1):
+def SMIParameterScan(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False,numberCPUs=_cpu_count()-1, verbose=False):
 	"""
 	Parameter scan for SMIReconstruction()
 	
@@ -1793,12 +1845,16 @@ def SMIParameterScan(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False,numberCPUs=
 		fig.savefig("SMIReconstruction_example_results.png",dpi=150)
 		
 	"""
+	
+	# TODO upgrade this function to handle fused signals
+	
 	# check input signals
-	s1A=check_dataArray(s1A)
-	s2A=check_dataArray(s2A)
-	s1B=check_dataArray(s1B)
-	if type(s2B)!= type(None):
-		s2B=check_dataArray(s2B)
+	if type(s1A) != list:
+		s1A=check_dataArray(s1A)
+		s2A=check_dataArray(s2A)
+		s1B=check_dataArray(s1B)
+		if type(s2B)!= type(None):
+			s2B=check_dataArray(s2B)
 		
 	# SMIReconstruction function, designed for parallel processing.
 	def doStuff(E,tau):
@@ -1808,7 +1864,8 @@ def SMIParameterScan(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False,numberCPUs=
 										E=E,
 										tau=tau,
 										da_s2B=s2B,
-										plot=False)
+										plot=False,
+										printStepInfo=verbose)
 		return E, tau, rho
 	
 	# Create unique list of each pair of (E,tau)
@@ -1817,7 +1874,22 @@ def SMIParameterScan(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False,numberCPUs=
 	Y=Y.reshape(-1)
 	
 	# Do SMI scan and format results in a dataarray
-	results = _Parallel(n_jobs=numberCPUs)(_delayed(doStuff)(E,tau) for E,tau in zip(X,Y))  
+	if numberCPUs > 1:
+		results = _Parallel(n_jobs=numberCPUs)(_delayed(doStuff)(E,tau) for E,tau in zip(X,Y))  
+	else:
+		results = _np.zeros((3, len(X)))
+		for i, (E,tau) in enumerate(zip(X,Y)):
+			print(i, E, tau)
+			_,rho=SMIReconstruction(	da_s1A=s1A,
+											da_s2A=s2A, 
+											da_s1B=s1B,
+											E=E,
+											tau=tau,
+											da_s2B=s2B,
+											plot=False,
+											printStepInfo=verbose)
+			results[:, i] = _np.array([E, tau, rho])
+		
 	results = _pd.DataFrame(results,columns=['E','tau','rho'])
 	results= _xr.DataArray(	results.rho.values.reshape(tauRange.shape[0],ERange.shape[0]).transpose(),
 							dims=['E','tau'],

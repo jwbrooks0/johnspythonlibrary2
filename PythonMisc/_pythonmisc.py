@@ -1,5 +1,27 @@
 
 import numpy as _np
+import os as _os
+
+
+def get_immediate_subdirectories(a_dir):
+	"""
+	Returns all subdirectores within a_dir
+	
+	 * https://stackoverflow.com/questions/800197/how-to-get-all-of-the-immediate-subdirectories-in-python
+
+	Parameters
+	----------
+	a_dir : str
+		directory
+
+	Returns
+	-------
+	list
+		list of subdirectories
+
+	"""
+	return [name for name in _os.listdir(a_dir)
+		 if _os.path.isdir(_os.path.join(a_dir, name))]
 
 
 def time_as_str(format_str="%Y_%m_%d_%H_%M_%S"):

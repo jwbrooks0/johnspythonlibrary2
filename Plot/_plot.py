@@ -365,6 +365,10 @@ def finalizeSubplot(	ax,
 			ax[i].axvline(x=0, color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
 		
 
+def add_x0_and_y0_lines(ax, color='grey', linestyle='--', alpha=1.0):
+	
+	ax.axhline(0, color=color, linestyle=linestyle, alpha=alpha)
+	ax.axvline(0, color=color, linestyle=linestyle, alpha=alpha)
 		
 	
 		

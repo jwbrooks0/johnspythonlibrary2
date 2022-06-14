@@ -39,7 +39,7 @@ def filter_video(	da,
 
 #%% saving video/images
 
-def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, vmax=int(2**12)):
+def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, vmax=int(2**12), cmap='bwr', fps=1.0/5):
 	import imageio
 	
 	files=[]
@@ -48,7 +48,7 @@ def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, 
 	for i,ti in enumerate(video.t):
 # 		print(i,float(ti))
 		fig,ax=_plt.subplots()
-		video.sel(t=ti).plot(ax=ax,vmin=vmin,vmax=vmax)
+		video.sel(t=ti).plot(ax=ax,vmin=vmin,vmax=vmax, cmap=cmap)
 		ax.set_title('t=%.9f s'%ti)
 		fig.savefig('image_%.10d.png'%i,dpi=dpi)
 		files.append('image_%.10d.png'%i)
@@ -56,7 +56,7 @@ def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, 
 	_plt.ion()
 	
 	print('compiling gif')
-	with imageio.get_writer(filename, mode='I') as writer:
+	with imageio.get_writer(filename, mode='I', duration=fps) as writer:
 	    for file in files:
 	        image = imageio.imread(file)
 	        writer.append_data(image)
@@ -341,6 +341,138 @@ def loadSequentialRawImages(	partialFileName,
 	if plot==True:
 		_plt.figure()
 		video_out[0,:,:,0].plot()
+
+	return video_out
+
+
+def loadSequentialRawImages_v2(	partialFileName,
+								dtype=_np.uint16,
+								shape=(64, 128),
+								fps=None,
+								color=True,
+								plot=False,
+								save=False):
+	"""
+	Loads sequential images.
+	
+	Parameters
+	----------
+	partialFileName : str
+		Directory and filename of the images.  Use wildcards * to indicate
+		unspecified text.  Example, partialFileName = 'images/*.tif'
+	dtype : str or numpy data type
+		You must specify the data type of the images being loaded.  'uint16' is default.
+	shape : tuple with two ints
+		These represent the (y,x) resolution of the figure.  NOTE that the order is (y,x).  If you get this backwards, the code will still work, but the image won't look right
+	color : bool
+		True - assumes that there R,B,G data associated with each image
+		False - assumes greyscale.
+		
+	Returns
+	-------
+	da : xarray.core.dataarray.DataArray
+		xarray DataFrame with coordinates: time,x,y,color
+		where time is the image number
+	
+	Example
+	-------
+	::
+		
+		import numpy as np
+		
+		if False:
+			directory='C:\\Users\\jwbrooks\\HSVideos\\cathode_testing\\Test1\\test3_goodCaes_15A_30sccm_29p3V'
+			shape=(64,128)
+			fps=390000
+		elif False:
+			directory='C:\\Users\\jwbrooks\\HSVideos\\cathode_testing\\Test1\\test4_2020_10_12_50mmlens_400kHz_15A_35p5V_15sccm'
+			shape=(48,48)
+			fps=400000
+		elif True:
+			directory='C:\\Users\\jwbrooks\\HSVideos\\cathode_testing\\test2\\Test1\\test2_goodCase_15A_20sccm_31p6V'
+			shape=(64,128)
+			fps=390000
+		partialFileName='%s\\Img*.raw'%directory
+		
+		dtype=np.uint16
+		color=True
+		save=True
+		da=loadSequentialRawImages(partialFileName,shape=shape,dtype=dtype,color=color,save=save,plot=True,fps=fps)
+		
+	References
+	----------
+	https://rabernat.github.io/research_computing/xarray.html
+	"""
+	if fps==None:
+		dt=int(1)
+	else:
+		dt=1.0/fps
+
+	# import libraries
+	import glob
+	import xarray as xr
+	import numpy as np
+	
+	# get file names
+	inList=glob.glob(partialFileName, recursive=True)
+	dfFiles=_pd.DataFrame(inList,columns=['filepaths'],dtype=str).sort_values('filepaths').reset_index(drop=True)
+	
+	# initialize data storage 
+	if color==True:
+		video=_np.zeros((dfFiles.shape[0],shape[0],shape[1],3),dtype=dtype)
+	else:
+		video=_np.zeros((dfFiles.shape[0],shape[0],shape[1],1),dtype=dtype)
+		
+	# step through each image and import it in the data storage
+	for i,(key,val) in enumerate(dfFiles.iterrows()):
+# 		print(val[0]) # TODO convert to a percent complete printout
+		A=_np.fromfile(val[0],dtype=dtype)
+		if color==True:
+			B=A.reshape((shape[0],shape[1],3))
+			video[i,:,:,:]=B[::-1,:,:]
+		else:
+			B=A.reshape((shape[0],shape[1],1))
+			video[i,:,:,0]=B[::-1,:,0] 
+	
+	# convert to xarray
+	t = np.arange(video.shape[0]) * dt
+	x = np.arange(video.shape[2])
+	y = np.arange(video.shape[1])
+	if video.shape[3] == 1: # greyscale
+
+		video_out=xr.DataArray(	video[:, :, :, 0],
+								dims=['t', 'y', 'x'],
+								coords={	't': t,
+											'x': x,
+											'y': y},
+								name='video').to_dataset()
+		
+	elif video.shape[3] == 3: # color
+# 		c = ['blue', 'green', 'red']
+		b = xr.DataArray(	video[:, :, :, 0],
+								dims=['t', 'y', 'x'],
+								coords={	't': t,
+											'x': x,
+											'y': y})
+		g = xr.DataArray(	video[:, :, :, 1],
+								dims=['t', 'y', 'x'],
+								coords={	't': t,
+											'x': x,
+											'y': y})
+		r = xr.DataArray(	video[:, :, :, 2],
+								dims=['t', 'y', 'x'],
+								coords={	't': t,
+											'x': x,
+											'y': y})
+		video_out = xr.Dataset({'r': r, 'g': g, 'b': b})
+	
+# 	if save==True:
+# 		import pickle as pkl
+# 		pkl.dump(video_out,open(partialFileName.split('*')[0]+'.pkl','wb'))
+ 	
+# 	if plot==True:
+# 		_plt.figure()
+# 		video_out[0,:,:,0].plot()
 
 	return video_out
 

@@ -232,7 +232,7 @@ def zero_pad(array: _np.ndarray, target_length: int, axis: int = 0):
 # 	return da_new
 
 
-def downsample(da, downsample_factor=10, antialiasing=True, plot=False):
+def downsample(da, downsample_factor=10, antialiasing=True, plot=False, axis=-1):
 	"""
 	
 
@@ -264,12 +264,21 @@ def downsample(da, downsample_factor=10, antialiasing=True, plot=False):
 	
 	"""
 	# downsample time
-	t_orig = da.coords[da.dims[0]].data
+	t_orig = da.coords[da.dims[axis]].data
 	t_new = t_orig[::downsample_factor]
 	
 	# downsample data (with or without antialiasing)
 	if antialiasing is True:
-		da_new = _xr.DataArray(_decimate(da.data, q=downsample_factor, ftype='fir'), dims=da.dims, coords=[t_new])
+# 		coords = da.coords
+		if axis == -1:
+			axis = len(list(da.dims)) - 1
+		coords = []
+		for i, dim_key in enumerate(list(da.dims)):
+			if axis == i:
+				coords.append(t_new)
+			else:
+				coords.append(da.coords[dim_key])
+		da_new = _xr.DataArray(_decimate(da.data, q=downsample_factor, ftype='fir', axis=axis), dims=da.dims, coords=coords)
 	else:
 		da_new = _xr.DataArray(da.data[::downsample_factor], dims=da.dims, coords=[t_new])
 	
