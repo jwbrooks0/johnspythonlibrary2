@@ -407,7 +407,7 @@ def IV_sweep_analysis_v3(da, probe_area=3.1669e-5,  expFitGuess=(6, 20, -5), plo
 	# subtract ion saturation linear fit from data
 	da_isat=da[da.V<V_float]
 	da_isat=da_isat[da_isat.V<da_isat.V.data.mean()]
-	_,i_sat_fit=polyFitData(da_isat, order=1,plot=False)
+	_, i_sat_fit, _, _=polyFitData(da_isat, order=1,plot=False)
 	da_e_current=da.copy()-i_sat_fit(da.V.data)
 	
 	

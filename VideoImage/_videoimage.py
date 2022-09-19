@@ -39,7 +39,9 @@ def filter_video(	da,
 
 #%% saving video/images
 
-def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, vmax=int(2**12), cmap='bwr', fps=1.0/5):
+def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, vmax=int(2**12), cmap='bwr', fps=1.0/5, aspect='auto'):
+	# cmap = 'bwr'
+	# cmap = 'viridis'
 	import imageio
 	
 	files=[]
@@ -49,7 +51,9 @@ def save_video_to_gif(video, filename='movie.gif',dpi=75, cleanup=True, vmin=0, 
 # 		print(i,float(ti))
 		fig,ax=_plt.subplots()
 		video.sel(t=ti).plot(ax=ax,vmin=vmin,vmax=vmax, cmap=cmap)
-		ax.set_title('t=%.9f s'%ti)
+		ax.set_aspect(aspect)
+		unit = video['t'].attrs['units']
+		ax.set_title('t=%.9f %s' % (ti, unit))
 		fig.savefig('image_%.10d.png'%i,dpi=dpi)
 		files.append('image_%.10d.png'%i)
 		_plt.close(fig)

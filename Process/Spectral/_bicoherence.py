@@ -1,12 +1,16 @@
 
+
+# %% Import standard libraries
 import numpy as _np
 import matplotlib.pyplot as _plt
-
 from mpl_toolkits.axes_grid1 import make_axes_locatable as _make_axes_locatable
+
+
+# %% Import custom libraries
 from johnspythonlibrary2.Plot import subTitle as _subTitle, finalizeFigure as _finalizeFigure #, finalizeSubplot as _finalizeSubplot
 from johnspythonlibrary2.Process.Spectral import fft_average, signal_spectral_properties
 from johnspythonlibrary2.Process.Misc import subtract_mean_and_normalize_by_std, check_dims
-import xarray as _xr
+# import xarray as _xr
 
 #%% Signal generators for bicoherence
 # TODO add, y=cos(omega * t + 0.1*random(len(t)) )
@@ -792,7 +796,7 @@ def bicoherence_plot(da,
 								realAmplitudeUnits=True)
 	# fft_results/=fft_results.sum() # normalize
 	_np.abs(fft_results).plot(ax=ax2, yscale='log')
-	ax2.set_ylabel('Spectral\ndensity (au)')
+	ax2.set_ylabel('FFT mag. (au)')
 	
 	# optional, draw red lines
 	for y0 in drawRedLines:
@@ -1042,7 +1046,11 @@ def bicoherence(	da,
 	"""
 	import numpy as np
 	from mpl_toolkits.axes_grid1 import make_axes_locatable
-	from scipy.signal.spectral import _spectral_helper
+	try: # note that scipy changed the location of their _spectral_helper function
+		from scipy.signal.spectral import _spectral_helper
+	except ImportError as e:
+		from scipy.signal._spectral_py import _spectral_helper
+# 	from scipy.signal.spectral import _spectral_helper
 	import pandas as pd
 	import xarray as xr
 	import matplotlib.pyplot as plt
