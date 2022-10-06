@@ -72,20 +72,21 @@ def density_from_frequency(frequency, mass=m_e, plot = False):
 		mass = m_Ar
 		density=plasma_density(frequency, mass, plot=True)
 	"""
-	density = _xr.DataArray( (2*pi*frequency)**2 * mass * ep_0 / e**2,
-							  dims='f',
-							  coords=[frequency],
-							  attrs={'long_name':'Density',
-										'units':r'$m^{-3}$'})
-	density.f.attrs={'long_name':'Frequency',
-										'units':'Hz'}
-	if plot == True:
-		fig,ax=_plt.subplots()
-		density.plot(ax=ax)
-		ax.set_title('mass = %.3f AMU'%(mass/amu))
-		ax.set_xscale('log')
-		ax.set_yscale('log')
-		ax.grid()
+	density = (2*pi*frequency)**2 * mass * ep_0 / e**2
+# 	density = _xr.DataArray( (2*pi*frequency)**2 * mass * ep_0 / e**2,
+# 							  dims='f',
+# 							  coords=[frequency],
+# 							  attrs={'long_name':'Density',
+# 										'units':r'$m^{-3}$'})
+# 	density.f.attrs={'long_name':'Frequency',
+# 										'units':'Hz'}
+# 	if plot == True:
+# 		fig,ax=_plt.subplots()
+# 		density.plot(ax=ax)
+# 		ax.set_title('mass = %.3f AMU'%(mass/amu))
+# 		ax.set_xscale('log')
+# 		ax.set_yscale('log')
+# 		ax.grid()
 
 	return density
 
