@@ -238,7 +238,7 @@ def downsample(da, downsample_factor=10, antialiasing=True, plot=False, axis=-1)
 
 	Parameters
 	----------
-	da : xr.DataArray
+	da : xr.DataArray or xr.Dataset
 		1D dataarray to be downsampled
 	downsample_factor : int
 		The factor to downsampled by.  
@@ -256,13 +256,40 @@ def downsample(da, downsample_factor=10, antialiasing=True, plot=False, axis=-1)
 	-------
 	Example 1 ::
 		
+		# single dataarray, process with and without antialiasing
 		dt = 1e-6
 		t = _np.arange(0, 1e4) * dt
 		da = _xr.DataArray(_np.sin(2 * _np.pi * 1e3 * t) + _np.random.rand(len(t)))
 		da_downsampled = downsample(da, downsample_factor=20, plot=True)
 		da_downsampled = downsample(da, downsample_factor=20, plot=True, antialiasing=False)
+		
+		
+	Example 2 ::
+		
+		# dataset containing two dataarrays
+		dt = 1e-6
+		t = _np.arange(0, 1e4) * dt
+		da1 = _xr.DataArray(_np.sin(2 * _np.pi * 1e3 * t) + _np.random.rand(len(t)))
+		da2 = _xr.DataArray(_np.sin(2 * _np.pi * 5e3 * t) + _np.random.rand(len(t)))
+		ds = _xr.Dataset({'da1': da1, 'da2': da2})
+		ds_downsampled = downsample(ds, downsample_factor=20, plot=True)
+		
+		
 	
 	"""
+	if type(da) == _xr.core.dataset.Dataset:
+		ds_new = _xr.Dataset()
+		keys = list(da.keys())
+		for key in keys:
+			ds_new[key] = downsample(da[key], 
+									downsample_factor=downsample_factor,
+									antialiasing=antialiasing,
+									plot=plot,
+									axis=axis)
+		return ds_new
+	elif type(da) != _xr.core.dataarray.DataArray:
+		raise Exception("Improper data type. ")
+	
 	# downsample time
 	t_orig = da.coords[da.dims[axis]].data
 	t_new = t_orig[::downsample_factor]
