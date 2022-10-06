@@ -1172,7 +1172,8 @@ def stft(	da,
 			frequencyResolutionScalingFactor=1.,
 			plot=False,
 			verbose=True,
-			logScale=False):
+			logScale=False,
+			window='hann'):
 	"""
 	Short time fourier transform across a range of frequencies
 	
@@ -1307,13 +1308,15 @@ def stft(	da,
 	if 't' not in da.dims:
 		raise Exception('Time dimension, t, not present.  Instead, %s found'%(str(da.dims)))
 	
-	dt,fs,_,_,_,_=signal_spectral_properties(da,nperseg=numberSamplesPerSegment,verbose=verbose).values()
+	params = signal_spectral_properties(da,nperseg=numberSamplesPerSegment,verbose=verbose)
+	fs = params['f_s'] #dt, f_s, f_nyquist, time_window, f_res
 	
 	fOut,tOut,zOut=scipystft(	da,
 								fs,
 								nperseg=numberSamplesPerSegment,
 								noverlap=numberSamplesToOverlap,
-								nfft=da.shape[0]*frequencyResolutionScalingFactor)
+								nfft=da.shape[0]*frequencyResolutionScalingFactor,
+								window=window)
 	zOut*=2 # TODO(John) double check this scaling factor.   Then cite a reason for it.  (I don't like arbitrary factors sitting around)
 	tOut+=da.t[0].data
 	
@@ -2499,11 +2502,11 @@ def hilbertTransform(da,plot=False):
 	daAmp=_np.abs(daHilbert)
 	daPhase=_xr.DataArray(	_np.arctan2(_np.imag(daHilbert),_np.real(daHilbert)))
 	
+	dt=(da.t[1]-da.t[0]).data
+	daFreq=_xr.DataArray(	_np.gradient(_np.unwrap(daPhase),dt)/(2*_np.pi),
+							   dims=['t'],
+							   coords={'t':da.t})
 	if plot==True:
-		dt=(da.t[1]-da.t[0]).data
-		daFreq=_xr.DataArray(	_np.gradient(_np.unwrap(daPhase),dt)/(2*_np.pi),
-								   dims=['t'],
-								   coords={'t':da.t})
 		
 		fig,ax=_plt.subplots(3,sharex=True)
 		_np.real(daHilbert).plot(ax=ax[0],label='original')
@@ -2530,7 +2533,7 @@ def hilbertTransform(da,plot=False):
 								xlabel='Time',
 								legendOn=False)
 		
-	return daHilbert,daAmp,daPhase
+	return daHilbert,daAmp,daPhase,daFreq
 
 
 
