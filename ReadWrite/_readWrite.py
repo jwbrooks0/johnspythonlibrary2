@@ -49,7 +49,7 @@ def csv_to_xr(filename, delimiter=',', row_number_of_col_names='infer', first_co
 	return data[keys[0]]
 
 
-def append_single_row_to_csv(data_row, filename='name.csv', headers=[]):
+def append_single_row_to_csv(data_row, filename='name.csv', headers=[], delete_file_if_already_exists=False): 
 	"""
 	Examples
 	--------
@@ -67,6 +67,12 @@ def append_single_row_to_csv(data_row, filename='name.csv', headers=[]):
 
 	"""
 	import csv   
+	
+	if delete_file_if_already_exists is True:
+		import os
+		if os.path.exists(filename) is True:
+		    os.remove(filename)
+
 	with open(filename, 'a', newline='') as f:
 		writer = csv.writer(f)
 		if len(headers) > 0:
