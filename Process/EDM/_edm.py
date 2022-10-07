@@ -88,6 +88,12 @@ def twoSpeciesWithBidirectionalCausality(	N,
 ###################################################################################
 #%% sub-functions
 
+
+def calc_tau_ideal(dt_s, f_peak_Hz):
+	f_s = 1 / dt_s
+	tau_ideal = int(_np.round(float((f_s / f_peak_Hz / 2) / 2)))
+	return tau_ideal
+
 	
 def applyForecast(s,Py,edm_map,T,plot=False):
 	""" 
@@ -1858,6 +1864,7 @@ def SMIParameterScan(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False,numberCPUs=
 		
 	# SMIReconstruction function, designed for parallel processing.
 	def doStuff(E,tau):
+		if verbose: print("E = %d \t tau = %d" % (E, tau))
 		out2,rho=SMIReconstruction(	da_s1A=s1A,
 										da_s2A=s2A, 
 										da_s1B=s1B,
@@ -1902,6 +1909,55 @@ def SMIParameterScan(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False,numberCPUs=
 		results.idxmax(dim='E').plot(ax=ax,label='max E(tau)')
 		_plt.legend()
 		
+	return results
+
+
+def SMIVariableScan(xr_ds, E_ideal, tau_ideal, verbose=True, numberCPUs=_cpu_count()-1, plot=True):
+	""" Performs SMI on every pair of keys within a dataset """
+	
+	ds = xr_ds
+	
+	## SMIReconstruction function, designed for parallel processing.
+	def doStuff(key1, key2):
+		if verbose: print("key1 = %s \t key2 = %s" % (key1, key2))
+		s1A, s1B, s1 = splitData(s=ds[key1])
+		s2A, s2B, s2 = splitData(s=ds[key2])
+		out2,rho=SMIReconstruction(	da_s1A=s1A,
+										da_s2A=s2A, 
+										da_s1B=s1B,
+										E=E_ideal,
+										tau=tau_ideal,
+										da_s2B=s2B,
+										plot=False,
+										printStepInfo=verbose)
+		return key1, key2, rho
+	
+	## format list of keys to process
+	keys = _np.array(list(ds.keys()))
+	X, Y = _np.meshgrid(keys, keys)
+	X=X.reshape(-1)
+	Y=Y.reshape(-1)
+	
+	## Do SMI scan
+	if numberCPUs > 1:
+		results = _Parallel(n_jobs=numberCPUs)(_delayed(doStuff)(key1, key2) for key1, key2 in zip(X, Y))  
+	else:
+		raise Exception("not implemented yet...  ")
+		
+	## format results
+	results = _pd.DataFrame(results, columns=['key1','key2','rho'])
+	results = _xr.DataArray(	results.rho.values.reshape(len(keys),len(keys)).transpose() * 100,
+							dims=['key1','key2'],
+							coords={'key1': keys, 'key2': keys},
+							attrs={'long_name': 'Pearson correlation, rho', 'units': '%'})
+	
+	if plot is True:
+		
+		_plt.figure()
+		results.plot()
+		_plt.xticks(rotation=90)
+		
+	
 	return results
 
 
