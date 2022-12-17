@@ -6,6 +6,66 @@ import xarray as _xr
 from scipy.optimize import curve_fit as _curve_fit
 
 
+def power_func_fit_log(da,
+				   plot=False,
+				   verbose=False):
+	
+	""" 
+	Fit the function y=a*x^b to the data. 
+	Note that this function will fail is zeros are present
+	
+	Parameters
+	----------
+	da : xarray dataarray
+		data with dimension
+	plot : bool
+		Causes a plot of the fit to be generated
+	verbose : bool
+		print additional details
+	
+	Returns
+	-------
+	df_fit : pandas.core.frame.DataFrame with a the fit
+		Dataframe with a single column
+		index = independent variable
+	fit_coefs : list
+		[a, b]
+	
+	Example
+	-------
+	::
+		
+		 x=10**np.arange(0.001, 0.1, 0.001)
+		 y=0.5*x**2
+		 da=_xr.DataArray(y, coords={'x': x})
+		 power_func_fit_log(da,plot=True)
+		 
+	"""
+	# get coordinate name
+	dim = da.dims[0]
+	# coord = da.coords[dim].data
+	
+	# convert to log10 scale
+	da_new = da.copy()
+	da_new[dim] = _np.log10(da_new.coords[dim].values)
+	da_new = _np.log10(da_new)
+	
+	# perform fit
+	da_fit, ffit, fit_coefs, fit_coef_error = polyFitData(da_new, order=1, plot=False, verbose=False)
+	fit_coefs[1] = 10 ** fit_coefs[1]
+	da_fit = _xr.DataArray(da[dim] ** fit_coefs[0] * fit_coefs[1])
+	
+	if plot is True:
+		
+		fig,ax = _plt.subplots()
+		da.plot(ax=ax, label='raw' ,linestyle='', marker='x')
+		da_fit.plot(ax=ax, label='fit')
+		ax.set_xscale('log')
+		ax.set_yscale('log')
+		
+	return da_fit, fit_coefs
+
+
 def polyFitData(da,	
 				order=2, 
 				plot=True,
