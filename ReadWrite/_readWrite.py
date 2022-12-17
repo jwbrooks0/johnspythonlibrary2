@@ -5,9 +5,14 @@
 import numpy as _np
 import pandas as _pd
 # import matplotlib.pyplot as _plt
-from functools import wraps as _wraps
+from functools import wraps as _wraps # allows doc string to be visible through the decorator
 import pickle as _pkl
 import xarray as _xr
+from pathlib import Path as _Path
+# from glob import glob as _glob
+import os as _os
+import shutil as _shutil # download data
+from datetime import datetime as _datetime
 
 try:
 	import johnspythonlibrary2.ReadWrite._settings as _settings
@@ -17,6 +22,67 @@ except ImportError:
 	LOCALDIRTOSAVEDATA = ''
 	
 	
+
+##############################################################################
+# %% timestamps for filenames
+def datetime_now_to_str(fmt="%Y_%m_%d_%H_%M_%S"): # fmt="%Y_%d_%m_%H_%M_%S_%f"
+	return _datetime.now().strftime(fmt)
+
+
+##############################################################################
+# %% manage local vs remote data
+
+def store_file_locally(remote_filepath, 
+					   local_dir = r'C:\Users\spacelab\python\local_data_copy', 
+					   verbose=True,
+					   force_update=False):
+	""" This function checks to see if the file exists on the local computer.  If not there, it downloads it there for the future.  """
+	
+	## convert all paths to pathlib
+	local_dir = _Path(local_dir)
+	remote_filepath = _Path(remote_filepath)
+	
+	## construct local filepath
+	local_filepath = local_dir / remote_filepath.name
+	
+	## check if file is local
+	if _os.path.exists(local_filepath) is False or force_update is True: # if not local, download a copy
+		if verbose: print('File not found locally.  Downloading... ', end='')
+		_shutil.copyfile(remote_filepath, local_filepath)
+		if verbose: print('Done. ')
+	else:
+		if verbose: print('File found locally. ')
+	
+	return local_filepath
+	
+
+##############################################################################
+# %% file I/O misc
+
+def delete_file_if_exists(filepath):
+	import os
+	if os.path.exists(filepath) is True:
+	    os.remove(filepath)
+	
+	
+##############################################################################
+# %% excel
+
+def excel_to_pandas(filepath, 
+					sheet_name=0, # 0 returns the first sheet, 1 is the second, "Sheet1" returns that sheet, etc
+					header_row=None, # specify the header row.  integer or None expected
+					header_names=None, # specify header names.  List of strings or None.
+					index_col=None, # column of index.  integer or None expected
+					):
+	
+	return _pd.read_excel(filepath, 
+					sheet_name=sheet_name,
+					header=header_row,
+					names=header_names,
+					index_col=index_col)
+
+
+
 ##############################################################################
 # %% csv
 
@@ -69,9 +135,7 @@ def append_single_row_to_csv(data_row, filename='name.csv', headers=[], delete_f
 	import csv   
 	
 	if delete_file_if_already_exists is True:
-		import os
-		if os.path.exists(filename) is True:
-		    os.remove(filename)
+		delete_file_if_exists(filename)
 
 	with open(filename, 'a', newline='') as f:
 		writer = csv.writer(f)
@@ -467,8 +531,8 @@ def hdf5_add_metadata(	hdf5_filename, library):
 	
 def xr_Dataset_to_hdf5(	ds,
 							hdf5_file_name,
-							group_name,
-							compression_level=5):
+							group_name="/",
+							compression_level=2):
 	"""
 	The xarray library has a convenient method of converting a dataset to an hdf5 file.  This is a wrapper for this.
 	
@@ -516,8 +580,17 @@ def hdf5_to_xr_Dataset(		hdf5_file, group_name):
 	return ds
 	
 
-def hdf5_to_xr(		hdf5_file, group_name):
-	""" Reads hdf5 data and returns xarray dataset if multiple variables or xarray dataarray is a single variable """
+def hdf5_to_xr(		hdf5_file, group_name="/"):
+	""" 
+	Reads hdf5 data and returns xarray dataset if multiple variables or xarray dataarray is a single variable 
+	
+	Parameters 
+	----------
+	hdf5_file : str
+		name and path of file
+	group_name : str
+		group name of data (or dataset name)
+	"""
 	ds = hdf5_to_xr_Dataset(hdf5_file=hdf5_file, group_name=group_name)
 	if len(ds) == 1:
 		return ds[list(ds.data_vars)[0]]
