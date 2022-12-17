@@ -1,6 +1,6 @@
 
 import os as _os
-
+from pathlib import Path as _Path
 
 def processFileName(filename):
 	"""
@@ -40,6 +40,13 @@ def processFileName(filename):
 		
 		print(processFileName('asdf/123'))
 	"""
+	## This functionality has largely been placed with pathlib.Path
+	# filepath = _Path(filename)
+	# name = filepath.name
+	# stem = filepath.stem
+	# parent = filepath.parent
+	# suffix = filepath.suffix
+	# parent_plus_stem = parent / stem
 	fileRoot,fileExt=_os.path.splitext(filename)
 	baseName=_os.path.basename(filename)
 	dirName=_os.path.dirname(filename)
@@ -102,20 +109,21 @@ def getPwd(system,username):
 
 def check_operating_system(verbose=False):
 	from sys import platform
-	if verbose==True:
-		print('your os is: ',platform)
+	if verbose is True:
+		print('your os is: ', platform)
 	return platform
 
 
-def playBeep(durationInS=1,freqInHz=440):
+def playBeep(durationInS=1, freqInHz=440):
 	"""
 	Play short beep
 	
 	References
 	----------
 	https://stackoverflow.com/questions/16573051/sound-alarm-when-code-finishes
+	https://pythonin1minute.com/how-to-beep-in-python/
 	"""
-	
+	## TODO.  look into using beepy: https://github.com/prabeshdhakal/beepy-v1
 	platform = check_operating_system()
 	if 'win' in platform:
 		import winsound
@@ -127,10 +135,30 @@ def playBeep(durationInS=1,freqInHz=440):
 		except:
 			print('This command only works on linux and macosx. \n If play not found error provided, you need to install play.  In ubuntu, type: sudo apt install sox')
 	else:
-		print("\a") # generic OS alert noise
+		print("\a") # generic OS alert noise # likely does not work in windows
 		print("OS not recognized.  Instead playing generic OS noise.")
 		
-
+		
+def check_if_dir_exists(dirpath,
+						create_dir_if_not_there=True):
+	
+	if type(dirpath) is str:
+		dirpath = _Path(dirpath)
+	if dirpath.is_file() is True:
+		raise Exception("This is a file, not a directory. ")
+	elif dirpath.is_file() is False and dirpath.is_dir() is False:
+		raise Exception("This is neither a file nor a directory.  ")
+	elif dirpath.exists() is True and dirpath.is_dir() is True:
+		""" This is a directory  """
+		return True
+	elif dirpath.exists() is False:
+		""" This is (very likely) a directory and definitely does not exist """
+		if create_dir_if_not_there is True:
+			dirpath.mkdir()
+		return False
+	else:
+		raise Exception("Issue with filetype encountered. ")
+		
 
 def checkAndCreateDir(directory):
 	"""
