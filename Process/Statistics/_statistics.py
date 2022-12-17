@@ -6,7 +6,30 @@ import xarray as _xr
 import matplotlib.pyplot as _plt
 
 
-def earth_mover_distance(y1, y2):
+
+def histogram(da, plot=False, bins=10, normalize=True, range=None):
+	""" 
+	Wrapper for the numpy histogram function.
+	Returns a dataarray with the coords being the bin centers instead of bin edges.
+	"""
+	
+	hist, bin_edges = _np.histogram(da.data, bins=bins, range=range)
+	bins = _np.vstack((bin_edges[:-1], bin_edges[1:])).mean(axis=0)
+	bins = _xr.DataArray(bins, coords={'bins': bins})
+	
+	if normalize is False:
+		hist = _xr.DataArray(hist, coords={'bins': bins}, attrs={'long_name': 'histogram', 'units': 'count'})
+	elif normalize is True:
+		hist = _xr.DataArray(hist / hist.sum(), coords={'bins': bins}, attrs={'long_name': 'histogram', 'units': 'normalized'})
+	
+	if plot is True:
+		fig, ax = _plt.subplots()
+		hist.plot(ax=ax)
+		
+	return hist
+
+
+def earth_mover_distance_1D(y1, y2, plot=False):
 	"""
 	
 	Example
@@ -21,6 +44,7 @@ def earth_mover_distance(y1, y2):
 		# perform EMD over a range of noise values
 		results = []
 		amplitudes = 10 ** _np.arange(-4, 1.1, 0.1)
+		_np.random.seed(0)
 		for amp in amplitudes:
 			y1_noisy = y1.copy() + (_np.random.rand(len(t)) - 0.5) * amp
 			results.append(earth_mover_distance(y1, y1_noisy))
@@ -33,12 +57,88 @@ def earth_mover_distance(y1, y2):
 		ax.set_xlabel('Noise amplitude')
 		ax.set_ylabel('EMD')
 
+	Example 2 ::
+		
+		# create signal
+		t = _np.arange(0, 10000) * 1e-5
+		dt = t[1] - t[0]
+		y1 = t
+		y2 = t + 0.1
+		print("emd = ", earth_mover_distance(y1, y2))
+
+ 
  
 	"""
-	
+	y1 = y1 * 1.0
+	y2 = y2 * 1.0
 	from scipy.stats import wasserstein_distance as emd
+	result = emd(y1, y2)
 	
-	return emd(y1, y2)
+	if plot is True:
+		if type(y1) == _xr.core.dataarray.DataArray and type(y2) == _xr.core.dataarray.DataArray:
+			fig, ax = _plt.subplots(2)
+			
+			y1.plot(ax=ax[0], label='y1')
+			y2.plot(ax=ax[0], label='y2')
+			ax[0].legend()
+			
+			histogram(y1, bins=20).plot(ax=ax[1], label='y1')
+			histogram(y2, bins=20).plot(ax=ax[1], label='y2')
+			ax[1].legend()
+			
+			ax[0].set_title('EMD result = ' + str(result) )
+	
+	return result
+
+
+
+
+def earth_mover_distance_v3(pdf1, pdf2):
+	"""
+	shared with me by jk
+	
+	shape of input PDFs are as follows
+	[ x1, y1, ..., val_1]
+	[ x2, y2, ..., val_2]
+	[ .,  .,  ..., .    ]
+	[ xn, yn, ..., val_n]
+	
+	last value is the weight (and must be non-zero)
+	
+	Examples
+	--------
+	
+	Example 1 ::
+		
+		pdf1 = _np.array([[1, 1, 1, 1], [1, 0, 0, 1]])
+		pdf2 = _np.array([[0, 0, 0, 2]])
+		print(earth_mover_distance_v3(pdf1, pdf2))
+		print("Should be equal to 1 + sqrt(3) = %.6f" % (1 + _np.sqrt(3)) )
+		print("moving 1 block from coords (1,1,1) and another from coords (1,0,0) to (0,0,0).  Distance of first block is sqrt(3).  Distance of second block is 1.")
+
+	"""
+	# print("Work in progress.  Presently is not working... ")
+	import ot
+	
+	r, c = _np.shape(pdf1)
+	xs = pdf1[:, 0:c-1].copy(order='C')
+	a = pdf1[:, c-1].copy(order='C')
+	
+	r, c = _np.shape(pdf2)
+	xt = pdf2[:, 0:c-1].copy(order='C')
+	b = pdf2[:, c-1].copy(order='C')
+	
+	# loss matrix
+	M = ot.dist(x1=xs, x2=xt, metric='euclidean')
+	norm = M.max()
+	M /= norm
+	
+	G0 = ot.emd(a, b, M, numItermax=int(2e6))
+	
+	measure = _np.sum(_np.sum(_np.multiply(G0, M))) * norm
+	
+	return measure
+	
 
 
 def crossCorrelation(y1,y2,mode='same'):
