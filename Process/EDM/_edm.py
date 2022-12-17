@@ -19,17 +19,26 @@ from multiprocessing import cpu_count as _cpu_count
 from joblib import Parallel as _Parallel
 from joblib import delayed  as _delayed
 from scipy.stats import binned_statistic_dd as _binned_statistic_dd
+import ot as _ot
 
 # load my external libraries
 from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot, finalizeFigure as _finalizeFigure, subTitle as _subtitle
 from johnspythonlibrary2.Process.SigGen import lorentzAttractor, tentMap, saved_lorentzAttractor#, coupledHarmonicOscillator, predatorPrey, 
-from johnspythonlibrary2.Process.Statistics import earth_mover_distance as _earth_mover_distance
+# from johnspythonlibrary2.Process.Statistics import earth_mover_distance_1D as _earth_mover_distance
 
 ###################################################################################
 #%% signal generation
 # various generated signals to test code in this library
 
-
+def normalize_signal(s1):
+	
+	if type(s1) is list:
+		result = []
+		for si in s1:
+			result.append(normalize_signal(si))
+	else:
+		return (s1 - s1.mean()) / s1.std()
+	
 
 def twoSpeciesWithBidirectionalCausality(	N,
 											tau_d=0,
@@ -301,6 +310,17 @@ def calcCorrelationCoefficient(data,fit,plot=False):
 		t=np.arange(0,1e-3,2e-6)
 		data=np.sin(2*np.pi*f*t)
 		fit=data+(np.random.rand(len(t))-0.5)*0.1
+		calcCorrelationCoefficient(data,fit,plot=True)
+	
+	Example 2::
+		
+		## Test for amplitude difference
+		
+		import numpy as np
+		f=2e3
+		t=np.arange(0,1e-3,2e-6)
+		data=np.sin(2*np.pi*f*t) + 1
+		fit=2 * data + 1
 		calcCorrelationCoefficient(data,fit,plot=True)
 		
 	Example 3::
@@ -1658,9 +1678,9 @@ def SMIReconstruction(	da_s1A,
 
 		fig=_plt.figure()
 		ax1 = _plt.subplot(221)
-		ax2 = _plt.subplot(222, sharex = ax1)
+		ax2 = _plt.subplot(222, sharex = ax1, sharey=ax1)
 		ax3 = _plt.subplot(223, sharex = ax1)
-		ax4 = _plt.subplot(224, sharex = ax2)
+		ax4 = _plt.subplot(224, sharex = ax2, sharey=ax3)
 		ax=[ax1,ax2,ax3,ax4]
 		
 		if fuse==True:
@@ -1900,17 +1920,77 @@ def SMIParameterScan(s1A,s2A,s1B,ERange,tauRange,s2B=None,plot=False,numberCPUs=
 	results = _pd.DataFrame(results,columns=['E','tau','rho'])
 	results= _xr.DataArray(	results.rho.values.reshape(tauRange.shape[0],ERange.shape[0]).transpose(),
 							dims=['E','tau'],
-							coords={'E':ERange,'tau':tauRange})
+							coords={'E':ERange,'tau':tauRange},
+							attrs={'long_name': 'Pearson correlation, rho'})
 
 	# optional plot
 	if plot==True:
 		fig,ax=_plt.subplots()
 		results.plot(ax=ax)
-		results.idxmax(dim='E').plot(ax=ax,label='max E(tau)')
+		results.idxmax(dim='E').plot(ax=ax, label='max E(tau)', ls='', marker='.', color='black')
 		_plt.legend()
 		
 	return results
 
+
+def SMIVariableScan_orthogonality(xr_ds, 
+								  E_ideal, 
+								  tau_ideal, 
+								  ref_key,
+								  verbose=True, 
+								  numberCPUs=_cpu_count()-1,
+								  plot=True):
+	
+	
+	ds = xr_ds
+	
+	## SMIReconstruction function, designed for parallel processing.
+	def doStuff(key1, key2):
+		if verbose: print("key1 = %s \t key2 = %s" % (key1, key2))
+		s1A, s1B, s1 = splitData(s=[ds[key1], ds[key2]])
+		s2A, s2B, s2 = splitData(s=ds[ref_key])
+		out2,rho=SMIReconstruction(	da_s1A=s1A,
+										da_s2A=s2A, 
+										da_s1B=s1B,
+										E=E_ideal,
+										tau=tau_ideal,
+										da_s2B=s2B,
+										plot=False,
+										printStepInfo=verbose)
+		return key1, key2, rho
+	
+	## format list of keys to process
+	keys = _np.array(list(ds.keys()))
+	keys = keys[keys != ref_key] # remove the reference key from the keys to process
+	X, Y = _np.meshgrid(keys, keys)
+	X=X.reshape(-1)
+	Y=Y.reshape(-1)
+	
+	## Do SMI scan
+	if numberCPUs > 1:
+		results = _Parallel(n_jobs=numberCPUs)(_delayed(doStuff)(key1, key2) for key1, key2 in zip(X, Y))  
+	else:
+		raise Exception("not implemented yet...  ")
+		
+	## format results
+	results = _pd.DataFrame(results, columns=['key1','key2','rho'])
+	results = _xr.DataArray(	results.rho.values.reshape(len(keys),len(keys)).transpose() * 100,
+							dims=['key1','key2'],
+							coords={'key1': keys, 'key2': keys},
+							attrs={'long_name': 'Pearson correlation, rho', 'units': '%'})
+	
+	if plot is True:
+		
+		_plt.figure()
+		results.plot()
+		_plt.xticks(rotation=90)
+		_plt.title('Reconstructing: %s' % ref_key)
+		
+	
+	return results
+
+
+	
 
 def SMIVariableScan(xr_ds, E_ideal, tau_ideal, verbose=True, numberCPUs=_cpu_count()-1, plot=True):
 	""" Performs SMI on every pair of keys within a dataset """
@@ -1957,6 +2037,12 @@ def SMIVariableScan(xr_ds, E_ideal, tau_ideal, verbose=True, numberCPUs=_cpu_cou
 		results.plot()
 		_plt.xticks(rotation=90)
 		
+		_plt.figure()
+		(results - results.T.values).plot()
+		_plt.xticks(rotation=90)
+		fig = _plt.gcf()
+		ax = fig.get_axes()
+		ax[0].set_title('Result - result transposed')
 	
 	return results
 
@@ -2020,6 +2106,66 @@ def determineDimensionality(s,T,tau=1,Elist=_np.arange(1,10+1),method="simplex",
 
 
 #%% Under development
+
+
+def EMD_TLPP_2D(s1, s2, tau, num_bins, plot=False, s1_name='signal 1', s2_name='signal 2', suptitle=''):
+	""" Two dimensional EMD/TLPP algorithm """
+	# presently hard coded as 2D.  Could be make N-D without too much trouble (I think)
+	E = 2
+	s1_tlpp = convertToTimeLaggedSpace(s1, E=E, tau=tau, fuse=True)
+	s2_tlpp = convertToTimeLaggedSpace(s2, E=E, tau=tau, fuse=True)
+	
+	def calc_2D_histogram(da, bins=20, plot=False):
+		H, xedges, yedges = _np.histogram2d(da[:, 0], da[:, 1], bins=bins)
+		x = _np.mean([xedges[:-1], xedges[1:]], axis=0)
+		y = _np.mean([yedges[:-1], yedges[1:]], axis=0)
+		H = _xr.DataArray(H.astype(int), coords={'y': y, 'x': x})
+		
+		if plot is True and E == 2:
+			_plt.figure()
+			H.plot()
+		
+		return H
+	
+	## create bins for histogram
+	N = num_bins
+	bins = _np.linspace(_np.min([s1.min(), s2.min()]), _np.max([s1.max(), s2.max()]), N + 1)
+	bins = _np.linspace(bins[0] - (bins[1]-bins[0]) / N, bins[-1] + (bins[1]-bins[0]) / N, N + 1)
+	
+	## calculate histogram
+	H1 = calc_2D_histogram(s1_tlpp, plot=False, bins=bins)
+	H2 = calc_2D_histogram(s2_tlpp, plot=False, bins=bins)
+	
+	## flatten histogram coordinates and histogram results
+	Y_1, X_1 = _np.meshgrid(H1.y.data, H1.x.data)
+	coords_and_data_1 = _np.array([X_1.flatten(), Y_1.flatten(), H1.data.flatten()]).T
+	coords_1 = coords_and_data_1[:, :2]
+	
+	Y_2, X_2 = _np.meshgrid(H2.y.data, H2.x.data)
+	coords_and_data_2 = _np.array([X_2.flatten(), Y_2.flatten(), H2.data.flatten()]).T
+	coords_2 = coords_and_data_2[:, :2]
+	
+	## calculate euclidean distance between each set of coordinates
+	M = _ot.dist(x1=coords_1, x2=coords_2, metric='euclidean') # euclidean distance from each pair of points to every other pair of points
+	norm = M.max()
+	M /= norm
+	
+	## calculate EMD
+	G0 = _ot.emd(coords_and_data_1[:, 2], coords_and_data_2[:, 2], M)
+	result = _np.sum(_np.sum(_np.multiply(G0, M))) * norm
+	
+	if plot is True:
+		fig, ax = _plt.subplots(1, 2, sharex=True, sharey=True)
+		fig.set_size_inches([6, 3])
+		H1.plot(ax=ax[0])
+		H2.plot(ax=ax[1])
+		ax[0].set_title(s1_name)
+		ax[1].set_title(s2_name)
+		fig.suptitle('2D EMD-TLPP results = %.2e\n%s' % (result, suptitle))
+		for a in ax:
+			a.set_aspect('equal')
+
+	return result 
 
 
 def upsample_old(x,y_undersampled,sampling_factor, m=100,E=2,tau=1,plot=True,y_orig=None):
