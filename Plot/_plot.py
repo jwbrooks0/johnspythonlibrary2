@@ -50,6 +50,19 @@ _mpl.rcParams.update({'figure.autolayout': True})
 ###################################################################################
 #%% figure/ax related
 
+def get_current_fig_and_ax():
+	fig = _plt.gcf()
+	axes = fig.get_axes()
+	
+	return fig, axes
+
+
+def get_all_figures():
+	results = []
+	for i in _plt.get_fignums():
+	    results.append(_plt.figure(i))
+	return results
+
 
 def twinx_and_change_colors(	ax,
 								color='r'):
@@ -465,7 +478,13 @@ def arrow(ax,xyTail=(0,0),xyHead=(1,1),color='r',width=3,headwidth=10,headlength
 				label=label)
 	
 
-def rectangle(ax,x_bottomleft,y_bottomleft,width,height,color='r',alpha=0.5):
+def rectangle(	ax,
+			  coords={'x_bottomleft': 0, 'y_bottomleft': 0, 'width': 1, 'height': 1},
+				fillcolor='r',
+				fillalpha=0.5,
+				edgecolor='r',
+				edgels='--',
+				edgelw=1.25):
 	"""
 	Adds a colored rectangle to a plot
 	
@@ -493,15 +512,21 @@ def rectangle(ax,x_bottomleft,y_bottomleft,width,height,color='r',alpha=0.5):
 		fig,ax=plt.subplots()
 		ax.plot(np.arange(0,10))
 		rectangle(ax,1,1,7,2.5)
+		
+	References
+	----------
+	 * https://matplotlib.org/stable/api/_as_gen/matplotlib.patches.Rectangle.html
 	"""
 		
+	x_bottomleft, y_bottomleft,	width, height = coords.values()
 
 	from matplotlib.patches import Rectangle
 	from matplotlib.collections import PatchCollection
 
-	rect=Rectangle((x_bottomleft,y_bottomleft),width,height)
-	pc=PatchCollection([rect],facecolor=color,alpha=alpha)
+	rect=Rectangle((x_bottomleft,y_bottomleft), width, height, ls=edgels, edgecolor=edgecolor, facecolor='none', lw=edgelw)
+	pc=PatchCollection([rect],facecolor=fillcolor,alpha=fillalpha)
 	ax.add_collection(pc)
+	ax.add_patch(rect)
 
 
 
