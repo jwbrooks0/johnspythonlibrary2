@@ -500,6 +500,8 @@ def filtfilt(	da,
 	* https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.signal.filtfilt.html
 	
 	"""
+	# print(f"da: {da.shape}")
+	
 	if type(da) not in [_xr.core.dataarray.DataArray]:
 		if type(da) in [_np.ndarray]:
 			da=_xr.DataArray(	da,
