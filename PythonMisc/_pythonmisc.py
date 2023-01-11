@@ -1,6 +1,52 @@
 
 import numpy as _np
 import os as _os
+import importlib.util as _util
+from pathlib import Path as _Path
+# from collections import Sequence as _Sequence
+from numpy.distutils.misc_util import is_sequence as _is_sequence
+
+
+def is_sequence(var):
+	"""
+	Returns True if var is a sequence (list, array, tuple, dicts, etc) or False otherwise.
+	Note that strings are not sequences (even though they can be indexed and have a len(var) >= 0 )
+	
+	References
+	----------
+	 * https://stackoverflow.com/questions/2937114/python-check-if-an-object-is-a-sequence
+
+	"""
+	return _is_sequence(var)
+	# import collections
+	# return isinstance(var, collections.Sequence)
+
+
+def import_module_from_file(file_path):
+	""" 
+	Imports a specific python file as a module/library 
+	
+	Parameters 
+	----------
+	file_path : str of pathlib.Path
+		filepath to a .py file to import
+		
+	Returns
+	-------
+	module : module
+		Module/library containing the file
+		
+	Example
+	-------
+	
+		file_path = r'Z:\Programs\PIPPIn\PIP_experimental_data\2022_December_testing_campaign\process_pip_sweeps.py'
+		pps = import_module_from_file(file_path)
+	"""
+	module_name = _Path(file_path).stem
+	spec = _util.spec_from_file_location(module_name, file_path)
+	module = _util.module_from_spec(spec)
+	spec.loader.exec_module(module)
+	return module
 
 
 def get_immediate_subdirectories(a_dir):
