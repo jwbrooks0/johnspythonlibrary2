@@ -7,20 +7,44 @@ import matplotlib.pyplot as _plt
 
 
 
-def histogram(da, plot=False, bins=10, normalize=True, range=None):
+def histogram(values_np, 
+			  plot=False, 
+			  num_bins=None,
+			  bin_edges=None,
+			  normalize=True, 
+			  range=None, # lower and upper range of the bins, None=default=(a.min(), a.max())
+			  ):
 	""" 
 	Wrapper for the numpy histogram function.
 	Returns a dataarray with the coords being the bin centers instead of bin edges.
 	"""
+	## convert values to numpy
+	values_np = _np.array(values_np)
 	
-	hist, bin_edges = _np.histogram(da.data, bins=bins, range=range)
+	## assign bins based on num_bins or bin_edges
+	if type(num_bins) is not type(None):
+		if type(num_bins) is int:
+			bins = num_bins
+		else:
+			bins = None
+	elif type(bin_edges) is not type(None):
+		bins = bin_edges
+	else:
+		bins = None
+			 
+	## perform histogram
+	hist, bin_edges = _np.histogram(values_np, bins=bins, range=range)
 	bins = _np.vstack((bin_edges[:-1], bin_edges[1:])).mean(axis=0)
 	bins = _xr.DataArray(bins, coords={'bins': bins})
 	
-	if normalize is False:
-		hist = _xr.DataArray(hist, coords={'bins': bins}, attrs={'long_name': 'histogram', 'units': 'count'})
-	elif normalize is True:
-		hist = _xr.DataArray(hist / hist.sum(), coords={'bins': bins}, attrs={'long_name': 'histogram', 'units': 'normalized'})
+	## (optional) normalize
+	if normalize is True:
+		hist = hist / hist.sum()
+		units = 'normalized'
+	else:
+		units = 'count'
+	
+	hist = _xr.DataArray(hist, coords={'bins': bins}, attrs={'long_name': 'histogram', 'units': units})
 	
 	if plot is True:
 		fig, ax = _plt.subplots()
@@ -31,6 +55,11 @@ def histogram(da, plot=False, bins=10, normalize=True, range=None):
 
 def earth_mover_distance_1D(y1, y2, plot=False):
 	"""
+	
+	Tests
+	-----
+	>>> earth_mover_distance_1D([0], [1])
+	1.0
 	
 	Example
 	-------
@@ -69,6 +98,9 @@ def earth_mover_distance_1D(y1, y2, plot=False):
  
  
 	"""
+	y1 = _np.array(y1)
+	y2 = _np.array(y2)
+	
 	y1 = y1 * 1.0
 	y2 = y2 * 1.0
 	from scipy.stats import wasserstein_distance as emd
@@ -91,8 +123,6 @@ def earth_mover_distance_1D(y1, y2, plot=False):
 	return result
 
 
-
-
 def earth_mover_distance_v3(pdf1, pdf2):
 	"""
 	shared with me by jk
@@ -102,8 +132,8 @@ def earth_mover_distance_v3(pdf1, pdf2):
 	[ x2, y2, ..., val_2]
 	[ .,  .,  ..., .    ]
 	[ xn, yn, ..., val_n]
-	
-	last value is the weight (and must be non-zero)
+	where x, y, ... are the coordinates
+	and val are the values (or weights) associated with each coordinate (and must be non-zero)
 	
 	Examples
 	--------
@@ -152,9 +182,9 @@ def correlationCoefficient(data,fit):
 	Correlation coefficient.
 	Compares a fit to data.  Note that this is only valid for a linear fit.
 	
-	Reference
-	---------
-	https://mathworld.wolfram.com/CorrelationCoefficient.html
+	References
+	----------
+	 * https://mathworld.wolfram.com/CorrelationCoefficient.html
 	"""
 	if type(data)==_pd.core.frame.DataFrame or type(data)==_pd.core.frame.Series:
 		y=data.values.reshape(-1)
@@ -162,6 +192,11 @@ def correlationCoefficient(data,fit):
 	elif type(data)==_np.ndarray:
 		y=data.reshape(-1)
 		f=fit.reshape(-1)
+	elif type(data) == _xr.core.dataarray.DataArray:
+		y=data.to_numpy().reshape(-1)
+		f=fit.to_numpy().reshape(-1)
+	else:
+		raise Exception("Data type not recognized.  ")
 	SSxy=((f-f.mean())*(y-y.mean())).sum()
 	SSxx=((f-f.mean())**2).sum()
 	SSyy=((y-y.mean())**2).sum()
@@ -211,7 +246,7 @@ def errorPropagationMonteCarlo(	func,
 
 	References
 	----------
-	http://www.eg.bucknell.edu/physics/ph310/jupyter/error_propagation_examples.ipynb.pdf
+	 * http://www.eg.bucknell.edu/physics/ph310/jupyter/error_propagation_examples.ipynb.pdf
 	
 	"""
 	
@@ -242,16 +277,25 @@ def errorPropagationMonteCarlo(	func,
 	return mean,uncertainty,df
 	
 
-def findNearestNeighbors(X,Y,numberOfNearestPoints=1):
+def findNearestNeighbors(X, Y, numberOfNearestPoints=1):
 	"""
 	Find the nearest neighbors in X to each point in Y
+	
+	Tests
+	-----
+	
+	>>> findNearestNeighbors(_np.array([[0, 0], [0, 1], [1, 0], [1,1]]), [[0.9, 0.1]], 1)
+	(array([[[1, 0]]]), array([[2]], dtype=int64), array([[0.14142136]]))
+	
 	
 	Example
 	-------
 	::
 		
-		from johnspythonlibraries2.Plot import finalizeSubplot as _finalizeSubplot
-
+		# from johnspythonlibraries2.Plot import finalizeSubplot as _finalizeSubplot
+		import numpy as np
+		import matplotlib.pyplot as plt
+		
 		# create data
 		x=np.arange(0,10+1)
 		y=np.arange(100,110+1)
@@ -270,7 +314,7 @@ def findNearestNeighbors(X,Y,numberOfNearestPoints=1):
 			ax.plot(X,Y,'.',label='original data')
 			ax.plot(B[i][0],B[i][1],'x',label='point of interest')
 			ax.plot(points[i][:,0],points[i][:,1],label='nearest neighbors',marker='o',linestyle='', markerfacecolor="None")
-			_finalizeSubplot(ax)
+			# _finalizeSubplot(ax)
 			
 	"""
 	
@@ -300,8 +344,8 @@ def rms(data):
 	
 	References
 	----------
-	# http://stackoverflow.com/questions/17197492/root-mean-square-error-in-python
-	# http://statweb.stanford.edu/~susan/courses/s60/split/node60.html
+	 * http://stackoverflow.com/questions/17197492/root-mean-square-error-in-python
+	 * http://statweb.stanford.edu/~susan/courses/s60/split/node60.html
 	
 	Examples
 	--------
@@ -344,7 +388,7 @@ def rejectOutliers(data, sigma=2):
 	
 	References
 	----------
-	http://stackoverflow.com/questions/11686720/is-there-a-numpy-builtin-to-reject-outliers-from-a-list
+	 * http://stackoverflow.com/questions/11686720/is-there-a-numpy-builtin-to-reject-outliers-from-a-list
 	
 	Examples
 	--------
