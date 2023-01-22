@@ -436,8 +436,8 @@ def subplotsWithColormaps(nrows=2,sharex=False):
 ###################################################################################
 #%% shapes
 
-def circle(ax,xy=(0,0),r=1,color='r',linestyle='-',alpha=1,fill=True,label=''):
-	circle1 = _plt.Circle(xy, r, color=color,alpha=alpha,fill=fill,linestyle=linestyle)
+def circle(ax,xy=(0,0),r=1,color='r',linestyle='-',alpha=1,fill=True,label='', lw=None):
+	circle1 = _plt.Circle(xy, r, color=color,alpha=alpha,fill=fill,linestyle=linestyle, lw=lw)
 	ax.add_artist(circle1)
 
 def arrow(ax,xyTail=(0,0),xyHead=(1,1),color='r',width=3,headwidth=10,headlength=10,alpha=1.0,label=''):
