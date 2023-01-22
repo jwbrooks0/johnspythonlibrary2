@@ -1,6 +1,11 @@
 
 import os as _os
 from pathlib import Path as _Path
+from psutil import cpu_percent as _cpu_percent
+
+def check_cpu_load(time_to_average_over=1e-1):
+	""" Returns a percentage of total system CPU usage, averaged over time specified. """
+	return _cpu_percent(time_to_average_over)
 
 def processFileName(filename):
 	"""
