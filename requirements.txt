@@ -1,12 +1,11 @@
 ### This list of python libraries includes those needed to run johnspythonlibrary2.  It also includes a few libraries that I like to keep on hand.
-# NOTE:  This does not include the MDSplus library.  See the attached readme for instructions on installing it. 
 # Within your virtual environment, type the command: pip -r default_libraries.txt to install this list all in one go. 
-# NOTE.  Make sure python3-dev is installed first.  sudo apt install python3-dev 
+# NOTE.  With linux, make sure python3-dev is installed first:  sudo apt install python3-dev 
  
 ### python libraries
-#spyder==3.3.6	# this is the final release of spyder v3. 
+#spyder==3.3.6	# this is the final release of spyder v3
 #spyder==4.2.5  # this is the final release of spyder v4
-#spyder==5.1.5  # this is the latest stable version of spyder v5
+#spyder==5.1.5  # earlier stable release of spyder v5
 spyder			# spyderm, latest version
 matplotlib		# plotting package
 numpy			# data arrays and scientific tool library
@@ -18,13 +17,13 @@ scipy			# scientific tool library
 sklearn			# machine learning tools
 Pillow			# image processing tools
 # glob3			# unix-like filenames.  includes using wildcards * in filepaths.  # throws errors when pip install glob3 ...?
-sh			# shell scripting library
+# sh			# shell scripting library (note that there seems to be a bug installing sh as of 1/19/2023).
 deprecated		# has a decorator for flagging deprecated functions
 # pathos		# multiprocessing sublibrary #TODO I think I'm no longer using this library
 seaborn			# additional plotting functions, colormaps, etc
 h5py			# functions related to the hdf5 data structure
 mat73			# loading matlab data (better)
-sk-video
+sk-video		# TODO: details needed.  
 pyvisa			# used to talk with instruments over USB, GPIB, Ethernet, etc
 pyserial 		# used to talk with instruments over serial (eg. RS232) connections.
 netCDF4			# needed for xarray to save/load hdf5 files
@@ -33,6 +32,10 @@ scikit-image		# image processing tools
 scikit-rf		# RF engineering tools
 mcculw			# library for Measurement Computing hardware.  You'll also need to download the MCC DAQ software from https://www.voidtools.com/downloads/ for additional drivers.
 jupyter			# jupyter notebooks
+tqdm			# progress bar for for-loops
+joblib			# Contains parallel processing functions
+POT			# ot for short.  Python Optimal Transport library.  Has functions for earth-mover-distance.
+alicat			# library for talking to alicat mass flow controllers
 
 ### Spyder settings - I've also included a few of my favorite settings for my spyder environment.
 # Consider reverting to the default settings first.  I've had issues where it pulls in an old spyder config file from outside the virtualenv.
