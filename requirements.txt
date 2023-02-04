@@ -36,6 +36,7 @@ tqdm			# progress bar for for-loops
 joblib			# Contains parallel processing functions
 POT			# ot for short.  Python Optimal Transport library.  Has functions for earth-mover-distance.
 alicat			# library for talking to alicat mass flow controllers
+sympy 			# symbolic math library.  When used with jupyter notebooks, works very similar to mathematica
 
 ### Spyder settings - I've also included a few of my favorite settings for my spyder environment.
 # Consider reverting to the default settings first.  I've had issues where it pulls in an old spyder config file from outside the virtualenv.
