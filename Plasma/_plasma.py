@@ -13,7 +13,7 @@ import numpy as _np
 import matplotlib.pyplot as _plt
 import xarray as _xr
 
-from johnspythonlibrary2.Constants import ep_0, e, amu, m_Ar, pi, k_b, eV, pi, m_e
+from johnspythonlibrary2.Constants import ep_0, e, amu, m_Ar, pi, k_b, eV, pi, m_e, m_Xe
 from johnspythonlibrary2.Process.Fit import polyFitData
 
 ##################################
