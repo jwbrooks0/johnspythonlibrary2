@@ -32,6 +32,7 @@ scikit-image		# image processing tools
 scikit-rf		# RF engineering tools
 mcculw			# library for Measurement Computing hardware.  You'll also need to download the MCC DAQ software from https://www.voidtools.com/downloads/ for additional drivers.
 jupyter			# jupyter notebooks
+notebook		# jupyter notebooks
 tqdm			# progress bar for for-loops
 joblib			# Contains parallel processing functions
 POT			# ot for short.  Python Optimal Transport library.  Has functions for earth-mover-distance.
