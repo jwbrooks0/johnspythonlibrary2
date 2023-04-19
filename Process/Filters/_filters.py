@@ -43,7 +43,36 @@ def interpolate(da, x_new, plot=False, fill_value=_np.nan):
 
 # %% windowing
 
-def hann_window_1D(array, hann_width, plot=False):
+def hann_window(da, window_width=1e-6, window_center=0, plot=False):
+	
+	## get dep data
+	axis = 0
+	T = da[da.dims[axis]]
+	T = T - window_center
+	
+	## create window
+	L = window_width
+	window = 1.0 / L * _np.cos(_np.pi * T / L) ** 2
+	window[_np.where(T > window_width / 2)] = 0
+	window[_np.where(T < -window_width / 2)] = 0
+	window /= float(window.max())
+	
+	## apply window
+	da_out = window * da
+	
+	if plot is True:
+		fig, ax = _plt.subplots()
+		da.plot(ax=ax, label="raw")
+		da_out.plot(ax=ax, label="windowed")
+		
+		(window * da.max().to_numpy()).plot(ax=ax, label="Hann window")
+		ax.legend()
+	
+	return da_out
+
+
+
+def hann_window_1D_np(array, hann_width, plot=False):
 	"""
 	
 	Example
@@ -52,7 +81,7 @@ def hann_window_1D(array, hann_width, plot=False):
 		
 		array = _np.random.rand(1000)
 		hann_width = 500
-		array_hann = hann_window_1D(array, hann_width, plot=True)
+		array_hann = hann_window_1D_np(array, hann_width, plot=True)
 
 	Example 2 ::
 		
@@ -60,7 +89,7 @@ def hann_window_1D(array, hann_width, plot=False):
 		
 		array = _xr.DataArray(_np.random.rand(1000), dims='t', coords=[np.arange(1000)*0.1])
 		hann_width = 500
-		array_hann = hann_window_1D(array, hann_width, plot=True)
+		array_hann = hann_window_1D_np(array, hann_width, plot=True)
 
 	"""
 	if type(array) == _xr.core.dataarray.DataArray:
@@ -94,7 +123,7 @@ def hann_window_1D(array, hann_width, plot=False):
 	return y_out
 
 
-def hann_window_1D_to_2D_data(array, hann_width, axis=0, plot=False):
+def hann_window_1D_to_2D_data_np(array, hann_width, axis=0, plot=False):
 	"""
 	Apply a 1D-hann window to a 2D dataarray along the specified axis
 	
@@ -105,14 +134,14 @@ def hann_window_1D_to_2D_data(array, hann_width, axis=0, plot=False):
 		array = _np.random.rand(1000, 1200)
 		hann_width = 500
 		axis = 0
-		array_hann = hann_window_1D_to_2D_data(array, hann_width, axis=axis, plot=True)
+		array_hann = hann_window_1D_to_2D_data_np(array, hann_width, axis=axis, plot=True)
 
 	Example 2 ::
 		
 		array = _np.random.rand(1000, 1200)
 		hann_width = 500
 		axis = 1
-		array_hann = hann_window_1D_to_2D_data(array, hann_width, axis=axis, plot=True)
+		array_hann = hann_window_1D_to_2D_data_np(array, hann_width, axis=axis, plot=True)
 
 	Example 3 ::
 		
@@ -121,7 +150,7 @@ def hann_window_1D_to_2D_data(array, hann_width, axis=0, plot=False):
 		array = _xr.DataArray(_np.random.rand(1000, 1200), dims=['x', 'y'], coords=[_np.arange(1000), _np.arange(1200)])
 		hann_width = 500
 		axis = 1
-		array_hann = hann_window_1D_to_2D_data(array, hann_width, axis=axis, plot=True)
+		array_hann = hann_window_1D_to_2D_data_np(array, hann_width, axis=axis, plot=True)
 
 	"""
 	if type(array) == _xr.core.dataarray.DataArray:
