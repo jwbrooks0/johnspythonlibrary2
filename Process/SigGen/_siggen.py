@@ -499,6 +499,21 @@ def lorentz96(N=5, F=8, t_final=30.0, dt=0.01, plot=False):
 	return x
 
 
+def van_der_pol_oscillator():
+    print("TODO")
+    # https://en.wikipedia.org/wiki/Van_der_Pol_oscillator
+    
+
+def chen_and_lu_systems():
+    print("TODO")
+    # https://www.sciencedirect.com/science/article/pii/S0096300314017937
+    
+
+def rossler_attractor():
+    print("TODO")
+    # https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor
+
+
 def lorentzAttractor(	N=2000,
 						dt=0.05,
 						ICs={	'x0': -9.38131377,
@@ -742,15 +757,15 @@ def predatorPrey(	N=100000,
 	return ds
 	
 	
-def coupledHarmonicOscillator(	N=10000,
-								T=1,
+def coupledHarmonicOscillator(	N=100000,
+								T=10000,
 								ICs={	'y1_0': 0,
-										'x1_0': 0.9,
+										'x1_0': 1,
 										'y2_0': 0,
-										'x2_0': -1},
-								args={	'k': 1,
-										'kappa': 1,
-										'm': 1e-4},
+										'x2_0': 0},
+								args={	'k': 4,
+										'kappa': 2,
+										'm': 1},
 								plot=False):
 	"""
 	Solve a coupled harmonic oscillator problem. See reference for details.
@@ -803,6 +818,10 @@ def coupledHarmonicOscillator(	N=10000,
 						attrs={'units': "au",
 								 'standard_name': 'Amplitude'})
 	x2.time.attrs={'units': 's'}
+    
+	## characteristic frequencies
+	f_fast = _np.sqrt((args["k"] + 2 * args["kappa"]) / args["m"]) / (2 * _np.pi)
+	f_slow = _np.sqrt((args["k"] + 0) / args["m"]) / (2 * _np.pi)
 	
 	if plot==True:
 		fig, ax = _plt.subplots(2, sharex=True)
@@ -816,7 +835,8 @@ def coupledHarmonicOscillator(	N=10000,
 		ax.set_xlabel('x2')
 
 	ds=_xr.Dataset(	{'x1': x1,
-					 'x2': x2})
+					 'x2': x2},
+                    attrs = {'f_fast': f_fast, 'f_slow': f_slow})
 	
 	return ds
 
