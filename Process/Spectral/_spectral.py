@@ -997,6 +997,9 @@ def ifft(	daFFT,
 							plot=plot,
 							invertNormalizedAmplitude=invertNormalizedAmplitude,
 							returnRealOnly=returnRealOnly)
+    
+	# check if input contains NaN and then remove them
+	daFFT[_np.where(_np.isnan(daFFT))] = 0.0 + 0.0*1j
 	
 	# create a time basis if not provided
 	if type(t)==type(None):
