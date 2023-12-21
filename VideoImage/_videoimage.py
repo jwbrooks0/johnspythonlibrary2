@@ -137,6 +137,23 @@ def playVideo(da,interval=200):
 	return anim
 
 
+# %% create gifs and animations 
+
+
+def create_gif_from_sequential_images(image_filepaths, gif_filename="animation.gif", fps=3):
+    import imageio
+    # from glob import glob
+    # images = glob(r"C:\Users\spacelab\Documents\Process\slow_control_code\lorentz_control\b_and_r\GP_*points*.png" )
+    frames = []
+    for image_filepath in image_filepaths:
+        image = imageio.v2.imread(image_filepath)
+        frames.append(image)
+    imageio.mimsave(gif_filename, # output gif
+            frames,          # array of input frames
+            fps = fps)         # optional: frames per second
+    
+
+
 #%% import video or sequence of images
 
 
