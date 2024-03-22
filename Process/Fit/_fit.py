@@ -168,7 +168,7 @@ def _rSquared(y, f):
 	return 1 - SSres / SStot
 
 	
-class _genericLeastSquaresFit:
+class genericLeastSquaresFit:
 	"""
 	Least squares fitting function(class)
 	This is a wrapper for scipy.optimize.least_squares
@@ -364,7 +364,7 @@ class cosTimeFit:
 
 	"""
 	def __init__(self, y, x, guess, plot=True):
-		self.fit = _genericLeastSquaresFit(	x=x, 
+		self.fit = genericLeastSquaresFit(	x=x, 
 											paramsGuess=guess, 
 											y=y, 
 											function=_cosFunction, 
