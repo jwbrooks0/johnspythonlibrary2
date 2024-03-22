@@ -547,7 +547,7 @@ def filtfilt(	da,
 	
 	# construct butterworth filter
 	samplingFreq = float(1.0 / (da.t[1] - da.t[0]))
-	Wn = _np.array(cornerFreq).astype(float) / samplingFreq * 2  # I don't know why this factor of 2 needs to be here
+	Wn = _np.array(cornerFreq).astype(float) / samplingFreq * 2  # factor two is because Wn = corner frequency / nyquist frequency.  nyquist freq is samping freq / 2.
 	b, a = butter(	filterOrder, 
 					Wn=Wn,
 					btype=filterType,
