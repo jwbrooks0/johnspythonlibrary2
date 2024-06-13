@@ -10,9 +10,13 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 ###############################################################################
-#%% custom matplotlib settings
+# %% custom matplotlib settings
 
-# custom color cycle.  now 15 colors long
+## References 
+# https://matplotlib.org/stable/users/explain/customizing.html
+
+
+## custom color cycle.  now 15 colors long
 _colors=[ 	"k",
 			"tab:blue",
 			"tab:orange",
@@ -30,22 +34,35 @@ _colors=[ 	"k",
 			"m"]
 _mpl.rcParams['axes.prop_cycle'] = _mpl.cycler(color=_colors)
 
-# custom linewidth
+## custom linewidth
 _mpl.rcParams['lines.linewidth'] = 1.0
 
-# custom fontsizes
-_FONTSIZE=8
+## custom fontsizes
+_FONTSIZE = 8
 _mpl.rcParams['xtick.labelsize'] = _FONTSIZE
 _mpl.rcParams['ytick.labelsize'] = _FONTSIZE
 _mpl.rcParams['font.size'] = _FONTSIZE
 _mpl.rcParams['legend.fontsize'] = _FONTSIZE
 _mpl.rcParams['axes.titlesize'] = _FONTSIZE+2
 
-# legend
+## legend
 _mpl.rcParams['legend.numpoints'] = 3  # not working
 
-# other
+## other
 _mpl.rcParams.update({'figure.autolayout': True})
+
+## Force Type 1 font (vector) instead of the default Type 3 font (non-vector)
+# mpl.rcParams['text.usetex'] = True # https://mudongliang.github.io/2018/08/22/avoiding-type-3-fonts-in-matplotlib-plots.html
+# _mpl.rcParams['pdf.fonttype'] = 42 # http://phyletica.org/matplotlib-fonts/
+# _mpl.rcParams['ps.fonttype'] = 42 # http://phyletica.org/matplotlib-fonts/
+
+
+
+###############################################################################
+#%% variables, misc
+
+axis_line_kwargs = dict(ls=(0, (5, 5)), lw=0.5, color="grey")
+# axis_line_kwargs = dict(ls="--", lw=0.5, color="grey")
 
 ###################################################################################
 #%% figure/ax related
@@ -378,10 +395,10 @@ def finalizeSubplot(	ax,
 			ax[i].axvline(x=0, color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
 		
 
-def add_x0_and_y0_lines(ax, color='grey', linestyle='--', alpha=1.0):
+def add_x0_y0_axis_lines(ax, kwargs=axis_line_kwargs):
 	
-	ax.axhline(0, color=color, linestyle=linestyle, alpha=alpha)
-	ax.axvline(0, color=color, linestyle=linestyle, alpha=alpha)
+	ax.axhline(0, **kwargs)
+	ax.axvline(0, **kwargs)
 		
 	
 		
@@ -541,6 +558,7 @@ def heatmap(dZ,vmin=None,vmax=None):
 	matplotlib has pcolormesh and imshow, but both have issues.
 	Seaborn has a heatmap() function (which is the best I've found), but the x
 								   and y axes still have to be hacked to work
+    The best heatmap I've found is actually using xarray with 2D dataarrays.  It mostly just works.  
 								   
 	Example
 	-------
