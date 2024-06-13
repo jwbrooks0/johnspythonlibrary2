@@ -20,6 +20,7 @@ from deprecated import deprecated
 ###############################################################################
 #%% Fourier methods
 
+
 def signal_spectral_properties(da,nperseg=None,verbose=True):
 # 	print('work in progress')
 	
@@ -725,7 +726,11 @@ def _fftPlot(da_orig, da_fft, fft_scale='log', fig=None):
 	if type(fig)==type(None):
 		fig,(ax1,ax2)=_plt.subplots(nrows=2)
 	else:
-		ax1,ax2=fig.get_axes()
+		axes = fig.get_axes()
+		ax1 = axes[0]
+		ax2 = axes[1]
+        
+	ax1.axhline(0, **dict(ls=(0, (5, 5)), lw=0.5, color="grey"))
 	da_orig.plot(ax=ax1)
 	
 	da_temp.plot(ax=ax2)
