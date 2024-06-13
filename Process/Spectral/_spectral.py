@@ -20,6 +20,7 @@ from deprecated import deprecated
 ###############################################################################
 #%% Fourier methods
 
+
 def signal_spectral_properties(da,nperseg=None,verbose=True):
 # 	print('work in progress')
 	
@@ -725,7 +726,11 @@ def _fftPlot(da_orig, da_fft, fft_scale='log', fig=None):
 	if type(fig)==type(None):
 		fig,(ax1,ax2)=_plt.subplots(nrows=2)
 	else:
-		ax1,ax2=fig.get_axes()
+		axes = fig.get_axes()
+		ax1 = axes[0]
+		ax2 = axes[1]
+        
+	ax1.axhline(0, **dict(ls=(0, (5, 5)), lw=0.5, color="grey"))
 	da_orig.plot(ax=ax1)
 	
 	da_temp.plot(ax=ax2)
@@ -997,6 +1002,9 @@ def ifft(	daFFT,
 							plot=plot,
 							invertNormalizedAmplitude=invertNormalizedAmplitude,
 							returnRealOnly=returnRealOnly)
+    
+	# check if input contains NaN and then remove them
+	daFFT[_np.where(_np.isnan(daFFT))] = 0.0 + 0.0*1j
 	
 	# create a time basis if not provided
 	if type(t)==type(None):
@@ -2230,8 +2238,8 @@ def calcPhaseDifference_df(dfX1,dfX2,plot=False,title=''):
 		ax[0].plot(dfX1.index,_np.imag(dfX1),label='Imag')
 		ax[1].plot(dfX2.index,_np.real(dfX2),label='Real')
 		ax[1].plot(dfX2.index,_np.imag(dfX2),label='Imag')
-		p1=_np.arctan2(_np.imag(dfX1),_np.real(dfX1))
-		p2=_np.arctan2(_np.imag(dfX2),_np.real(dfX2))
+		p1=_np.arctan2(_np.imag(dfX1),_np.real(dfX1)) # TODO swap to np.angle instead of arctan2
+		p2=_np.arctan2(_np.imag(dfX2),_np.real(dfX2))# TODO swap to np.angle instead of arctan2
 		markersize=2
 		ax[2].plot(dfX1.index,p1,'.',label='X1 phase',markersize=markersize)
 		ax[2].plot(dfX1.index,p2,'.',label='X2 phase',markersize=markersize)
@@ -2306,7 +2314,7 @@ def calcPhaseDifference(X1,X2,plot=False,title=''):
 	
 	# phase difference calc
 	S12=X1*_np.conj(X2)
-	PD=_xr.DataArray(_np.arctan2(_np.imag(S12),_np.real(S12)))
+	PD=_xr.DataArray(_np.arctan2(_np.imag(S12),_np.real(S12))) # TODO swap to np.angle instead of arctan2
 	
 	# phase diff average and standard deviation calc.  this code converts polar to cartesian coordinates to do the following calculations
 	X=_np.cos(PD)
@@ -2320,8 +2328,8 @@ def calcPhaseDifference(X1,X2,plot=False,title=''):
 		_np.imag(X1).plot(ax=ax[0],label='Imag')
 		_np.real(X2).plot(ax=ax[1],label='Real')
 		_np.imag(X2).plot(ax=ax[1],label='Imag')
-		p1=_np.arctan2(_np.imag(X1),_np.real(X1))
-		p2=_np.arctan2(_np.imag(X2),_np.real(X2))
+		p1=_np.arctan2(_np.imag(X1),_np.real(X1)) # TODO swap to np.angle instead of arctan2
+		p2=_np.arctan2(_np.imag(X2),_np.real(X2)) # TODO swap to np.angle instead of arctan2
 		markersize=2
 		p1.plot(ax=ax[2],linestyle='',marker='.',label='X1 phase',markersize=markersize)
 		p2.plot(ax=ax[2],linestyle='',marker='.',label='X2 phase',markersize=markersize)
@@ -2355,7 +2363,7 @@ def phase_df(df):
 	if type(df)==_pd.core.series.Series:
 		df=_pd.DataFrame(df)
 	
-	return _pd.DataFrame(_np.arctan2(_np.imag(df),_np.real(df)),
+	return _pd.DataFrame(_np.arctan2(_np.imag(df),_np.real(df)), # TODO swap to np.angle instead of arctan2
 						      index=df.index,
 							  columns=df.columns)
 	
@@ -2411,7 +2419,7 @@ def hilbertTransform_df(df,plot=False):
 						index=df.index,
 						columns=df.columns)
 	dfAmp=_np.abs(dfHilbert)
-	dfPhase=_pd.DataFrame(_np.arctan2(_np.imag(dfHilbert),_np.real(dfHilbert)),
+	dfPhase=_pd.DataFrame(_np.arctan2(_np.imag(dfHilbert),_np.real(dfHilbert)), # TODO swap to np.angle instead of arctan2
 					index=df.index,
 					columns=df.columns)
 	
@@ -2500,7 +2508,7 @@ def hilbertTransform(da,plot=False):
 						dims=['t'],
 						coords={'t':da.t})
 	daAmp=_np.abs(daHilbert)
-	daPhase=_xr.DataArray(	_np.arctan2(_np.imag(daHilbert),_np.real(daHilbert)))
+	daPhase=_xr.DataArray(	_np.arctan2(_np.imag(daHilbert),_np.real(daHilbert))) # TODO swap to np.angle instead of arctan2
 	
 	dt=(da.t[1]-da.t[0]).data
 	daFreq=_xr.DataArray(	_np.gradient(_np.unwrap(daPhase),dt)/(2*_np.pi),

@@ -148,7 +148,15 @@ def xr_dataarray_to_csv(data, filename='test.csv'):
 	out.to_csv(filename)
 	
 
-def csv_to_xr(filename, delimiter=',', row_number_of_col_names='infer', first_column_is_index=True, number_of_rows=None, dim_dtype=None, skiprows=None):
+def csv_to_xr(filename, 
+              delimiter=',', 
+              row_number_of_col_names='infer', 
+              first_column_is_index=True, 
+              number_of_rows=None, 
+              dim_dtype=None, 
+              skiprows=None,
+              dtype=None,
+              ):
 
 	# filename='C:\\Users\\jwbrooks\\python\\nrl_code\\vna_impedance\\test29_mikeN_balun_board_S_measurements\\sn3_cal1.csv'
 	
@@ -637,7 +645,7 @@ def xr_Dataset_to_hdf5(	ds,
 					encoding=encoding)
 
 
-def xr_DataArray_to_hdf5(	da, hdf5_file_name, group_name, compression_level=5):
+def xr_DataArray_to_hdf5(	da, hdf5_file_name, group_name="/", compression_level=5):
 	""" Writes xarray DataArray to hdf5 file format """
 	
 	if da.name is None:

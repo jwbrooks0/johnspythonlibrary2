@@ -102,6 +102,26 @@ def earth_mover_distance_v4(da1, da2, plot=False):
 	return emd_result
 
 
+def calc_1D_histogram(x, bins=10, plot=False):
+    
+    if "DataArray" in str(type(x)): 
+        x = x.to_numpy()
+        
+    H, bin_edges = _np.histogram(x, bins=bins)
+    bin_centers = _np.mean([bin_edges[:-1], bin_edges[1:]], axis=0)
+    H = _xr.DataArray(H.astype(int), coords={'bins': bin_centers})
+    
+    if plot is True:
+        
+        width = (bin_centers[1:] - bin_centers[0:-1]).mean() * 0.9
+        height = H.to_numpy()
+    
+        fig, ax = _plt.subplots()
+        ax.bar(x=bin_centers, height=height, width=width, color="tab:blue", label="Distribution")
+        
+    return H
+
+
 def histogram(values_np, 
 			  plot=False, 
 			  num_bins=None,

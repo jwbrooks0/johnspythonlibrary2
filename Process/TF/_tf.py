@@ -220,7 +220,8 @@ def bodePlotFromTF(	daTF,
 					label=None,
 					degScaleForPhase=True,
 					dBScaleForAmplitude=False,
-					semilogXAxis=False):
+					semilogXAxis=False,
+                    alpha=None):
 	"""
 	Creates a bode plot from a provide transfer function.
 	
@@ -268,7 +269,8 @@ def bodePlotFromTF(	daTF,
 	else:
 		amp=_dB(amp)
 		y0Label=r'unitless (dB)'
-	amp.plot(ax=ax[0],linestyle='-', label=label)
+	#amp.plot(ax=ax[0],linestyle='-', label=label)
+	amp.plot(ax=ax[0],linestyle='', marker='.', label=label, alpha=alpha)
 	
 	# phase
 	phase=phaseCalcFromComplexSignal(daTF)
@@ -286,7 +288,7 @@ def bodePlotFromTF(	daTF,
 		y1Ticks=[-_np.pi,-_np.pi*0.5,0,_np.pi*0.5,_np.pi]
 		y1TicksLabels=[r'$-\pi$',r'$-\pi/2$',r'$0$',r'$\pi/2$',r'$\pi$']
 		pass
-	phase.plot(ax=ax[1],linestyle='',marker='.', label=label)
+	phase.plot(ax=ax[1],linestyle='',marker='.', label=label, alpha=alpha)
 	
 	# finalize plot
 	_finalizeSubplot(	ax[0],
@@ -460,7 +462,7 @@ def calcTF(	daInput,
 			bodePlotFromTF(	daTF.sortby('f'),
 							fig,
 							ax,
-							dBScaleForAmplitude=True)
+							dBScaleForAmplitude=False)
 		
 		return daTF
 	

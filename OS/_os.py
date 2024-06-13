@@ -130,7 +130,7 @@ def playBeep(durationInS=1, freqInHz=440):
 	"""
 	## TODO.  look into using beepy: https://github.com/prabeshdhakal/beepy-v1
 	platform = check_operating_system()
-	if 'win' in platform:
+	if 'win' in platform.lower():
 		import winsound
 		winsound.Beep(freqInHz, int(durationInS*1e3))
 	elif 'linux' in platform or 'darwin' in platform: #darwin = mac os x
