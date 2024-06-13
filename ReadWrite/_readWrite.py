@@ -26,7 +26,62 @@ except ImportError:
 ##############################################################################
 # %% timestamps for filenames
 def datetime_now_to_str(fmt="%Y_%m_%d_%H_%M_%S"): # fmt="%Y_%d_%m_%H_%M_%S_%f"
-	return _datetime.now().strftime(fmt)
+    
+    """
+    
+    # Examples
+    # --------
+    
+    # Example 1::
+        
+    #     from datetime import datetime as _datetime
+    #     time = _datetime(2024, 5, 9, 10, 0, 0, 0)
+    #     time = _datetime.now().strftime(fmt)
+    #     print(time)
+    #     fmt="%Y_%m_%d_%H_%M_%S"
+    #     time.strftime(fmt)
+        
+    """
+    return _datetime.now().strftime(fmt)
+
+
+def str_to_datetime(
+        date_string, 
+        fmt="%Y_%m_%d_%H_%M_%S",
+        # fmt="%Y_%m_%d_%H_%M_%S.%f",
+        ):
+    """
+    
+    Examples
+    --------
+    
+    Example 1::
+        
+        date_string = "2024_05_09_07_47_12"
+        fmt = "%Y_%m_%d_%H_%M_%S"
+        time = str_to_datetime(date_string, fmt)
+        print(time)
+        
+    Example 2::
+        
+        date_string = ["2024_05_09_07_47_12",
+                       "2024_05_09_07_47_13",
+                       "2024_05_09_07_47_14", ]
+        fmt = "%Y_%m_%d_%H_%M_%S"
+        times = str_to_datetime(date_string, fmt)
+        print(times)
+        
+        
+    """
+    if type(date_string) is str:
+        return _datetime.strptime(date_string, fmt) 
+    elif len(date_string) > 0:
+        results = []
+        for i, ds in enumerate(date_string):
+            results.append(str_to_datetime(ds, fmt))
+        return results
+
+
 
 
 ##############################################################################
