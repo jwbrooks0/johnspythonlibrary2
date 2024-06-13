@@ -590,7 +590,7 @@ def xr_Dataset_to_hdf5(	ds,
 					encoding=encoding)
 
 
-def xr_DataArray_to_hdf5(	da, hdf5_file_name, group_name, compression_level=5):
+def xr_DataArray_to_hdf5(	da, hdf5_file_name, group_name="/", compression_level=5):
 	""" Writes xarray DataArray to hdf5 file format """
 	
 	if da.name is None:
