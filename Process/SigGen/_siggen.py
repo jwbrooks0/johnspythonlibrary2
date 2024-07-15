@@ -512,7 +512,66 @@ def chen_and_lu_systems():
 def rossler_attractor():
     print("TODO")
     # https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor
+    
+    
+def double_inverted_pendulum(
+        time_params=dict(tmax=30, dt=0.01, t0=0,),
+        system_params=dict(L1=1, L2=1, m1=1, m2=1, g=9.81,), # Pendulum rod lengths (m), bob masses (kg), The gravitational acceleration (m.s-2)
+        ICs=dict(theta1=3 * _np.pi / 7, dtheta1dt=0, theta2 = 3 * _np.pi / 4, dtheta2dt=0), # theta1, d(theta1)/dt, theta2, d(theta2)/dt
+        ):
+    # https://scipython.com/blog/the-double-pendulum/
+    
+    import numpy as np
+    from scipy.integrate import odeint
+    
+    ## system parameters
+    L1, L2, m1, m2, g = map(system_params.get, ("L1", "L2", "m1", "m2", "g"))
+    
+    ## initial conditions
+    theta1, dtheta1dt, theta2, dtheta2dt = map(system_params.get, ("theta1", "dtheta1dt", "theta2", "dtheta2dt"))
+    y0 = [theta1, dtheta1dt, theta2, dtheta2dt]
+    
+    ## time domain
+    tmax, dt, t0 = map(time_params.get, ("tmax", "dt", "t0"))
+    t = np.arange(t0, tmax+dt, dt)
+    
+    def RHS(y, t, L1, L2, m1, m2):
+        theta1, z1, theta2, z2 = y
 
+        c, s = np.cos(theta1-theta2), np.sin(theta1-theta2)
+        
+        theta1dot = z1
+        z1dot = (m2*g*np.sin(theta2)*c - m2*s*(L1*z1**2*c + L2*z2**2) -
+                 (m1+m2)*g*np.sin(theta1)) / L1 / (m1 + m2*s**2)
+        theta2dot = z2
+        z2dot = ((m1+m2)*(L1*z1**2*s - g*np.sin(theta2) + g*np.sin(theta1)*c) + 
+                 m2*L2*z2**2*s*c) / L2 / (m1 + m2*s**2)
+        return theta1dot, z1dot, theta2dot, z2dot
+    
+    # Do the numerical integration of the equations of motion
+    y = odeint(RHS, y0, t, args=(L1, L2, m1, m2))
+
+    # Unpack z and theta as a function of time
+    theta1, theta2 = y[:,0], y[:,2]
+    
+    # Convert to Cartesian coordinates of the two bob positions.
+    x1 = L1 * np.sin(theta1)
+    y1 = -L1 * np.cos(theta1)
+    x2 = x1 + L2 * np.sin(theta2)
+    y2 = y1 - L2 * np.cos(theta2)
+    
+    # convert to xarray
+    t = _xr.DataArray(t, coords={"t": t})
+    x1 = _xr.DataArray(x1, coords=[t])
+    x2 = _xr.DataArray(x2, coords=[t])
+    y1 = _xr.DataArray(y1, coords=[t])
+    y2 = _xr.DataArray(y2, coords=[t])
+    theta1 = _xr.DataArray(theta1, coords=[t])
+    theta2 = _xr.DataArray(theta1, coords=[t])
+    results = _xr.Dataset(dict(x1=x1, x2=x2, y1=y1, y2=y2, theta1=theta1, theta2=theta2), 
+                          attrs=dict(time_params=time_params, system_params=system_params, ICs=ICs))
+    
+    return results
 
 def lorentzAttractor(	N=2000,
 						dt=0.05,
