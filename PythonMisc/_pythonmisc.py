@@ -7,6 +7,73 @@ from pathlib import Path as _Path
 from numpy.distutils.misc_util import is_sequence as _is_sequence
 
 
+def meshgrid_to_NDarray(arrs):
+    """
+    I often find that I need meshgrid to generate points that are in an NxM array form (N number of M-dimensional points) instead of M number of N**M matrices.
+    This code does this.
+    
+    Examples
+    --------
+    
+    Example 1::
+        
+        import numpy as np
+        
+        ## test tupple of numpy arrays
+        x = np.random.rand(10,1)
+        y = np.random.rand(10,1)
+        z = np.random.rand(10,1)
+        arrs = (x, y, z)
+        meshed_points = meshgrid_to_NDarray(arrs)
+        print("passed")
+        
+        ## test list of numpy arrays
+        x = np.random.rand(10,1)
+        y = np.random.rand(10,1)
+        z = np.random.rand(10,1)
+        arrs = [x, y, z]
+        meshed_points = meshgrid_to_NDarray(arrs)
+        print("passed")
+        
+        ## test if arrays can be both horizontal and vertical
+        x = np.random.rand(10)
+        y = np.random.rand(10)
+        z = np.random.rand(10)
+        arrs = (x, y, z)
+        meshed_points = meshgrid_to_NDarray(arrs)
+        print("passed")
+        
+        ## test if arrays can have different lengths; should fail
+        x = np.random.rand(10)
+        y = np.random.rand(11)
+        z = np.random.rand(12)
+        arrs = (x, y, z)
+        meshed_points = meshgrid_to_NDarray(arrs)
+        print("failed")
+        
+        
+    Notes
+    -----
+     * Based loosely on code found here: https://stackoverflow.com/questions/12864445/how-to-convert-the-output-of-meshgrid-to-the-corresponding-array-of-points
+        
+    """
+    
+    # number of arrays
+    dim = len(arrs)
+    
+    # length of each array
+    lens = np.array(list(map(len, arrs)))
+    assert np.all(lens == lens[0]), "all arrays must have the same length"
+    
+    
+    out = np.meshgrid(*arrs)
+    result = np.zeros((lens[0] ** dim, dim))
+    for i in range(dim):
+        result[:, i] = out[i].flatten()
+    
+    return result
+
+
 def is_sequence(var):
 	"""
 	Returns True if var is a sequence (list, array, tuple, dicts, etc) or False otherwise.
