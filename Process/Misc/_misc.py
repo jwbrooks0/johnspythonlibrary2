@@ -125,6 +125,148 @@ def find_zero_crossings(da, rising_or_falling=None, plot=False):
 	return xvals
 
 
+def interpolate_xr_forward(
+        da, 
+        da_ref,
+        plot=False,
+        ):
+    """
+    Interpolates da so that it has compatible (but not identical) bases with da_ref.
+    If you want identical bases, use interpolate_forward_backward()
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        The data array whose basis will be modified
+    da_ref : xarray.DataArray
+        The data array whose basis will not be modified.
+
+    Example
+    -------
+    
+    Example 1::
+        
+        import numpy as np
+        import xarray as xr
+        import matplotlib.pyplot as plt
+        
+        dt_1 = 1e-3
+        t1 = np.linspace(-1, 1, 15)
+        t1 = xr.DataArray(t1, coords={"t": t1})
+        
+        dt_1 = 2.1e-2
+        t2 = np.linspace(-0.9, 1.1, 101) 
+        t2 = xr.DataArray(t2, coords={"t": t2})
+        
+        f1 = 1
+        da = np.sin(2 * np.pi * t1 * f1)
+        da_ref = np.sin(2 * np.pi * t2 * f1)
+        
+        if True:
+            fig, ax = plt.subplots()
+            da.plot(ax=ax, ls="", marker="+")
+            da_ref.plot(ax=ax, ls="", marker="x")
+            
+        interpolate_xr_forward(da, da_ref, plot=True)
+        
+    """
+    
+    assert "xarray.core.dataarray.DataArray" in str(type(da)), "da must be an xr.dataarray"
+    assert "xarray.core.dataarray.DataArray" in str(type(da_ref)), "da_ref must be an xr.dataarray"
+    assert len(list(da.coords)) == 1, "da must be a 1D array"
+    assert len(list(da_ref.coords)) == 1, "da_ref must be a 1D array"
+    assert list(da.coords)[0] == list(da_ref.coords)[0], "the coordinate names must match between the two data arrays"
+
+    from scipy.interpolate import interp1d
+    key = list(da.coords)[0]
+    
+    x = da[key].values
+    y = da.values
+    x_ref = da_ref[key].values
+    # y_ref = da_ref.values
+    interp_func = interp1d(
+        x, 
+        y, 
+        kind="linear", 
+        bounds_error=False,
+        fill_value=_np.nan,
+        )
+    y_new = interp_func(x_ref)
+    x_new = _xr.DataArray(x_ref, coords={key: x_ref}, attrs=da[key].attrs, )
+    y_new = _xr.DataArray(y_new, coords=[x_new], attrs=da.attrs, )
+    y_new = y_new.dropna(key)
+    
+    if plot is True:
+        fig, ax = _plt.subplots()
+        y_new.plot(ax=ax, ls="", marker="+")
+        da_ref.plot(ax=ax, ls="", marker="x")
+        
+    return y_new
+        
+        
+def interpolate_xr_forward_backward(
+        da1,
+        da2,
+        plot=False,
+        ):
+    """
+    Interpolates both bases with each other so that both bases are IDENTICAL.
+    This is useful if that the bases have different start/end values (in addition to different intermediate values)
+    
+    
+    Parameters
+    ----------
+    da1 : xarray.DataArray
+        The first data array
+    da2 : xarray.DataArray
+        The second data array
+
+    Examples
+    --------
+        
+    Example 1::
+        
+        import numpy as np
+        import xarray as xr
+        import matplotlib.pyplot as plt
+        
+        dt_1 = 1e-3
+        t1 = np.linspace(-1, 1, 15)
+        t1 = xr.DataArray(t1, coords={"t": t1})
+        
+        dt_1 = 2.1e-2
+        t2 = np.linspace(-0.9, 1.1, 101) 
+        t2 = xr.DataArray(t2, coords={"t": t2})
+        
+        f1 = 1
+        da = np.sin(2 * np.pi * t1 * f1)
+        da_ref = np.sin(2 * np.pi * t2 * f1)
+        
+        if True:
+            fig, ax = plt.subplots()
+            da.plot(ax=ax, ls="", marker="+")
+            da_ref.plot(ax=ax, ls="", marker="x")
+            
+        interpolate_forward_backward(da, da_ref, plot=True)
+    """
+    
+    assert "xarray.core.dataarray.DataArray" in str(type(da1)), "da must be an xr.dataarray"
+    assert "xarray.core.dataarray.DataArray" in str(type(da2)), "da_ref must be an xr.dataarray"
+    assert len(list(da1.coords)) == 1, "da must be a 1D array"
+    assert len(list(da2.coords)) == 1, "da_ref must be a 1D array"
+    assert list(da1.coords)[0] == list(da2.coords)[0], "the coordinate names must match between the two data arrays"
+    
+    da1_new = interpolate_xr_forward(da=da1, da_ref=da2)
+    da2_new = interpolate_xr_forward(da=da2, da_ref=da1_new)
+    
+    if plot is True:
+        fig, ax = _plt.subplots()
+        da1_new.plot(ax=ax, ls="", marker="+")
+        da2_new.plot(ax=ax, ls="", marker="x")
+        
+    return da1_new, da2_new
+        
+
 def check_dims(da, dims=['t']):
 	for dim in dims:
 		if dim not in da.dims:
