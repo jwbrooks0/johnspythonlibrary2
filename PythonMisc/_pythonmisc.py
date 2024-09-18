@@ -62,12 +62,12 @@ def meshgrid_to_NDarray(arrs):
     dim = len(arrs)
     
     # length of each array
-    lens = np.array(list(map(len, arrs)))
-    assert np.all(lens == lens[0]), "all arrays must have the same length"
+    lens = _np.array(list(map(len, arrs)))
+    assert _np.all(lens == lens[0]), "all arrays must have the same length"
     
     
-    out = np.meshgrid(*arrs)
-    result = np.zeros((lens[0] ** dim, dim))
+    out = _np.meshgrid(*arrs)
+    result = _np.zeros((lens[0] ** dim, dim))
     for i in range(dim):
         result[:, i] = out[i].flatten()
     
