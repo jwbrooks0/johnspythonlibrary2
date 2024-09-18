@@ -140,19 +140,32 @@ def playVideo(da,interval=200):
 # %% create gifs and animations 
 
 
-def create_gif_from_sequential_images(image_filepaths, gif_filename="animation.gif", fps=3):
+def create_gif_from_sequential_images(
+        image_filepaths, 
+        gif_filename="animation.gif", 
+        fps=3,
+        delete_images_upon_completion=False,
+        ):
+    #TODO add a cleanup option where png files are deleted
+    #TODO this function is really slow and the gif file takes up a bunch of space.  Is there a faster and smaller way to do this?
+    
+    assert "Path.glob" in str(image_filepaths), "image_filepaths must be a Path.glob generator"
     import imageio
+    import os
+    # from pathlib import Path
     # from glob import glob
-    # images = glob(r"C:\Users\spacelab\Documents\Process\slow_control_code\lorentz_control\b_and_r\GP_*points*.png" )
+    # images = Path(r"C:\Users\spacelab\Documents\Process\slow_control_code\lorentz_control\b_and_r\").glob("GP_*points*.png" )
     frames = []
-    for image_filepath in image_filepaths:
+    for image_filepath in list(image_filepaths):
         image = imageio.v2.imread(image_filepath)
         frames.append(image)
+        if delete_images_upon_completion is True:
+            os.remove(image_filepath)
+            
     imageio.mimsave(gif_filename, # output gif
             frames,          # array of input frames
             fps = fps)         # optional: frames per second
     
-
 
 #%% import video or sequence of images
 
