@@ -514,51 +514,227 @@ def rossler_attractor():
     # https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor
     
     
-def double_inverted_pendulum(
+def plot_double_pendulum_single_frame(x, i, filename_root=None):
+    print("work in progress")
+    
+    from matplotlib.patches import Circle
+    
+    r = 0.05 # bob circle radius
+    
+    x1 = float(x.x1[i])
+    x2 = float(x.x2[i])
+    y1 = float(x.y1[i])
+    y2 = float(x.y2[i])
+    L1 = x.attrs["system_params"]["L1"]
+    L2 = x.attrs["system_params"]["L2"]
+    
+    fig, ax = _plt.subplots()
+    ax.plot([0, x1, x2], [0, y1, y2], lw=2, c='k')
+    # Circles representing the anchor point of rod 1, and bobs 1 and 2.
+    c0 = Circle((0, 0), r/2, fc='k', zorder=10)
+    c1 = Circle((x1, y1), r, fc='b', ec='b', zorder=10)
+    c2 = Circle((x2, y2), r, fc='r', ec='r', zorder=10)
+    ax.add_patch(c0)
+    ax.add_patch(c1)
+    ax.add_patch(c2)
+
+    # # The trail will be divided into ns segments and plotted as a fading line.
+    # ns = 20
+    # s = max_trail // ns
+
+    # for j in range(ns):
+    #     imin = i - (ns-j)*s
+    #     if imin < 0:
+    #         continue
+    #     imax = imin + s + 1
+    #     # The fading looks better if we square the fractional length along the
+    #     # trail.
+    #     alpha = (j/ns)**2
+    #     ax.plot(x2[imin:imax], y2[imin:imax], c='r', solid_capstyle='butt',
+    #             lw=2, alpha=alpha)
+
+    # Centre the image on the fixed anchor point, and ensure the axes are equal
+    ax.set_xlim(-L1-L2-r, L1+L2+r)
+    ax.set_ylim(-L1-L2-r, L1+L2+r)
+    ax.set_aspect('equal', adjustable='box')
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    
+    if type(filename_root) is not type(None):
+        fig.savefig(f"{filename_root}_{i:06d}.png")
+        _plt.close(fig)
+        
+    return fig, ax
+        
+        
+def animate_double_pendulum(x, filename_root="temp", fps=30, filepath_dir="."):
+    """ 
+    
+    Examples
+    --------
+    
+    Example 1::
+        
+        results = double_pendulum()
+        animate_double_pendulum(results)
+    """
+    _plt.ioff()
+    
+    N = len(x.t)
+    
+    for i in range(N):
+        plot_double_pendulum_single_frame(x, i, filename_root=filename_root)
+    
+    from johnspythonlibrary2.VideoImage import create_gif_from_sequential_images
+    from pathlib import Path
+    gif_filename = filename_root + ".gif"
+    image_filepaths = Path(filepath_dir).glob(f"{filename_root}*.png")
+    
+    create_gif_from_sequential_images(image_filepaths, gif_filename, fps)
+    
+    _plt.ion()
+    
+    
+    
+def plot_double_pendulum(results):
+    
+
+    # jpl2.Process.Spectral.wrapPhase(results.theta2).plot()
+    fig, axes = _plt.subplots(3, sharex=True, )
+    
+    # torque = extract_torque_from_torque_func(t, torque_func, plot=False)
+    
+    # torque.torque1.plot(ax=axes[0], label="torque1")
+    # torque.torque2.plot(ax=axes[0], label="torque2")
+    (results.theta1 / (_np.pi * 2)).plot(ax=axes[0], label="theta1")
+    (results.theta2 / (_np.pi * 2)).plot(ax=axes[0], label="theta2")
+    (results.dtheta1dt / (_np.pi * 2)).plot(ax=axes[1], label="theta1")
+    (results.dtheta2dt / (_np.pi * 2)).plot(ax=axes[1], label="theta2")
+    results.energy.plot(ax=axes[2], label="total energy")
+    results.energy_kinetic.plot(ax=axes[2], label="kinetic energy")
+    results.energy_potential.plot(ax=axes[2], label="potential energy")
+    ylabels = ["Angular position\n(periods)", "Angular velocity\n(periods/s)", "Energy"]
+    for i, ax in enumerate(axes):
+        ax.legend()
+        ax.axhline(0, ls="--", color="grey")
+        ax.set_ylabel(ylabels[i])
+        
+    
+def double_pendulum(
         time_params=dict(tmax=30, dt=0.01, t0=0,),
-        system_params=dict(L1=1, L2=1, m1=1, m2=1, g=9.81,), # Pendulum rod lengths (m), bob masses (kg), The gravitational acceleration (m.s-2)
+        system_params=dict(L1=1.0, L2=1.0, m1=1.0, m2=1.0, g=9.81, drag_coef1=0.0, drag_coef2=0.0,), # Pendulum rod lengths (m), bob masses (kg), The gravitational acceleration (m.s-2)
         ICs=dict(theta1=3 * _np.pi / 7, dtheta1dt=0, theta2 = 3 * _np.pi / 4, dtheta2dt=0), # theta1, d(theta1)/dt, theta2, d(theta2)/dt
+        torque_func=None,
+        # torque_func = lambda x, y: (1., 1.)
         ):
-    # https://scipython.com/blog/the-double-pendulum/
+    """
+    
+    Examples
+    --------
+    
+    Example 1 :: 
+        ## test conservation of energy with a small perturbation and no external torque
+        results = double_pendulum(
+                time_params=dict(tmax=30, dt=0.001, t0=0, time_lags_in_dt=[1]),
+                system_params=dict(L1=1.0, L2=1.0, m1=1.0, m2=1.0, g=9.81, drag_coef1=0.0, drag_coef2=0.0), # Pendulum rod lengths (m), bob masses (kg), The gravitational acceleration (m.s-2)
+                ICs=dict(theta1=(2 + 0.1) * np.pi, dtheta1dt=0, theta2 = 2 * np.pi, dtheta2dt=0), # theta1, d(theta1)/dt, theta2, d(theta2)/dt
+                )
+        
+        plot_double_pendulum_single_frame(x=results, i=0)
+        
+        plot_double_pendulum(results)
+    
+    Example 2::
+        
+        results = double_pendulum(
+            torque_func = lambda x, y: (1.25, 1.25),
+            )
+        
+        import matplotlib.pyplot as plt
+        plt.plot(results.x2, results.y2)
+        
+    Example 3::
+        
+        results = double_pendulum(
+            system_params=dict(L1=1.0, L2=1.0, m1=1.0, m2=1.0, g=9.81, drag_coef1=0, drag_coef2=0, ),
+            time_params=dict(tmax=t_final / 10.0, dt=dt / 2.0, t0=t_initial, time_lags_in_dt=[1]),
+            ICs=dict(theta1=0.25 * np.pi / 2, dtheta1dt=0, theta2 = 0 * np.pi / 2, dtheta2dt=0),
+            torque_func=None,
+            )
+        
+        plot_double_pendulum(results)
+        
+        plot_double_pendulum_single_frame(results, i=0)
+    
+    References
+    ----------
+     * https://scipython.com/blog/the-double-pendulum/
+     * https://medium.com/@hamxa26/a-dance-of-chaos-simulating-a-double-pendulum-dcbf4f96dd16
+    """
     
     import numpy as np
     from scipy.integrate import odeint
     
     ## system parameters
-    L1, L2, m1, m2, g = map(system_params.get, ("L1", "L2", "m1", "m2", "g"))
+    L1, L2, m1, m2, g, drag_coef1, drag_coef2 = map(system_params.get, ("L1", "L2", "m1", "m2", "g", "drag_coef1", "drag_coef2"))
     
     ## initial conditions
-    theta1, dtheta1dt, theta2, dtheta2dt = map(system_params.get, ("theta1", "dtheta1dt", "theta2", "dtheta2dt"))
-    y0 = [theta1, dtheta1dt, theta2, dtheta2dt]
+    theta1, dtheta1dt, theta2, dtheta2dt = map(ICs.get, ("theta1", "dtheta1dt", "theta2", "dtheta2dt"))
+    x0 = np.array([theta1, dtheta1dt, theta2, dtheta2dt])
     
     ## time domain
     tmax, dt, t0 = map(time_params.get, ("tmax", "dt", "t0"))
     t = np.arange(t0, tmax+dt, dt)
     
-    def RHS(y, t, L1, L2, m1, m2):
-        theta1, z1, theta2, z2 = y
+    ## right hand side of the ODEs
+    def RHS(x_i, t, L1, L2, m1, m2, torque_func=None):
+        theta1, z1, theta2, z2 = x_i
 
         c, s = np.cos(theta1-theta2), np.sin(theta1-theta2)
         
+        ## applied torque
+        if type(torque_func) is type(None):
+            T1_div_I1 = 0
+            T2_div_I2 = 0
+        else:
+            # print("work in progress")
+            torques = torque_func(x_i, t)
+            T1, T2 = torques[2:4]
+            T1_div_I1 = T1 / (L1 * m1)
+            T2_div_I2 = T2 / (L2 * m2)
+            
+        ## viscous damping
+        drag1 = drag_coef1 * z1 / (L1 * m1)
+        drag2 = drag_coef2 * z2 / (L2 * m2)
+        
+        ## RHS equations
         theta1dot = z1
         z1dot = (m2*g*np.sin(theta2)*c - m2*s*(L1*z1**2*c + L2*z2**2) -
-                 (m1+m2)*g*np.sin(theta1)) / L1 / (m1 + m2*s**2)
+                 (m1+m2)*g*np.sin(theta1)) / L1 / (m1 + m2*s**2) + T1_div_I1 - drag1
         theta2dot = z2
         z2dot = ((m1+m2)*(L1*z1**2*s - g*np.sin(theta2) + g*np.sin(theta1)*c) + 
-                 m2*L2*z2**2*s*c) / L2 / (m1 + m2*s**2)
+                 m2*L2*z2**2*s*c) / L2 / (m1 + m2*s**2) + T2_div_I2 - drag2
+        
         return theta1dot, z1dot, theta2dot, z2dot
     
     # Do the numerical integration of the equations of motion
-    y = odeint(RHS, y0, t, args=(L1, L2, m1, m2))
+    x = odeint(RHS, x0, t, args=(L1, L2, m1, m2, torque_func))
 
     # Unpack z and theta as a function of time
-    theta1, theta2 = y[:,0], y[:,2]
+    # theta1, theta2 = x[:,0], x[:,2]
+    theta1, dtheta1dt, theta2, dtheta2dt = x[:,0], x[:, 1], x[:,2], x[:, 3]
     
     # Convert to Cartesian coordinates of the two bob positions.
     x1 = L1 * np.sin(theta1)
     y1 = -L1 * np.cos(theta1)
     x2 = x1 + L2 * np.sin(theta2)
     y2 = y1 - L2 * np.cos(theta2)
+    
+    # energy - https://www.jousefmurad.com/engineering/double-pendulum-1/#:~:text=The%20kinetic%20energy%20T%20can%20be%20expressed%20as%3A,are%20the%20velocities%20of%20the%20two%20pendulum%20bobs.
+    energy_kinetic = 0.5  * m1 * (L1 * dtheta1dt)**2 + 0.5 * m2 * ((L1 * dtheta1dt)**2 + (L2 * dtheta2dt)**2 +
+            2 * L1 * L2 * dtheta1dt * dtheta2dt * np.cos(theta1-theta2))
+    energy_potential = -m1 * g * L1 * (np.cos(theta1) - 1) - m2 * g * (L1 * (np.cos(theta1) - 1) + L2 * (np.cos(theta2) - 1))
+    energy = energy_kinetic + energy_potential
     
     # convert to xarray
     t = _xr.DataArray(t, coords={"t": t})
@@ -567,11 +743,17 @@ def double_inverted_pendulum(
     y1 = _xr.DataArray(y1, coords=[t])
     y2 = _xr.DataArray(y2, coords=[t])
     theta1 = _xr.DataArray(theta1, coords=[t])
-    theta2 = _xr.DataArray(theta1, coords=[t])
-    results = _xr.Dataset(dict(x1=x1, x2=x2, y1=y1, y2=y2, theta1=theta1, theta2=theta2), 
-                          attrs=dict(time_params=time_params, system_params=system_params, ICs=ICs))
+    theta2 = _xr.DataArray(theta2, coords=[t])
+    dtheta1dt = _xr.DataArray(dtheta1dt, coords=[t])
+    dtheta2dt = _xr.DataArray(dtheta2dt, coords=[t])
+    energy_kinetic = _xr.DataArray(energy_kinetic, coords=[t])
+    energy_potential = _xr.DataArray(energy_potential, coords=[t])
+    energy = _xr.DataArray(energy, coords=[t])
+    results = _xr.Dataset(dict(x1=x1, x2=x2, y1=y1, y2=y2, theta1=theta1, theta2=theta2, dtheta1dt=dtheta1dt, dtheta2dt=dtheta2dt, energy=energy, energy_kinetic=energy_kinetic, energy_potential=energy_potential), 
+                          attrs=dict(time_params=time_params, system_params=system_params, ICs=ICs, ))
     
     return results
+
 
 def lorentzAttractor(	N=2000,
 						dt=0.05,
