@@ -592,6 +592,7 @@ def xr_to_hdf5(
 def hdf5_to_xr(
         hdf5_file, 
         group_name="/",
+        dataarray_name="",
         ):
     """ 
     Reads hdf5 data and returns xarray dataset
@@ -602,10 +603,12 @@ def hdf5_to_xr(
         name and path of file
     group_name : str
         group name of data
+    dataarray_name : str
+        (optional) name of dataarray within the dataset to be returned
         
     Returns
     -------
-    ds : xarray dataset
+    ds : xarray dataset or (optionally) xarray dataarray
         Data being returned
         
     Examples
@@ -629,13 +632,19 @@ def hdf5_to_xr(
         y1_loaded = hdf5_to_xr("deleteme.hdf5", "demo1")
         y2_loaded = hdf5_to_xr("deleteme.hdf5", "demo2")
         ds_loaded = hdf5_to_xr("deleteme.hdf5", "demo3")
+        y2_loaded_from_ds = hdf5_to_xr("deleteme.hdf5", "demo3", "y1")
+        
+        delete_file_if_exists("deleteme.hdf5")
     """
     ds = _xr.load_dataset(
         hdf5_file, 
         group=group_name, 
         engine="h5netcdf",
         )
-    return ds
+    if dataarray_name != "":
+        return ds[dataarray_name]
+    else:
+        return ds
     
 
 # def hdf5_to_xr(        hdf5_file, group_name="/"):
