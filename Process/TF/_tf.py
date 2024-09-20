@@ -157,61 +157,61 @@ def _dBInverse(dBSignal,dbScale=20.0):
 	return 10.0**(dBSignal/dbScale)
 
 
-def phaseCalcFromComplexSignal(daComplex,plot=False):
-	"""
-	Calculates phase from a complex signal using the arctan2() function.
-	
-	Parameters
-	----------
-	dfComplex : xarray.DataArray
-		Complex signal. 
-	plot : bool
-		Optional plot
-		
-	Returns
-	-------
-	dfPhase : xarray.DataArray
-		Dataframe containing the phase results.
-		Index will be the same as dfComplex
-		
-	Examples
-	--------
-	Example1::
-		
-		from johnspythonlibrary2.Process.SigGen import chirp
+# def phaseCalcFromComplexSignal(daComplex,plot=False):
+# 	"""
+# 	Calculates phase from a complex signal using the arctan2() function.
+# 	
+# 	Parameters
+# 	----------
+# 	dfComplex : xarray.DataArray
+# 		Complex signal. 
+# 	plot : bool
+# 		Optional plot
+# 		
+# 	Returns
+# 	-------
+# 	dfPhase : xarray.DataArray
+# 		Dataframe containing the phase results.
+# 		Index will be the same as dfComplex
+# 		
+# 	Examples
+# 	--------
+# 	Example1::
+# 		
+# 		from johnspythonlibrary2.Process.SigGen import chirp
 
-		t=_np.arange(0,20e-3,2e-6)
-		fStart=2e2
-		fStop=2.0e4
-		y1=_chirp(t,[0.5e-3,19.46e-3],[fStart,fStop])
-		da=_xr.DataArray(y1,
-					  dims=['t'],
-					  coords={'t':t}) 
-		
-		from johnspythonlibrary2.Process.Spectral import fft
-		
-		X=fft(da)
-		
-		phaseCalcFromComplexSignal(X,plot=True)
-		
-	"""
-	
-	daPhase=	_np.arctan2(_np.imag(daComplex),_np.real(daComplex))
-	
-	if plot==True:
-		fig,ax=_plt.subplots(2,sharex=True)
-		_np.real(daComplex).plot(ax=ax[0],label='real')
-		_np.imag(daComplex).plot(ax=ax[0],label='imag')
-		daPhase.sortby('f').plot(ax=ax[1],label='phase')
-		
-		_finalizeSubplot(	ax[0],
-							  subtitle='Input',
-							  )
-		_finalizeSubplot(	ax[1],
-							  subtitle='Phase',
-							  )
-		
-	return daPhase
+# 		t=_np.arange(0,20e-3,2e-6)
+# 		fStart=2e2
+# 		fStop=2.0e4
+# 		y1=_chirp(t,[0.5e-3,19.46e-3],[fStart,fStop])
+# 		da=_xr.DataArray(y1,
+# 					  dims=['t'],
+# 					  coords={'t':t}) 
+# 		
+# 		from johnspythonlibrary2.Process.Spectral import fft
+# 		
+# 		X=fft(da)
+# 		
+# 		phaseCalcFromComplexSignal(X,plot=True)
+# 		
+# 	"""
+# 	
+# 	daPhase=	_np.arctan2(_np.imag(daComplex),_np.real(daComplex))
+# 	
+# 	if plot==True:
+# 		fig,ax=_plt.subplots(2,sharex=True)
+# 		_np.real(daComplex).plot(ax=ax[0],label='real')
+# 		_np.imag(daComplex).plot(ax=ax[0],label='imag')
+# 		daPhase.sortby('f').plot(ax=ax[1],label='phase')
+# 		
+# 		_finalizeSubplot(	ax[0],
+# 							  subtitle='Input',
+# 							  )
+# 		_finalizeSubplot(	ax[1],
+# 							  subtitle='Phase',
+# 							  )
+# 		
+# 	return daPhase
 	
 
 def bodePlotFromTF(	daTF,
@@ -273,7 +273,7 @@ def bodePlotFromTF(	daTF,
 	amp.plot(ax=ax[0],linestyle='', marker='.', label=label, alpha=alpha)
 	
 	# phase
-	phase=phaseCalcFromComplexSignal(daTF)
+	phase = _np.phase(daTF)
 	if degScaleForPhase==True:
 		phase*=180/_np.pi
 		y1Label='deg.'
