@@ -6,7 +6,7 @@
 #spyder==3.3.6	# this is the final release of spyder v3
 #spyder==4.2.5  # this is the final release of spyder v4
 #spyder==5.1.5  # earlier stable release of spyder v5
-spyder			# spyderm, latest version
+#spyder			# spyderm, latest version
 matplotlib		# plotting package
 numpy			# data arrays and scientific tool library
 pandas			# data structures, 1 dimentional
@@ -14,7 +14,7 @@ xarray			# data structures, 2+ dimensional
 ezodf			# open office related libraries
 lxml			# processes processing XML and HTML.  required for ezodf
 scipy			# scientific tool library
-sklearn			# machine learning tools
+scikit-learn		# machine learning tools
 Pillow			# image processing tools
 # glob3			# unix-like filenames.  includes using wildcards * in filepaths.  # throws errors when pip install glob3 ...?
 # sh			# shell scripting library (note that there seems to be a bug installing sh as of 1/19/2023).
