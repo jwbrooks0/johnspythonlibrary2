@@ -1,13 +1,10 @@
 
 import numpy as _np
-import os as _os
-import importlib.util as _util
-from pathlib import Path as _Path
-# from collections import Sequence as _Sequence
-from numpy.distutils.misc_util import is_sequence as _is_sequence
 
 
 # %% pandas related
+## I find that a lot of pandas functionality is really difficult to access or remember.
+## So I'm writing useful pandas functions here
 
 def filter_df_by_column(df, col_name, value, condition="=="):
     
