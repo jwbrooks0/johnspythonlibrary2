@@ -22,7 +22,7 @@ from scipy.stats import binned_statistic_dd as _binned_statistic_dd
 import ot as _ot
 
 # load my external libraries
-from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot, finalizeFigure as _finalizeFigure, subTitle as _subtitle
+from johnspythonlibrary2.Plot import finalizeSubplot as _finalizeSubplot, finalizeFigure as _finalizeFigure, subtitle as _subtitle
 from johnspythonlibrary2.Process.SigGen import lorentzAttractor, tentMap, saved_lorentzAttractor#, coupledHarmonicOscillator, predatorPrey, 
 # from johnspythonlibrary2.Process.Statistics import earth_mover_distance_1D as _earth_mover_distance
 

@@ -7,7 +7,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable as _make_axes_locatable
 
 
 # %% Import custom libraries
-from johnspythonlibrary2.Plot import subTitle as _subTitle, finalizeFigure as _finalizeFigure #, finalizeSubplot as _finalizeSubplot
+from johnspythonlibrary2.Plot import subtitle as _subTitle, finalizeFigure as _finalizeFigure #, finalizeSubplot as _finalizeSubplot
 from johnspythonlibrary2.Process.Spectral import fft_average, signal_spectral_properties
 from johnspythonlibrary2.Process.Misc import subtract_mean_and_normalize_by_std, check_dims
 # import xarray as _xr

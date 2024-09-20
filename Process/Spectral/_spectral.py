@@ -9,7 +9,7 @@ try: # note that scipy changed the location of their _spectral_helper function
 except ImportError as e:
 	from scipy.signal._spectral_py import _spectral_helper
 from johnspythonlibrary2 import Plot as _plot
-from johnspythonlibrary2.Plot import subTitle as _subTitle, finalizeFigure as _finalizeFigure, finalizeSubplot as _finalizeSubplot
+from johnspythonlibrary2.Plot import subtitle as _subTitle, finalizeFigure as _finalizeFigure, finalizeSubplot as _finalizeSubplot
 from johnspythonlibrary2.Process.Misc import check_dims as _check_dims
 # from johnspythonlibrary2.Process.Spectral import fft as _fft
 import xarray as _xr

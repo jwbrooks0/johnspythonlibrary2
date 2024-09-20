@@ -2,7 +2,7 @@
 import xarray as _xr
 import matplotlib.pyplot as _plt
 import numpy as _np
-from johnspythonlibrary2.Plot import subTitle as _subTitle
+from johnspythonlibrary2.Plot import subtitle as _subTitle
 
 
 def abel_inverse_transform_1D(data_in, method='three point', plot=False):
