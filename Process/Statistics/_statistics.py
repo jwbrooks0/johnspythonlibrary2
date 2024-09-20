@@ -4,102 +4,102 @@ import pandas as _pd
 import scipy as _sp
 import xarray as _xr
 import matplotlib.pyplot as _plt
-import ot as _ot
+# import ot as _ot
 
-def earth_mover_distance_v4(da1, da2, plot=False):
-	
-	if _np.any(da1.values < 0) or _np.any(da2.values < 0):
-		raise Exception("Values must be positive")
-	
-	if False:
-		def noise(M, amp):
-			return (_np.random.rand(M) - 0.5) * amp
-		
-		def gaussian(x, sigma, x0=0):
-		    """ Return the normalized Gaussian with standard deviation sigma. """
-		    # c = _np.sqrt(2 * _np.pi)
-		    return _np.exp(-0.5 * ((x - x0) / sigma)**2) #  / (_np.sqrt(2 * _np.pi) * _np.abs(sigma))
-		
-		
-		x = _np.linspace(-1.25, 1.25, 1000)
-		x = _xr.DataArray(x, coords={'x': x})
-		sigma = 0.05
-		
-		noise_amp = 0.0001
-		x0_array = _np.linspace(-1, 1, 75)
-		x0_array = _xr.DataArray(x0_array, coords={"x0": x0_array})
-		emd_array = x0_array * 0.0
-		
-		_plt.ioff()
-		def make_plot(da1, da2, emd_result, filename):
-				
-			fig, ax = _plt.subplots(2, sharex=True)
-			ax[0].axvline(0, ls="--", color="grey", lw=0.5)
-			ax[1].axvline(0, ls="--", color="grey", lw=0.5)
-			da1.plot(ax=ax[0], label="Distribution 1")
-			da2.plot(ax=ax[0], label="Distribution 2")
-			ax[0].legend()
-			ax[0].set_ylabel("Gaussian distributions")
-			if len(emd_result) > 1:
-				emd_result.plot(ax=ax[1])
-			ax[0].set_ylim([0, 1.5])
-			ax[1].set_ylim([0, 1.1])
-			ax[0].set_xlim([-1.25, 1.25])
-			ax[0].set_title("")
-			ax[1].set_xlabel("x")
-			ax[1].set_ylabel("EMD result")
-			fig.set_tight_layout(True)
-			fig.savefig(filename, dpi=100)
-			_plt.close(fig)
-			
-		for i, x0 in enumerate(x0_array):
-			da1 = gaussian(x, sigma=sigma, x0=0) + _np.abs(noise(len(x), noise_amp))
-			da2 = gaussian(x, sigma=sigma, x0=x0) + _np.abs(noise(len(x), noise_amp))
-			emd_array[i] = earth_mover_distance_v4(da1, da2)
-			make_plot(da1, da2, emd_result=emd_array[:(i+1)], filename="%.4d.png" % i)
-				
-		import imageio
-		from glob import glob
-		import os
-		
-		## create animation file
-		files = glob("*.png")
-		ims = [imageio.imread(f) for f in files]
-		imageio.mimwrite("animation.gif", ims)
-		
-		## delete all png files
-		for file in files:
-			os.remove(file)
-	
-	
-	## normalize each signal such that integral of each = 1.0
-	da1 = da1 / da1.sum()
-	da2 = da2 / da2.sum()
-	
-	## isolate coordinates
-	coords1 = da1[list(da1.coords.keys())[0]].to_numpy()
-	coords1 = coords1.reshape((len(coords1), 1))
-	coords2 = da1[list(da1.coords.keys())[0]].to_numpy()
-	coords2 = coords2.reshape((len(coords2), 1))
-	
-	## calculate euclidean distance between each set of coordinates
-	M = _ot.dist(x1=coords1, x2=coords2, metric='euclidean') # euclidean distance from each pair of points to every other pair of points
-	norm = M.max()
-	M /= norm
-	
-	## perform EMD
-	G0 = _ot.emd(a=da1.values, b=da2.values, M=M)
-	emd_result = _np.sum(_np.sum(_np.multiply(G0, M))) * norm
-	
-	if plot is True:
-		
-		fig, ax = _plt.subplots()
-		da1.plot(ax=ax, label="da1")
-		da2.plot(ax=ax, label="da2")
-		ax.legend()
-		ax.set_title("EMD = %.3e" % emd_result)
-	
-	return emd_result
+# def earth_mover_distance_v4(da1, da2, plot=False):
+# 	
+# 	if _np.any(da1.values < 0) or _np.any(da2.values < 0):
+# 		raise Exception("Values must be positive")
+# 	
+# 	if False:
+# 		def noise(M, amp):
+# 			return (_np.random.rand(M) - 0.5) * amp
+# 		
+# 		def gaussian(x, sigma, x0=0):
+# 		    """ Return the normalized Gaussian with standard deviation sigma. """
+# 		    # c = _np.sqrt(2 * _np.pi)
+# 		    return _np.exp(-0.5 * ((x - x0) / sigma)**2) #  / (_np.sqrt(2 * _np.pi) * _np.abs(sigma))
+# 		
+# 		
+# 		x = _np.linspace(-1.25, 1.25, 1000)
+# 		x = _xr.DataArray(x, coords={'x': x})
+# 		sigma = 0.05
+# 		
+# 		noise_amp = 0.0001
+# 		x0_array = _np.linspace(-1, 1, 75)
+# 		x0_array = _xr.DataArray(x0_array, coords={"x0": x0_array})
+# 		emd_array = x0_array * 0.0
+# 		
+# 		_plt.ioff()
+# 		def make_plot(da1, da2, emd_result, filename):
+# 				
+# 			fig, ax = _plt.subplots(2, sharex=True)
+# 			ax[0].axvline(0, ls="--", color="grey", lw=0.5)
+# 			ax[1].axvline(0, ls="--", color="grey", lw=0.5)
+# 			da1.plot(ax=ax[0], label="Distribution 1")
+# 			da2.plot(ax=ax[0], label="Distribution 2")
+# 			ax[0].legend()
+# 			ax[0].set_ylabel("Gaussian distributions")
+# 			if len(emd_result) > 1:
+# 				emd_result.plot(ax=ax[1])
+# 			ax[0].set_ylim([0, 1.5])
+# 			ax[1].set_ylim([0, 1.1])
+# 			ax[0].set_xlim([-1.25, 1.25])
+# 			ax[0].set_title("")
+# 			ax[1].set_xlabel("x")
+# 			ax[1].set_ylabel("EMD result")
+# 			fig.set_tight_layout(True)
+# 			fig.savefig(filename, dpi=100)
+# 			_plt.close(fig)
+# 			
+# 		for i, x0 in enumerate(x0_array):
+# 			da1 = gaussian(x, sigma=sigma, x0=0) + _np.abs(noise(len(x), noise_amp))
+# 			da2 = gaussian(x, sigma=sigma, x0=x0) + _np.abs(noise(len(x), noise_amp))
+# 			emd_array[i] = earth_mover_distance_v4(da1, da2)
+# 			make_plot(da1, da2, emd_result=emd_array[:(i+1)], filename="%.4d.png" % i)
+# 				
+# 		import imageio
+# 		from glob import glob
+# 		import os
+# 		
+# 		## create animation file
+# 		files = glob("*.png")
+# 		ims = [imageio.imread(f) for f in files]
+# 		imageio.mimwrite("animation.gif", ims)
+# 		
+# 		## delete all png files
+# 		for file in files:
+# 			os.remove(file)
+# 	
+# 	
+# 	## normalize each signal such that integral of each = 1.0
+# 	da1 = da1 / da1.sum()
+# 	da2 = da2 / da2.sum()
+# 	
+# 	## isolate coordinates
+# 	coords1 = da1[list(da1.coords.keys())[0]].to_numpy()
+# 	coords1 = coords1.reshape((len(coords1), 1))
+# 	coords2 = da1[list(da1.coords.keys())[0]].to_numpy()
+# 	coords2 = coords2.reshape((len(coords2), 1))
+# 	
+# 	## calculate euclidean distance between each set of coordinates
+# 	M = _ot.dist(x1=coords1, x2=coords2, metric='euclidean') # euclidean distance from each pair of points to every other pair of points
+# 	norm = M.max()
+# 	M /= norm
+# 	
+# 	## perform EMD
+# 	G0 = _ot.emd(a=da1.values, b=da2.values, M=M)
+# 	emd_result = _np.sum(_np.sum(_np.multiply(G0, M))) * norm
+# 	
+# 	if plot is True:
+# 		
+# 		fig, ax = _plt.subplots()
+# 		da1.plot(ax=ax, label="da1")
+# 		da2.plot(ax=ax, label="da2")
+# 		ax.legend()
+# 		ax.set_title("EMD = %.3e" % emd_result)
+# 	
+# 	return emd_result
 
 
 def calc_1D_histogram(x, bins=10, plot=False):
@@ -168,131 +168,130 @@ def histogram(values_np,
 	return hist
 
 
-def earth_mover_distance_1D(y1, y2, plot=False):
-	"""
-	
-	Tests
-	-----
-	>>> earth_mover_distance_1D([0], [1])
-	1.0
-	
-	Example
-	-------
-	
-	::
-		
-		# create signal
-		t = _np.arange(0, 10000) * 1e-5
-		y1 = _xr.DataArray(np.sin(2 * _np.pi * 1e3 * t))
-		
-		# perform EMD over a range of noise values
-		results = []
-		amplitudes = 10 ** _np.arange(-4, 1.1, 0.1)
-		_np.random.seed(0)
-		for amp in amplitudes:
-			y1_noisy = y1.copy() + (_np.random.rand(len(t)) - 0.5) * amp
-			results.append(earth_mover_distance(y1, y1_noisy))
-			
-		# plot results
-		fig, ax = _plt.subplots()
-		ax.plot(amplitudes, results, marker='x')
-		ax.set_xscale('log')
-		ax.set_yscale('log')
-		ax.set_xlabel('Noise amplitude')
-		ax.set_ylabel('EMD')
+# def earth_mover_distance_1D(y1, y2, plot=False):
+# 	"""
+# 	
+# 	Tests
+# 	-----
+# 	>>> earth_mover_distance_1D([0], [1])
+# 	1.0
+# 	
+# 	Example
+# 	-------
+# 	
+# 	::
+# 		
+# 		# create signal
+# 		t = _np.arange(0, 10000) * 1e-5
+# 		y1 = _xr.DataArray(np.sin(2 * _np.pi * 1e3 * t))
+# 		
+# 		# perform EMD over a range of noise values
+# 		results = []
+# 		amplitudes = 10 ** _np.arange(-4, 1.1, 0.1)
+# 		_np.random.seed(0)
+# 		for amp in amplitudes:
+# 			y1_noisy = y1.copy() + (_np.random.rand(len(t)) - 0.5) * amp
+# 			results.append(earth_mover_distance(y1, y1_noisy))
+# 			
+# 		# plot results
+# 		fig, ax = _plt.subplots()
+# 		ax.plot(amplitudes, results, marker='x')
+# 		ax.set_xscale('log')
+# 		ax.set_yscale('log')
+# 		ax.set_xlabel('Noise amplitude')
+# 		ax.set_ylabel('EMD')
 
-	Example 2 ::
-		
-		# create signal
-		t = _np.arange(0, 10000) * 1e-5
-		dt = t[1] - t[0]
-		y1 = t
-		y2 = t + 0.1
-		print("emd = ", earth_mover_distance(y1, y2))
+# 	Example 2 ::
+# 		
+# 		# create signal
+# 		t = _np.arange(0, 10000) * 1e-5
+# 		dt = t[1] - t[0]
+# 		y1 = t
+# 		y2 = t + 0.1
+# 		print("emd = ", earth_mover_distance(y1, y2))
 
  
  
-	"""
-	y1 = _np.array(y1)
-	y2 = _np.array(y2)
-	
-	y1 = y1 * 1.0
-	y2 = y2 * 1.0
-	from scipy.stats import wasserstein_distance as emd
-	result = emd(y1, y2)
-	
-	if plot is True:
-		if type(y1) == _xr.core.dataarray.DataArray and type(y2) == _xr.core.dataarray.DataArray:
-			fig, ax = _plt.subplots(2)
-			
-			y1.plot(ax=ax[0], label='y1')
-			y2.plot(ax=ax[0], label='y2')
-			ax[0].legend()
-			
-			histogram(y1, bins=20).plot(ax=ax[1], label='y1')
-			histogram(y2, bins=20).plot(ax=ax[1], label='y2')
-			ax[1].legend()
-			
-			ax[0].set_title('EMD result = ' + str(result) )
-	
-	return result
+# 	"""
+# 	y1 = _np.array(y1)
+# 	y2 = _np.array(y2)
+# 	
+# 	y1 = y1 * 1.0
+# 	y2 = y2 * 1.0
+# 	from scipy.stats import wasserstein_distance as emd
+# 	result = emd(y1, y2)
+# 	
+# 	if plot is True:
+# 		if type(y1) == _xr.core.dataarray.DataArray and type(y2) == _xr.core.dataarray.DataArray:
+# 			fig, ax = _plt.subplots(2)
+# 			
+# 			y1.plot(ax=ax[0], label='y1')
+# 			y2.plot(ax=ax[0], label='y2')
+# 			ax[0].legend()
+# 			
+# 			histogram(y1, bins=20).plot(ax=ax[1], label='y1')
+# 			histogram(y2, bins=20).plot(ax=ax[1], label='y2')
+# 			ax[1].legend()
+# 			
+# 			ax[0].set_title('EMD result = ' + str(result) )
+# 	
+# 	return result
 
 
-def earth_mover_distance_v3(pdf1, pdf2):
-	"""
-	shared with me by jk
-	
-	shape of input PDFs are as follows
-	[ x1, y1, ..., val_1]
-	[ x2, y2, ..., val_2]
-	[ .,  .,  ..., .    ]
-	[ xn, yn, ..., val_n]
-	where x, y, ... are the coordinates
-	and val are the values (or weights) associated with each coordinate (and must be non-zero)
-	
-	Examples
-	--------
-	
-	Example 1 ::
-		
-		pdf1 = _np.array([[1, 1, 1, 1], [1, 0, 0, 1]])
-		pdf2 = _np.array([[0, 0, 0, 2]])
-		print(earth_mover_distance_v3(pdf1, pdf2))
-		print("Should be equal to 1 + sqrt(3) = %.6f" % (1 + _np.sqrt(3)) )
-		print("moving 1 block from coords (1,1,1) and another from coords (1,0,0) to (0,0,0).  Distance of first block is sqrt(3).  Distance of second block is 1.")
+# def earth_mover_distance_v3(pdf1, pdf2):
+# 	"""
+# 	shared with me by jk
+# 	
+# 	shape of input PDFs are as follows
+# 	[ x1, y1, ..., val_1]
+# 	[ x2, y2, ..., val_2]
+# 	[ .,  .,  ..., .    ]
+# 	[ xn, yn, ..., val_n]
+# 	where x, y, ... are the coordinates
+# 	and val are the values (or weights) associated with each coordinate (and must be non-zero)
+# 	
+# 	Examples
+# 	--------
+# 	
+# 	Example 1 ::
+# 		
+# 		pdf1 = _np.array([[1, 1, 1, 1], [1, 0, 0, 1]])
+# 		pdf2 = _np.array([[0, 0, 0, 2]])
+# 		print(earth_mover_distance_v3(pdf1, pdf2))
+# 		print("Should be equal to 1 + sqrt(3) = %.6f" % (1 + _np.sqrt(3)) )
+# 		print("moving 1 block from coords (1,1,1) and another from coords (1,0,0) to (0,0,0).  Distance of first block is sqrt(3).  Distance of second block is 1.")
 
-	"""
-	# print("Work in progress.  Presently is not working... ")
-	import ot
-	
-	r, c = _np.shape(pdf1)
-	xs = pdf1[:, 0:c-1].copy(order='C')
-	a = pdf1[:, c-1].copy(order='C')
-	
-	r, c = _np.shape(pdf2)
-	xt = pdf2[:, 0:c-1].copy(order='C')
-	b = pdf2[:, c-1].copy(order='C')
-	
-	# loss matrix
-	M = ot.dist(x1=xs, x2=xt, metric='euclidean')
-	norm = M.max()
-	M /= norm
-	
-	G0 = ot.emd(a, b, M, numItermax=int(2e6))
-	
-	measure = _np.sum(_np.sum(_np.multiply(G0, M))) * norm
-	
-	return measure
+# 	"""
+# 	# print("Work in progress.  Presently is not working... ")
+# 	import ot
+# 	
+# 	r, c = _np.shape(pdf1)
+# 	xs = pdf1[:, 0:c-1].copy(order='C')
+# 	a = pdf1[:, c-1].copy(order='C')
+# 	
+# 	r, c = _np.shape(pdf2)
+# 	xt = pdf2[:, 0:c-1].copy(order='C')
+# 	b = pdf2[:, c-1].copy(order='C')
+# 	
+# 	# loss matrix
+# 	M = ot.dist(x1=xs, x2=xt, metric='euclidean')
+# 	norm = M.max()
+# 	M /= norm
+# 	
+# 	G0 = ot.emd(a, b, M, numItermax=int(2e6))
+# 	
+# 	measure = _np.sum(_np.sum(_np.multiply(G0, M))) * norm
+# 	
+# 	return measure
 	
 
-
-def crossCorrelation(y1,y2,mode='same'):
+def crossCorrelation(y1, y2, mode='same'):
 	""" cross correlation wrapper for numpy function """
-	CC=_np.correlate(y1,y2,mode=mode)
+	CC  =_np.correlate(y1, y2, mode=mode)
 	return CC
 
 
-def correlationCoefficient(data,fit):
+def correlationCoefficient(data, fit):
 	""" 
 	Correlation coefficient.
 	Compares a fit to data.  Note that this is only valid for a linear fit.
@@ -480,8 +479,6 @@ def rms(data):
 	return _np.sqrt(_np.nanmean((data - 0) ** 2))
 
 
-
-	
 def rejectOutliers(data, sigma=2):
 	"""
 	remove outliers from set of data
@@ -520,6 +517,3 @@ def rejectOutliers(data, sigma=2):
 	return data[indicesToKeep],indicesToKeep
 				
 			
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
