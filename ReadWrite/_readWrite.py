@@ -399,14 +399,19 @@ def np_array_to_mp4(array, file_name):
 # %% Text files, generic
 
 def str_to_text_file(input_str, filename):
-	""" 
-	Writes a str of data to a single row in a text file. 
-	This is useful, for instance, if a csv file is being written to one line at a time. 
-	"""
-	text_file = open(filename, "w")
-	text_file.write(input_str)	
-	text_file.close()
-
+    """ 
+    Writes a str of data to a single row in a text file. 
+    This is useful, for instance, if a csv file is being written to one line at a time. 
+    
+    Examples
+    --------
+    Example 1 ::
+        
+        str_to_text_file("data asdf astxf1 asxe 1234", "deleteme.txt", )
+    """
+    with open(filename, "w") as text_file:
+        text_file.write(input_str)	
+        
 
 ##############################################################################
 # %% HDF5
@@ -573,27 +578,71 @@ def xr_to_hdf5(
 #         )
 
 
-def hdf5_to_xr_Dataset(		hdf5_file, group_name="/"):
-	ds = _xr.load_dataset(hdf5_file, group=group_name, engine="h5netcdf")
-	return ds
-	
-
-def hdf5_to_xr(		hdf5_file, group_name="/"):
+def hdf5_to_xr(
+        hdf5_file, 
+        group_name="/",
+        ):
 	""" 
-	Reads hdf5 data and returns xarray dataset if multiple variables or xarray dataarray is a single variable 
+	Reads hdf5 data and returns xarray dataset
 	
 	Parameters 
 	----------
 	hdf5_file : str
 		name and path of file
 	group_name : str
-		group name of data (or dataset name)
+		group name of data
+        
+    Returns
+    -------
+    ds : xarray dataset
+        Data being returned
+        
+    Examples
+    --------
+    Example 1 ::
+        
+        import numpy as np
+        import xarray as xr
+        x = np.arange(1000)
+        y1 = np.random.rand(len(x))
+        y2 = np.random.rand(len(x))
+        x = xr.DataArray(x, coords={"x": x})
+        y1 = xr.DataArray(y1, coords=[x], name="y1")
+        y2 = xr.DataArray(y2, coords=[x], name="y2")
+        ds = xr.Dataset({"y1": y1, "y2": y2})
+        
+        xr_to_hdf5(y1, "deleteme.hdf5", "demo1")
+        xr_to_hdf5(y2, "deleteme.hdf5", "demo2")
+        xr_to_hdf5(ds, "deleteme.hdf5", "demo3")
+        
+        y1_loaded = hdf5_to_xr("deleteme.hdf5", "demo1")
+        y2_loaded = hdf5_to_xr("deleteme.hdf5", "demo2")
+        ds_loaded = hdf5_to_xr("deleteme.hdf5", "demo3")
 	"""
-	ds = hdf5_to_xr_Dataset(hdf5_file=hdf5_file, group_name=group_name)
-	if len(ds) == 1:
-		return ds[list(ds.data_vars)[0]]
-	else:
-		return ds
+	ds = _xr.load_dataset(
+        hdf5_file, 
+        group=group_name, 
+        engine="h5netcdf",
+        )
+	return ds
+	
+
+# def hdf5_to_xr(		hdf5_file, group_name="/"):
+# 	""" 
+# 	Reads hdf5 data and returns xarray dataset if multiple variables or xarray dataarray is a single variable 
+# 	
+# 	Parameters 
+# 	----------
+# 	hdf5_file : str
+# 		name and path of file
+# 	group_name : str
+# 		group name of data (or dataset name)
+# 	"""
+# 	ds = hdf5_to_xr_Dataset(hdf5_file=hdf5_file, group_name=group_name)
+# 	if len(ds) == 1:
+# 		return ds[list(ds.data_vars)[0]]
+# 	else:
+# 		return ds
 
 
 # def xr_DataTree_to_hdf5(dt, hdf5_filename, mode='w'):
