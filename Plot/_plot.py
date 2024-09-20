@@ -17,21 +17,23 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 ## custom color cycle.  now 15 colors long
-_colors=[    "k",
-         "tab:blue",
-         "tab:orange",
-         "tab:green",
-#         "tab:red",
-         "tab:purple",
-         "tab:brown",
-         "tab:pink",
-         "tab:gray",
-         "tab:olive",
-         "tab:cyan",
-         "lime",
-         "blue",
-         "red",
-         "m"]
+_colors=[    
+    "k",
+    "tab:blue",
+    "tab:orange",
+    "tab:green",
+    # "tab:red",
+    "tab:purple",
+    "tab:brown",
+    "tab:pink",
+    "tab:gray",
+    "tab:olive",
+    "tab:cyan",
+    "lime",
+    "blue",
+    "red",
+    "m",
+    ]
 _mpl.rcParams['axes.prop_cycle'] = _mpl.cycler(color=_colors)
 
 ## custom linewidth
@@ -43,7 +45,7 @@ _mpl.rcParams['xtick.labelsize'] = _FONTSIZE
 _mpl.rcParams['ytick.labelsize'] = _FONTSIZE
 _mpl.rcParams['font.size'] = _FONTSIZE
 _mpl.rcParams['legend.fontsize'] = _FONTSIZE
-_mpl.rcParams['axes.titlesize'] = _FONTSIZE+2
+_mpl.rcParams['axes.titlesize'] = _FONTSIZE + 2
 
 ## legend
 _mpl.rcParams['legend.numpoints'] = 3  # not working
@@ -61,7 +63,7 @@ _mpl.rcParams.update({'figure.autolayout': True})
 ###############################################################################
 #%% variables, misc
 
-axis_line_kwargs = dict(ls=(0, (5, 5)), lw=0.5, color="grey")
+AXIS_LINE_KWARGS = dict(ls=(0, (5, 5)), lw=0.5, color="grey")
 # axis_line_kwargs = dict(ls="--", lw=0.5, color="grey")
 
 ###################################################################################
@@ -70,7 +72,6 @@ axis_line_kwargs = dict(ls=(0, (5, 5)), lw=0.5, color="grey")
 def get_current_fig_and_ax():
    fig = _plt.gcf()
    axes = fig.get_axes()
-   
    return fig, axes
 
 
@@ -81,91 +82,96 @@ def get_all_figures():
    return results
 
 
-def twinx_and_change_colors(   ax,
-                        color='r'):
+def twinx_and_change_colors(   
+        ax,
+        color='r',
+        ):
+    """ Creates a second y-axis and colors it red (by default) """
    
-   ax_b = ax.twinx()
+    ax_b = ax.twinx()
    
-   # spine color
-   ax_b.spines['right'].set_color(color)
+    ## colors 
+    # spine color
+    ax_b.spines['right'].set_color(color)
+    # tick colors
+    ax_b.tick_params(axis='y', colors=color)
+    # label color
+    ax_b.yaxis.label.set_color(color)
    
-   # tick colors
-   ax_b.tick_params(axis='y', colors=color)
-   
-   # label color
-   ax_b.yaxis.label.set_color(color)
-   
-   return ax_b
+    return ax_b
 
 
-def twiny_and_change_colors(   ax,
-                        color='r'):
+def twiny_and_change_colors(   
+        ax,
+        color='r',
+        ):
+    """ Creates a second y-axis and colors it red (by default) """
    
-   ax_b = ax.twiny()
+    ax_b = ax.twiny()
+    
+    ## colors 
+    # spine color
+    ax_b.spines['top'].set_color(color)
+    # tick colors
+    ax_b.tick_params(axis='x', colors=color)
+    # label color
+    ax_b.xaxis.label.set_color(color)
    
-   # spine color
-   ax_b.spines['top'].set_color(color)
-   
-   # tick colors
-   ax_b.tick_params(axis='x', colors=color)
-   
-   # label color
-   ax_b.xaxis.label.set_color(color)
-   
-   return ax_b
+    return ax_b
 
-def subTitle(   ax,
-            string,
-            xy=(0.5, .98),
-            box=True,
-            textColor='k',
+
+def subtitle(   
+        ax,
+        string,
+        y=0.98, # you may need to adjust the y value a little
+        box=True,
+        kwargs = dict(
+            color='k',
             xycoords='axes fraction',
-            fontSize=8,
+            fontsize=8,
             horizontalalignment='center',
-            verticalalignment='top'):
-   """
-   wrapper for the annotate axis function.  the default setting is for a
-   figure subtitle at the top of a particular axis
-   
-   Parameters
-   ----------
-   ax : matplotlib.axes._subplots.AxesSubplot
-      Axis that will receive the text box
-   string : str
-      String to put in textbox
-   xy : tuple
-      (x,y) coordinates for the text box
-   box : bool
-      True - Creates a box around the text
-      False - No box
-   textColor : str
-      text color
-   xycoords : str
-      type of coordinates.  default = 'axes fraction'
-   fontSize : int
-      text font size
-   horizontalalignment : str
-      'center' - coordinates are cenetered at the center of the box
-      'left'
-      'right'
-   verticalalignment : str
-      'top' - coordinates are centered at the top of the box
-   
-   """
-   if box==True:
-      box=dict(boxstyle="square, pad=.25", fc="w",edgecolor='k')
-   else:
-      box=None
+            verticalalignment='top',
+            )
+        ):
+    """
+    Creates a sub-title at the top (but within) an axis
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes._subplots.AxesSubplot
+       Axis that will receive the text box
+    string : str
+       String to put in textbox
+    xy : tuple
+       (x,y) coordinates for the text box
+    box : bool
+       True - Creates a box around the text
+       False - No box
+    
+    Examples
+    --------
+    Example 1::
+        
+        import matplotlib.pyplot as plt
+        import numpy as np
+        fig, ax = plt.subplots()
+        x = np.arange(1, 100)
+        ax.plot(x, x, label="x", )
+        subtitle(ax, "This is a subtitle")
+        
+    """
+    if box is True:
+        box = dict(boxstyle="square, pad=.25", fc="w",edgecolor='k')
+    else:
+        box = None
 
-   ax.annotate(string, 
-            xy=xy, 
-            color=textColor,
-            xycoords=xycoords, 
-            fontsize=fontSize,
-            horizontalalignment=horizontalalignment, 
-            verticalalignment=verticalalignment,
-            bbox=box)
-
+    x = 0.5
+    ax.annotate(
+        string, 
+        xy=(x, y), 
+        **kwargs,
+        bbox=box,
+        )
 
 
 def finalizeFigure(fig,
@@ -182,6 +188,7 @@ def finalizeFigure(fig,
    figSize : list of floats
       Figure size.  Units in inches.  E.g. figSize=[6,4]
    """
+   ## TODO deprecate this function
    
    # default input parameters
    params={   'title':'',
@@ -213,6 +220,7 @@ def subfigure_letters(
         letters="abcdefghijklmnop",
         text_kwargs=dict(), # bbox=dict(facecolor='white', pad=1.5),
         ):
+    """ adds letters to subfigures """
     
     if _np.shape(axes)==():
         assert "matplotlib.axes._axes.Axes" in str(type(axes))
@@ -255,42 +263,46 @@ def legend_above(
        )
    
    
-def legendOutside(   ax,
-               ncol=1,
-               xy=(1.04,1),
-               refCorner='upper left',
-               fontSizeStandard=8,
-               handlelength=2,
-               numberLegendPoints=2,
-               labelspacing=0.1,
-                    ):
-   """
-   Places a legend outside (or anywhere really) in reference to an axis object
+# def legendOutside(   ax,
+#                ncol=1,
+#                xy=(1.04,1),
+#                refCorner='upper left',
+#                fontSizeStandard=8,
+#                handlelength=2,
+#                numberLegendPoints=2,
+#                labelspacing=0.1,
+#                     ):
+#    """
+#    Places a legend outside (or anywhere really) in reference to an axis object
    
-   References
-   ----------
-   https://stackoverflow.com/questions/4700614/how-to-put-the-legend-out-of-the-plot/43439132#43439132
-   """
-   x,y=xy
-   ax.legend(   bbox_to_anchor=(x,y),
-            loc=refCorner,
-            fontsize=fontSizeStandard,
-            numpoints=numberLegendPoints,
-            ncol=ncol,
-            handlelength=2,
-            labelspacing=labelspacing)
+#    References
+#    ----------
+#    https://stackoverflow.com/questions/4700614/how-to-put-the-legend-out-of-the-plot/43439132#43439132
+#    """
+#    x,y=xy
+#    ax.legend(   bbox_to_anchor=(x,y),
+#             loc=refCorner,
+#             fontsize=fontSizeStandard,
+#             numpoints=numberLegendPoints,
+#             ncol=ncol,
+#             handlelength=2,
+#             labelspacing=labelspacing)
          
    
 
-def positionPlot(   fig,
-               size=[],
-               left=None, 
-               bottom=None, 
-               right=None, 
-               top=None, 
-               wspace=None, 
-               hspace=None):
+def positionPlot(   
+        fig,
+        size=[],
+        left=None, 
+        bottom=None, 
+        right=None, 
+        top=None, 
+        wspace=None, 
+        hspace=None,
+        ):
    """
+   Micromanage the exact location of your plot
+   
    left  = 0.125  # the left side of the subplots of the figure
    right = 0.9   # the right side of the subplots of the figure
    bottom = 0.1   # the bottom of the subplots of the figure
@@ -348,6 +360,7 @@ def finalizeSubplot(   ax,
                   figSize=[6,4])
       
    """
+   ## deprecate this function
 
    # default input parameters
    params={   'xlabel':'',
@@ -400,7 +413,7 @@ def finalizeSubplot(   ax,
       
       # subtitle
       if params['subtitle']!='':
-         subTitle(ax[i],params['subtitle'],fontSize=params['fontsize'])
+         subtitle(ax[i],params['subtitle'],fontSize=params['fontsize'])
       
       # legend
       if params['legendOn']==True:
@@ -443,13 +456,20 @@ def finalizeSubplot(   ax,
          ax[i].axvline(x=0, color=params['color'],linestyle=params['linestyle'],alpha=params['alpha'])
       
 
-def add_x0_y0_axis_lines(ax, kwargs=axis_line_kwargs):
+def add_x0_y0_axis_lines(
+        ax, 
+        kwargs=AXIS_LINE_KWARGS,
+        ):
    
    ax.axhline(0, **kwargs)
    ax.axvline(0, **kwargs)
       
    
-def set_ticks_inside(axes, axis="both"):
+def set_ticks_inside(
+        axes, 
+        axis="both",
+        ):
+    """ Puts x and y ticks on the inside """
     if _np.shape(axes)==():
         assert "matplotlib.axes._axes.Axes" in str(type(axes))
         axes = [axes]
@@ -511,56 +531,97 @@ def subplotsWithColormaps(nrows=2,sharex=False):
 ###################################################################################
 #%% shapes
 
-def circle(ax,xy=(0,0),r=1,color='r',linestyle='-',alpha=1,fill=True,label='', lw=None):
-   circle1 = _plt.Circle(xy, r, color=color,alpha=alpha,fill=fill,linestyle=linestyle, lw=lw)
-   ax.add_artist(circle1)
+def circle(
+        ax,
+        xy=(0,0),
+        r=1,
+        color='r',
+        linestyle='-',
+        alpha=1,
+        fill=True,
+        # label='', 
+        lw=None,
+        ):
+    """ creates a circle in the plot """
+    circle1 = _plt.Circle(
+        xy, 
+        r, 
+        color=color,
+        alpha=alpha,
+        fill=fill,
+        linestyle=linestyle, 
+        lw=lw,
+        )
+    ax.add_artist(circle1)
 
 
-def arrow(ax,xyTail=(0,0),xyHead=(1,1),color='r',width=3,headwidth=10,headlength=10,alpha=1.0,label=''):
-   """
-   Draws an arrow
-   
-   References
-   ----------
-   https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.axes.Axes.annotate.html
-   
-   Examples
-   --------
-   Example1::
-      
-      t=_np.arange(0,10,2e-3)
-      y1=_np.cos(_np.pi*2*t*2e-1)
-      fig,ax=_plt.subplots(1,sharex=True)
-      ax.plot(t,y1,label='y1')
-      arrow(ax,xyTail=(0,0.0),xyHead=(0,1))
-      arrow(ax,xyTail=(5,0.0),xyHead=(5,1))
-      arrow(ax,xyTail=(10,0.0),xyHead=(10,1))
-      arrow(ax,xyTail=(2.5,0.0),xyHead=(2.5,-1))
-      arrow(ax,xyTail=(7.5,0.0),xyHead=(7.5,-1))
-      finalizeSubplot(    ax,
-                     ylabel='y',
-                     subtitle='fig1',
-                     title='title!',
-                     xlabel='t'
-                     )
-      
-   """
-   return ax.annotate("", xy=xyHead, xytext=xyTail, arrowprops=dict(   width=width,
-                                          headwidth=headwidth,
-                                          headlength=headlength,
-                                          color=color,
-                                          alpha=alpha,
-                                          label=label),
-            label=label)
+def arrow(
+        ax,
+        xyTail=(0,0),
+        xyHead=(1,1),
+        color='r',
+        width=3,
+        headwidth=10,
+        headlength=10,
+        alpha=1.0,
+        label='',
+        ):
+    """
+    Draws an arrow
+    
+    References
+    ----------
+    https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.axes.Axes.annotate.html
+    
+    Examples
+    --------
+    Example1::
+       
+       t=_np.arange(0,10,2e-3)
+       y1=_np.cos(_np.pi*2*t*2e-1)
+       fig,ax=_plt.subplots(1,sharex=True)
+       ax.plot(t,y1,label='y1')
+       arrow(ax,xyTail=(0,0.0),xyHead=(0,1))
+       arrow(ax,xyTail=(5,0.0),xyHead=(5,1))
+       arrow(ax,xyTail=(10,0.0),xyHead=(10,1))
+       arrow(ax,xyTail=(2.5,0.0),xyHead=(2.5,-1))
+       arrow(ax,xyTail=(7.5,0.0),xyHead=(7.5,-1))
+       finalizeSubplot(    ax,
+                      ylabel='y',
+                      subtitle='fig1',
+                      title='title!',
+                      xlabel='t'
+                      )
+       
+    """
+    return ax.annotate(
+        "", 
+        xy=xyHead, 
+        xytext=xyTail, 
+        arrowprops=dict(   
+            width=width,
+            headwidth=headwidth,
+            headlength=headlength,
+            color=color,
+            alpha=alpha,
+            label=label,
+            ),
+        label=label,
+        )
    
 
-def rectangle(   ax,
-           coords={'x_bottomleft': 0, 'y_bottomleft': 0, 'width': 1, 'height': 1},
-            fillcolor='r',
-            fillalpha=0.5,
-            edgecolor='r',
-            edgels='--',
-            edgelw=1.25):
+def rectangle(   
+        ax,
+        coords={'x_bottomleft': 0, 
+                'y_bottomleft': 0, 
+                'width': 1, 
+                'height': 1},
+        fillcolor='r',
+        fillalpha=0.5,
+        edgecolor='r',
+        edgels='--',
+        edgelw=1.25,
+        ):
    """
    Adds a colored rectangle to a plot
    
@@ -594,49 +655,27 @@ def rectangle(   ax,
     * https://matplotlib.org/stable/api/_as_gen/matplotlib.patches.Rectangle.html
    """
       
-   x_bottomleft, y_bottomleft,   width, height = coords.values()
+   x_bottomleft, y_bottomleft, width, height = coords.values()
 
    from matplotlib.patches import Rectangle
    from matplotlib.collections import PatchCollection
 
-   rect=Rectangle((x_bottomleft,y_bottomleft), width, height, ls=edgels, edgecolor=edgecolor, facecolor='none', lw=edgelw)
-   pc=PatchCollection([rect],facecolor=fillcolor,alpha=fillalpha)
+   rect=Rectangle(
+       (x_bottomleft,y_bottomleft), 
+       width, 
+       height, 
+       ls=edgels, 
+       edgecolor=edgecolor, 
+       facecolor='none', 
+       lw=edgelw,
+       )
+   pc = PatchCollection([rect], facecolor=fillcolor, alpha=fillalpha)
    ax.add_collection(pc)
    ax.add_patch(rect)
 
 
-
-
 ###################################################################################
-### specialty plots
-
-def heatmap(dZ,vmin=None,vmax=None):
-   """
-   I can't find a single good heatmap plotting library.
-   matplotlib has pcolormesh and imshow, but both have issues.
-   Seaborn has a heatmap() function (which is the best I've found), but the x
-                           and y axes still have to be hacked to work
-    The best heatmap I've found is actually using xarray with 2D dataarrays.  It mostly just works.  
-                           
-   Example
-   -------
-   Example 1 ::
-      
-      x=_np.arange(10,200)
-      y=_np.arange(-50,100)
-      dZ=_pd.DataFrame(_np.random.rand(len(y),len(x)),index=y,columns=x)
-      heatmap(dZ)
-   """
-   # TODO work in in progress.  
-   
-#    dZ=dZ.sort_index(ascending=False) # by default, the y axis is backwards
-   import seaborn as sb
-   fig,ax=_plt.subplots()
-   
-   sb.heatmap(dZ,vmin=vmin,vmax=vmax)
-   
-   ax.invert_yaxis()
-   
+# %% specialty plots
    
 def contourPlot(   ax,
                x,
@@ -693,15 +732,16 @@ def contourPlot(   ax,
       c.set_edgecolor("face")
       
       
-### misc
+# %% misc
 
-
-
-import matplotlib as _mpl
-def colorScalarMap(minValue=0,maxValue=10,colorMap=_mpl.cm.Reds):
+def colorScalarMap(
+        minValue=0,
+        maxValue=10,
+        colorMap=_mpl.cm.Reds,
+        ):
    """
-   normalizes a matplotlib colormap to the desired range.  the returned colormap
-   produces RGBA colors
+   normalizes a matplotlib colormap to the desired range of your data.  
+   the returned colormap produces RGBA colors
    
    Parameters
    ----------
@@ -718,9 +758,9 @@ def colorScalarMap(minValue=0,maxValue=10,colorMap=_mpl.cm.Reds):
       normalized colormap. to convert a number to RGBA, call
       s_m.to_rgba(0.5) or with whatever number you wish
    
-   Example
-   -------
-   :
+   Examples
+   --------
+   Examples 1 ::
       
       fig,ax=plt.subplots()
       x=np.arange(1,20,.1)
@@ -734,17 +774,18 @@ def colorScalarMap(minValue=0,maxValue=10,colorMap=_mpl.cm.Reds):
    ----------
    https://stackoverflow.com/questions/48398726/flexible-way-to-add-subplots-to-figure-and-one-colorbar-to-figure
    """
-#   import matplotlib
-   norm = _mpl.colors.Normalize(minValue,maxValue)
+   
+   norm = _mpl.colors.Normalize(minValue, maxValue)
    s_m = _mpl.cm.ScalarMappable(cmap=colorMap, norm=norm)
    s_m.set_array([])
+   
    return s_m
 
 
-### custom colormaps
+# %% custom colormaps
 
 
-def RdOrWGnBu_colormap(plot=False):
+def colormap_RdOrWGnBu(plot=False):
    """
    Red - Orange - White - Green - Blue colormap
 
@@ -775,7 +816,7 @@ def RdOrWGnBu_colormap(plot=False):
    """
    
    from matplotlib import cm
-   from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+   from matplotlib.colors import ListedColormap #, LinearSegmentedColormap
    import numpy as np
 
    top = cm.get_cmap('GnBu_r', 128)
@@ -785,7 +826,7 @@ def RdOrWGnBu_colormap(plot=False):
                      bottom(np.linspace(0, 1, 128))))
    newcmp = ListedColormap(newcolors, name='RdOrWGnBu')
       
-   if plot==True:
+   if plot is True:
       def plot_examples(cms):
          """
          helper function to plot two colormaps
@@ -816,12 +857,19 @@ def RdOrWGnBu_colormap(plot=False):
 #%% data related
 
 
-def plot_csv_file_that_is_actively_being_written_to(filename='out.csv', interval=5000, index='time'):
+def plot_csv_file_that_is_actively_being_written_to(
+        filename='out.csv', 
+        interval=5000, 
+        index='time',
+        ):
    """ 
-   I don't get it.  This function works if I 'F9' the code, but not when I call it as a function.  No error provided so debugging is difficult. """
-   import os
+   I don't get it.  This function works if I 'F9' the code, but not when I call it as a function.  No error provided so debugging is difficult. 
+   """
+   print("work in progress")
    
-   if os.path.exists(filename):
+   from os.path import exists
+   
+   if exists(filename):
       
       # init plot
       fig,ax=_plt.subplots()
