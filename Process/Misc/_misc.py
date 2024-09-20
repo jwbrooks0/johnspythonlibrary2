@@ -30,8 +30,6 @@ def symlog(arr):
 	return logv_re + logv_im * 1j
 
 
-
-
 def find_zero_crossings(da, rising_or_falling=None, plot=False):
 	
 	## Astropy's zerocross1d but with a slight modification
