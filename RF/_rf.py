@@ -10,6 +10,8 @@ from johnspythonlibrary2.Plot import legendOutside, \
 
 # %% plotting subfunctions
 
+## TODO this lib needs an overhaul
+## most of the relevant functionality has been moved to pip_tools
 
 def _finalize_complex_plot(fig,ax,title='', ylabel='Ohm'):
 	finalizeSubplot(ax[0,0],
@@ -73,24 +75,24 @@ def plot_complex(Z,ax=None,fig=None, label='Z',linestyle='-',color='k',yscale='s
 	return fig,ax
 
 
-#%% Load/Save data
+# #%% Load/Save data
 
-def save_Z_to_csv(Z, filename):
-	
-	Z2=Z.to_pandas()
-	Z2.name=Z.name
-	Z2.to_csv(filename)
-	
-def load_Z_from_csv(filename):
-	
-	try:
-		Z=_pd.read_csv(filename)#.set_index('f')
-		Z=_pd.DataFrame(Z.iloc[:,1].values,index=Z.iloc[:,0].values)
-	except:
-		Z_temp=_pd.read_csv(filename, skiprows=2).set_index('Frequency')
-		Z=_pd.DataFrame( _np.real(Z_temp.iloc[:,0]) + _np.imag(Z_temp.iloc[:,1]), index=Z_temp.index)
-		
-	Z=_xr.DataArray(Z.values.transpose()[0].astype(complex), dims='f', coords=[Z.index.values])
+# def save_Z_to_csv(Z, filename):
+# 	
+# 	Z2=Z.to_pandas()
+# 	Z2.name=Z.name
+# 	Z2.to_csv(filename)
+# 	
+# def load_Z_from_csv(filename):
+# 	
+# 	try:
+# 		Z=_pd.read_csv(filename)#.set_index('f')
+# 		Z=_pd.DataFrame(Z.iloc[:,1].values,index=Z.iloc[:,0].values)
+# 	except:
+# 		Z_temp=_pd.read_csv(filename, skiprows=2).set_index('Frequency')
+# 		Z=_pd.DataFrame( _np.real(Z_temp.iloc[:,0]) + _np.imag(Z_temp.iloc[:,1]), index=Z_temp.index)
+# 		
+# 	Z=_xr.DataArray(Z.values.transpose()[0].astype(complex), dims='f', coords=[Z.index.values])
 
-	return Z
+# 	return Z
 	
