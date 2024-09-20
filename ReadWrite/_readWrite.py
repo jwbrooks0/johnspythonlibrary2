@@ -431,25 +431,97 @@ def get_hdf5_tree(hdf5_file_path, text_file_output_name=None):
 	return out
 
 
-def hdf5_add_metadata_old(	hdf5_item, library):
-	""" Add a library as attributes to an hdf5 item (group or dataset) """
+# def hdf5_add_metadata_old(	hdf5_item, library):
+# 	""" Add a library as attributes to an hdf5 item (group or dataset) """
+# 	
+# 	for key in library.keys():
+# 		hdf5_item.attrs.create(name=key, data=library[key])
+# 		
+# 		
+# def hdf5_add_metadata(	hdf5_filename, library):
+# 	""" Add a library as attributes to an hdf5 item (group or dataset) """
+# 	print('not working yet')
+# 	import h5py
+# 	f = h5py.File(hdf5_filename, mode='a')
+# 	for key in library.keys():
+# 		f.attrs.create(name=key, data=library[key])
+
+
+def xr_to_hdf5(
+        da_or_ds,
+        hdf5_filepath,
+        group_name="/",
+        compression_level=5,
+        ):
+    """
+    Save xarray dataset or dataarray to an hdf5 file
+    
+ 	Parameters
+ 	----------
+ 	da_or_ds : xarray DataArray or Dataset
+		Data to save
+ 	hdf5_filepath : str
+		Filepath of the hdf5 to be created or appended to
+ 	group_name : str
+		internal hdf5 group name to save the data. default is root
+    compression_level : int
+        Compression level.  Note strong diminishing returns at higher values.
+		
+ 	References
+ 	----------
+ 	* https://stackoverflow.com/questions/40766037/specify-encoding-compression-for-many-variables-in-xarray-dataset-when-write-to
+ 	
+    Examples
+    --------
+    Example 1 ::
+        
+        import numpy as np
+        import xarray as xr
+        x = np.arange(1000)
+        y1 = np.random.rand(len(x))
+        y2 = np.random.rand(len(x))
+        x = xr.DataArray(x, coords={"x": x})
+        y1 = xr.DataArray(y1, coords=[x], name="y1")
+        y2 = xr.DataArray(y2, coords=[x], name="y2")
+        ds = xr.Dataset({"y1": y1, "y2": y2})
+        
+        xr_to_hdf5(y1, "deleteme.hdf5", "demo1")
+        xr_to_hdf5(y2, "deleteme.hdf5", "demo2")
+        xr_to_hdf5(ds, "deleteme.hdf5", "demo3")
+        
+    """
+    
+    assert "xarray.core.dataset.Dataset" in str(type(da_or_ds)) or "xarray.core.dataarray.DataArray" in str(type(da_or_ds)) 
+    
+    if "xarray.core.dataarray.DataArray" in str(type(da_or_ds)):
+        
+        if da_or_ds.name is None:
+            da_or_ds.name = 'data'
+            
+        da_or_ds = da_or_ds.to_dataset()
+        
+    # add encoding (compression) for each variable in the dataset
+    comp = dict(compression='gzip', compression_opts=compression_level)
+    encoding = {var: comp for var in da_or_ds.data_vars}
 	
-	for key in library.keys():
-		hdf5_item.attrs.create(name=key, data=library[key])
+    # write to hdf5 file
+    da_or_ds.to_netcdf(
+        hdf5_filepath, 
+		mode='a', 
+		format='NETCDF4', 
+		group=group_name, 
+		engine='h5netcdf', 
+		invalid_netcdf=True,
+		encoding=encoding,
+        )
+    
 		
-		
-def hdf5_add_metadata(	hdf5_filename, library):
-	""" Add a library as attributes to an hdf5 item (group or dataset) """
-	print('not working yet')
-	import h5py
-	f = h5py.File(hdf5_filename, mode='a')
-	for key in library.keys():
-		f.attrs.create(name=key, data=library[key])
-		
-		
-# def xr_Dataset_to_hdf5(		ds,
-# 							hdf5_file_name,
-# 							group_name):
+# def _xr_Dataset_to_hdf5(	
+#         ds,
+# 		hdf5_file_name,
+# 		group_name="/",
+# 		compression_level=2,
+#         ):
 # 	"""
 # 	The xarray library has a convenient method of converting a dataset to an hdf5 file.  This is a wrapper for this.
 # 	
@@ -461,59 +533,44 @@ def hdf5_add_metadata(	hdf5_filename, library):
 # 		Filename of the hdf5 to be created or appended to
 # 	group_name : str
 # 		internal hdf5 path to save the data
+# 		
+# 	References
+# 	----------
+# 	* https://stackoverflow.com/questions/40766037/specify-encoding-compression-for-many-variables-in-xarray-dataset-when-write-to
 # 	"""
-# 	ds.to_netcdf(hdf5_file_name, 
-# 					mode='a', 
-# 					format='NETCDF4', 
-# 					group=group_name, 
-# 					engine='h5netcdf', 
-# 					invalid_netcdf=True)
-	
-	
-def xr_Dataset_to_hdf5(	ds,
-							hdf5_file_name,
-							group_name="/",
-							compression_level=2):
-	"""
-	The xarray library has a convenient method of converting a dataset to an hdf5 file.  This is a wrapper for this.
-	
-	Parameters
-	----------
-	ds : xarray.core.dataset.Dataset
-		Dataset to save
-	hdf5_file_name : str
-		Filename of the hdf5 to be created or appended to
-	group_name : str
-		internal hdf5 path to save the data
-		
-	References
-	----------
-	* https://stackoverflow.com/questions/40766037/specify-encoding-compression-for-many-variables-in-xarray-dataset-when-write-to
-	"""
-	# add encoding (compression) for each variable in the dataset
-	comp = dict(compression='gzip', compression_opts=compression_level)
-	encoding = {var: comp for var in ds.data_vars}
-	
-	# write to hdf5 file
-	ds.to_netcdf(hdf5_file_name, 
-					mode='a', 
-					format='NETCDF4', 
-					group=group_name, 
-					engine='h5netcdf', 
-					invalid_netcdf=True,
-					encoding=encoding)
+# 	# add encoding (compression) for each variable in the dataset
+# 	comp = dict(compression='gzip', compression_opts=compression_level)
+# 	encoding = {var: comp for var in ds.data_vars}
+# 	
+# 	# write to hdf5 file
+# 	ds.to_netcdf(
+#         hdf5_file_name, 
+# 		mode='a', 
+# 		format='NETCDF4', 
+# 		group=group_name, 
+# 		engine='h5netcdf', 
+# 		invalid_netcdf=True,
+# 		encoding=encoding,
+#         )
 
 
-def xr_DataArray_to_hdf5(	da, hdf5_file_name, group_name="/", compression_level=5):
-	""" Writes xarray DataArray to hdf5 file format """
-	
-	if da.name is None:
-		da.name = 'data'
-	
-	xr_Dataset_to_hdf5(		ds=da.to_dataset(),
-							hdf5_file_name=hdf5_file_name,
-							group_name=group_name,
-							compression_level=compression_level)
+# def xr_DataArray_to_hdf5(	
+#         da, 
+#         hdf5_file_name, 
+#         group_name="/", 
+#         compression_level=5,
+#         ):
+# 	""" Writes xarray DataArray to hdf5 file format """
+# 	
+# 	if da.name is None:
+# 		da.name = 'data'
+# 	
+# 	xr_Dataset_to_hdf5(		
+#         ds=da.to_dataset(),
+# 		hdf5_file_name=hdf5_file_name,
+# 		group_name=group_name,
+# 		compression_level=compression_level,
+#         )
 
 
 def hdf5_to_xr_Dataset(		hdf5_file, group_name="/"):
@@ -539,58 +596,58 @@ def hdf5_to_xr(		hdf5_file, group_name="/"):
 		return ds
 
 
-def xr_DataTree_to_hdf5(dt, hdf5_filename, mode='w'):
-	
-	## write data to file
-	dt.to_netcdf(	hdf5_filename, 
-					mode=mode,
-					# format='NETCDF4', # I think that NETCDF4 is the default.
-					engine='h5netcdf',
-					# encoding=encoding, # TODO implement encoding to allow for compression
-					invalid_netcdf=True
-					)
-	
-	
-def hdf5_to_xr_DataTree():
-	print("presently not implemented.  I think there is a bug in the DataTree code that needs to be resolved first.")
-	
-	# example code
-	if False:
-		import numpy as np
-		import xarray as xr
-		import datatree as dt
+# def xr_DataTree_to_hdf5(dt, hdf5_filename, mode='w'):
+# 	
+# 	## write data to file
+# 	dt.to_netcdf(	hdf5_filename, 
+# 					mode=mode,
+# 					# format='NETCDF4', # I think that NETCDF4 is the default.
+# 					engine='h5netcdf',
+# 					# encoding=encoding, # TODO implement encoding to allow for compression
+# 					invalid_netcdf=True
+# 					)
 	
 	
-		## create example datatree
-		t1 = np.arange(0, 1e0, 1e-4)
-		t1 = xr.DataArray(t1, dims='t', coords=[t1], attrs={'units': 's', 'long_name': 'time'})
-		t2 = np.arange(0, 1e-1, 1e-6)
-		t2 = xr.DataArray(t2, dims='t', coords=[t2], attrs={'units': 's', 'long_name': 'time'})
-	
-		a1 = xr.DataArray(np.random.rand(len(t1)), dims='t', coords=[t1], name='data_A1', attrs={'units': 'au', 'long_name': 'data A1'})
-		a2 = xr.DataArray(np.random.rand(len(t1)), dims='t', coords=[t1], name='data_A2', attrs={'units': 'au', 'long_name': 'data A2'})
-		a = xr.Dataset({a1.name: a1, a2.name: a2})
-	
-		b1 = xr.DataArray(np.random.rand(len(t2)), dims='t', coords=[t2], name='data_B', attrs={'units': 'au', 'long_name': 'data B'})
-		b = b1.to_dataset()
-	
-		c1 = xr.DataArray(np.random.rand(len(t2)), dims='t', coords=[t2], name='data_C1', attrs={'units': 'au', 'long_name': 'data C1'})
-		c2 = xr.DataArray(np.random.rand(len(t2)), dims='t', coords=[t2], name='data_C2', attrs={'units': 'au', 'long_name': 'data C2'})
-		c = xr.Dataset({c1.name: c1, c2.name: c2})
-	
-		data = dt.DataTree.from_dict({'data1': a, 'data2/b': b, 'data2/c': c})
-	
-		## write data to file
-		data.to_netcdf(	'example_data_1.hdf5', 
-						mode='w',
-		# 				format='NETCDF4', 
-						engine='h5netcdf',
-						# encoding=encoding,
-						invalid_netcdf=True
-						)
-	
-		## read data from file
-		data2 = dt.open_datatree('example_data_1.hdf5', 
-								  engine='h5netcdf')
-		
-		return data2
+# def hdf5_to_xr_DataTree():
+# 	print("presently not implemented.  I think there is a bug in the DataTree code that needs to be resolved first.")
+# 	
+# 	# example code
+# 	if False:
+# 		import numpy as np
+# 		import xarray as xr
+# 		import datatree as dt
+# 	
+# 	
+# 		## create example datatree
+# 		t1 = np.arange(0, 1e0, 1e-4)
+# 		t1 = xr.DataArray(t1, dims='t', coords=[t1], attrs={'units': 's', 'long_name': 'time'})
+# 		t2 = np.arange(0, 1e-1, 1e-6)
+# 		t2 = xr.DataArray(t2, dims='t', coords=[t2], attrs={'units': 's', 'long_name': 'time'})
+# 	
+# 		a1 = xr.DataArray(np.random.rand(len(t1)), dims='t', coords=[t1], name='data_A1', attrs={'units': 'au', 'long_name': 'data A1'})
+# 		a2 = xr.DataArray(np.random.rand(len(t1)), dims='t', coords=[t1], name='data_A2', attrs={'units': 'au', 'long_name': 'data A2'})
+# 		a = xr.Dataset({a1.name: a1, a2.name: a2})
+# 	
+# 		b1 = xr.DataArray(np.random.rand(len(t2)), dims='t', coords=[t2], name='data_B', attrs={'units': 'au', 'long_name': 'data B'})
+# 		b = b1.to_dataset()
+# 	
+# 		c1 = xr.DataArray(np.random.rand(len(t2)), dims='t', coords=[t2], name='data_C1', attrs={'units': 'au', 'long_name': 'data C1'})
+# 		c2 = xr.DataArray(np.random.rand(len(t2)), dims='t', coords=[t2], name='data_C2', attrs={'units': 'au', 'long_name': 'data C2'})
+# 		c = xr.Dataset({c1.name: c1, c2.name: c2})
+# 	
+# 		data = dt.DataTree.from_dict({'data1': a, 'data2/b': b, 'data2/c': c})
+# 	
+# 		## write data to file
+# 		data.to_netcdf(	'example_data_1.hdf5', 
+# 						mode='w',
+# 		# 				format='NETCDF4', 
+# 						engine='h5netcdf',
+# 						# encoding=encoding,
+# 						invalid_netcdf=True
+# 						)
+# 	
+# 		## read data from file
+# 		data2 = dt.open_datatree('example_data_1.hdf5', 
+# 								  engine='h5netcdf')
+# 		
+# 		return data2
