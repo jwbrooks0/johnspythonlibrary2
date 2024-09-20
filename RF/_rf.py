@@ -4,7 +4,7 @@ import pandas as _pd
 import numpy as _np
 import xarray as _xr
 import matplotlib.pyplot as _plt
-from johnspythonlibrary2.Plot import legendOutside, \
+from johnspythonlibrary2.Plot import legend_above, \
 	finalizeSubplot, finalizeFigure
 
 
@@ -37,7 +37,7 @@ def _finalize_complex_plot(fig,ax,title='', ylabel='Ohm'):
 					 ylabel=ylabel,
 					 legendOn=False
 					 )
-	legendOutside(ax[0,1])
+	legend_above(ax[0,1])
 	
 	finalizeFigure(fig, figSize=[9,5])
 	
