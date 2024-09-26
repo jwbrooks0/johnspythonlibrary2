@@ -10,7 +10,7 @@ from scipy.signal import welch as _welch
 # from johnspythonlibrary2.Plot import subTitle as _subTitle, finalizeFigure as _finalizeFigure, finalizeSubplot as _finalizeSubplot
 from johnspythonlibrary2.Process.Misc import check_dims as _check_dims
 from johnspythonlibrary2.Process.Spectral import fft as _fft
-from johnspythonlibrary2.Process.Spectral import calcPhaseDifference as _calcPhaseDifference
+# from johnspythonlibrary2.Process.Spectral import calcPhaseDifference as _calcPhaseDifference
 import xarray as _xr
 from scipy.stats import _binned_statistic
 from scipy.optimize import minimize as _minimize
