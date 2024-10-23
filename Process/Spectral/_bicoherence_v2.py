@@ -432,21 +432,6 @@ def bicoherence(	da,
 			N=len(t)//M
 			T,Theta=np.meshgrid(t[0:N],theta)
 			return 1*np.cos(2*np.pi*T*f+Theta)
-		
-# 		def finalizeAndSaveFig(figName='',figSize=[6,4.5]):
-# 			fig=plt.gcf(); 
-# 			fig.axes[1].set_ylim([0,1.1]); 
-# 			fig.set_size_inches(figSize)
-# 			if figName!='':
-# 				fig.savefig(figName,dpi=150)
-# 				
-# 		def diagonalOverlay(f1,f0=[fa,fb,fc,fd],ax=None):
-# 			if type(ax)==type(None):
-# 				ax=plt.gcf().axes[0]
-# 			for f in f0:
-# 				x=f1[f1>=f/2.]
-# 				y=f-x
-# 				ax.plot(x,y,'r--',linewidth=0.5)
 			
 		thetab=randomPhase(M,seed=1)
 		thetac=randomPhase(M,seed=2)
@@ -460,10 +445,10 @@ def bicoherence(	da,
 		da=xr.DataArray(x1,dims=['t'],coords={'t':t})
 		dfBicoh=bicoherence(	da,
 						nperseg=recordLength,
-						windowFunc='Hann',
+						windowFunc='hann',
 						mask='A',
 						plot=True)
-		_plt.gcf().savefig('images/figure1.png')
+		_plt.gcf().savefig('figure1.png')
 		
 		### Figure 2
 		thetad=randomPhase(M,seed=3)
@@ -471,49 +456,50 @@ def bicoherence(	da,
 		da=xr.DataArray(x2,dims=['t'],coords={'t':t})
 		dfBicoh=bicoherence(	da,
 						nperseg=recordLength,
-						windowFunc='Hann',
+						windowFunc='hann',
 						mask='A',
 						plot=True)
-		_plt.gcf().savefig('images/figure2.png')
+		_plt.gcf().savefig('figure2.png')
 		
 		### Figure 3
 		x3=(baseSignal+0.5*sigGen(t,fd,thetab+thetac)).flatten()
 		da=xr.DataArray(x3,dims=['t'],coords={'t':t})
 		dfBicoh=bicoherence(	da,
 						nperseg=recordLength,
-						windowFunc='Hann',
+						windowFunc='hann',
 						plot=True,
 						mask='A',
 # 						drawRedLines=[fb,fc,fd],
 						drawRedLines=[fd])
-		_plt.gcf().savefig('images/figure3.png')
+		_plt.gcf().savefig('figure3.png')
 		
 		### Figure 4
 		x4=(baseSignal+1*sigGen(t,fb,thetab)*sigGen(t,fc,thetac)).flatten()
 		da=xr.DataArray(x4,dims=['t'],coords={'t':t})
 		dfBicoh=bicoherence(	da,
 						nperseg=recordLength,
-						windowFunc='Hann',
+						windowFunc='hann',
 						mask='A',
 						plot=True,
 # 						drawRedLines=[fb,fc,fd,fa],
 						drawRedLines=[fc,fd])
-		_plt.gcf().savefig('images/figure4.png')
+		_plt.gcf().savefig('figure4.png')
 		
 		### Figure 5
 		x5=(baseSignal+0.5*sigGen(t,fd,thetad)+1*sigGen(t,fb,thetab)*sigGen(t,fc,thetac)).flatten()
 		da=xr.DataArray(x5,dims=['t'],coords={'t':t})
 		dfBicoh=bicoherence(	da,
 						nperseg=recordLength,
-									windowFunc='Hann',
+									windowFunc='hann',
 									mask='A',
 									plot=True,
 									drawRedLines=[fc,fd])
-		_plt.gcf().savefig('images/figure5.png')
+		_plt.gcf().savefig('figure5.png')
 
 
 	Example 2 ::
 		
+        print("work in progress")
 		from scipy.fftpack import next_fast_len
 		_plt.close('all')
 		from johnspythonlibrary2.Process.SigGen import coupledHarmonicOscillator_nonlinear
@@ -544,36 +530,6 @@ def bicoherence(	da,
 # 						plot=True,
 # # 						drawRedLines=[73+16],
 # 						)
-		
-# 	Example 3 ::
-# 		
-# 		t=np.arange(0,10e-3,2e-6)
-# 		f1=1.1234e4
-# 		f2=np.pi*1e4
-# 		f3=f1+f2
-# 		
-# 		np.random.seed()
-# 		
-# 		phi1=2*np.pi*f1*t+np.random.rand()*2*np.pi
-# 		phi2=2*np.pi*f2*t+np.random.rand()*2*np.pi
-# 		phi3=phi1+phi2+np.random.rand()*2*np.pi
-# 		
-# 		y1=np.sin(phi1)
-# 		y2=np.sin(phi2)
-# 		y3=np.sin(phi3)
-# 		y=y1+y2
-# 		
-# 		fig,ax=plt.subplots()
-# # 		ax.plot(t,y1,label='1')
-# # 		ax.plot(t,y2,label='2')
-# # 		ax.plot(t,y3,label='3')
-# 		ax.plot(t,y,label='3')
-# 		ax.legend()
-# 		
-# 		da=_xr.DataArray(y,
-# 					   dims=['t'],
-# 					   coords={'t':t})
-# 		bicoherence(da, 510,9,plot=True)
 
 	"""
 	
@@ -588,6 +544,7 @@ def bicoherence(	da,
 	dt, fsamp, fn, _, _ = _signal_spectral_properties(da, nperseg=nperseg, verbose=verbose).values()
 	
 	# Solve for STFT 
+	print(windowFunc)
 	f, t, stft_results = _spectral_helper(	da.data,
 											da.data,
 											fs = 1 / (da.t.data[1] - da.t.data[0]),
