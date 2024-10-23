@@ -9,7 +9,20 @@ from numpy.distutils.misc_util import is_sequence as _is_sequence
 
 # %% python modules
 
-def import_module_from_file(file_path):
+def import_module_from_dir(dirpath, module_name):
+    """
+    dirpath = _Path("C:\\Users\\jbrooks\\Downloads\\files\\files")
+    module_name = "pip_tools_for_vik"
+    pt = import_module_from_dir(dirpath, module_name)
+    """
+    print("this code doesn't work yet...")
+    
+    import sys
+    sys.path.insert(0, dirpath)
+    return __import__(module_name)
+    
+
+def import_module_from_py_file(file_path):
     """ 
     Imports a specific python file as a module/library 
     
