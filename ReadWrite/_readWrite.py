@@ -152,6 +152,33 @@ def csv_to_xr(
         skiprows=None,
         # dtype=None,
         ):
+    """
+    Reads in a CSV file and converts it to an xarray dataset.  
+    Note that most of the parameters below are for the pandas.read_csv() function.  Go there for more details.
+
+    Parameters
+    ----------
+    filename : str
+        filename and filepath.
+    delimiter : str
+        CSV delimitor.  ',' is default.  
+    row_number_of_col_names : str or int
+        Row number of the variables names. The default is 'infer'.
+    first_column_is_index : bool
+        Grabs coordinates from the first column. The default is True.
+    number_of_rows : int
+        Total number of rows to read. The default is None (which I think really means "all")
+    dim_dtype : TYPE
+        Converts data to this TYPE. 
+    skiprows : int
+        Number of rows at the start of the CSV to skip. The default is None.
+
+    Returns
+    -------
+    xarray.dataset
+        file contents in xarray.dataset format
+
+    """
 
     data = csv_to_pd(
         filename=filename, 
@@ -180,6 +207,33 @@ def csv_to_pd(
         dim_dtype=None, 
         skiprows=None,
         ):
+    
+    """ 
+    Reads in a CSV file and converts it to a pandas dataframe.  
+    Note that most of the parameters below are for the pandas.read_csv() function.  Go there for more details.
+
+    Parameters
+    ----------
+    filename : str
+        filename and filepath.
+    delimiter : str
+        CSV delimitor.  ',' is default.  
+    row_number_of_col_names : str or int
+        Row number of the variables names. The default is 'infer'.
+    first_column_is_index : bool
+        Grabs coordinates from the first column. The default is True.
+    number_of_rows : int
+        Total number of rows to read. The default is None (which I think really means "all")
+    dim_dtype : TYPE
+        Converts data to this TYPE. 
+    skiprows : int
+        Number of rows at the start of the CSV to skip. The default is None.
+
+    Returns
+    -------
+    pandas.DataFrame
+        file contents in pandas.DataFrame format
+    """
 
     data = _pd.read_csv(filename, delimiter=delimiter, header=row_number_of_col_names, skip_blank_lines=True, skiprows=skiprows)
     
