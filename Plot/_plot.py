@@ -413,7 +413,17 @@ def finalizeSubplot(   ax,
       
       # subtitle
       if params['subtitle']!='':
-         subtitle(ax[i],params['subtitle'],fontSize=params['fontsize'])
+         subtitle(
+             ax[i],
+             params['subtitle'],
+             kwargs=dict( 
+                 color='k', 
+                 xycoords='axes fraction', 
+                 fontsize=params['fontsize'], 
+                 horizontalalignment='center', 
+                 verticalalignment='top', 
+                 )
+             )
       
       # legend
       if params['legendOn']==True:
