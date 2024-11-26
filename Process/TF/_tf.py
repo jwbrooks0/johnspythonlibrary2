@@ -273,7 +273,8 @@ def bodePlotFromTF(	daTF,
 	amp.plot(ax=ax[0],linestyle='', marker='.', label=label, alpha=alpha)
 	
 	# phase
-	phase = _np.phase(daTF)
+	phase = _np.angle(daTF)
+	phase = _xr.DataArray(phase, coords=daTF.coords)
 	if degScaleForPhase==True:
 		phase*=180/_np.pi
 		y1Label='deg.'
@@ -291,19 +292,19 @@ def bodePlotFromTF(	daTF,
 	phase.plot(ax=ax[1],linestyle='',marker='.', label=label, alpha=alpha)
 	
 	# finalize plot
-	_finalizeSubplot(	ax[0],
-						ylabel=y0Label,
-						subtitle='Magnitude',
-						yscale='log'
-						)
-	_finalizeSubplot(	ax[1],
-						ylabel=y1Label,
-						xlabel='Frequency (Hz)',
-						subtitle='Phase diff.',
-						ylim=y1Lim,
-						yticks=y1Ticks,
-						ytickLabels=y1TicksLabels,
-						)
+# 	_finalizeSubplot(	ax[0],
+# 						ylabel=y0Label,
+# 						subtitle='Magnitude',
+# 						yscale='log'
+# 						)
+# 	_finalizeSubplot(	ax[1],
+# 						ylabel=y1Label,
+# 						xlabel='Frequency (Hz)',
+# 						subtitle='Phase diff.',
+# 						ylim=y1Lim,
+# 						yticks=y1Ticks,
+# 						ytickLabels=y1TicksLabels,
+# 						)
 	ax[0].set_yscale('log')
 	if semilogXAxis==True:
 		ax[0].set_xscale('log')
