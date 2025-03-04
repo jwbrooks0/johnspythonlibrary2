@@ -72,6 +72,74 @@ def get_immediate_subdirectories(a_dir):
          if _os.path.isdir(_os.path.join(a_dir, name))]
 
 
+# %% timers
+
+
+import threading
+import time
+# import signal
+# import sys
+
+
+class RepeatingFunctionTimer:
+    """
+    Example::
+        
+        # Function to print current time with milliseconds
+        def print_time():
+            current_time = time.time()
+            # Get seconds and milliseconds
+            seconds = int(current_time)
+            milliseconds = int((current_time - seconds) * 1000)
+            # Format time as H:M:S:MS
+            formatted_time = time.strftime('%H:%M:%S', time.gmtime(seconds))
+            print(f"The current time is: {formatted_time}:{milliseconds:03d}")
+        
+        # Example usage
+        timer = RepeatingFunctionTimer(print_time, 2)  # 60 seconds interval based on clock time
+        timer.start()
+        
+        time.sleep(11)
+        timer.stop()
+        
+    """
+    def __init__(self, func, interval_seconds, *args, **kwargs):
+        """
+        Initializes the timer to call a function at fixed intervals based on clock time.
+        """
+        self.func = func
+        self.interval_seconds = interval_seconds
+        self.args = args
+        self.kwargs = kwargs
+        self._timer = None
+
+    def _next_call(self):
+        """Calculates the time until the next call and schedules it."""
+        current_time = time.time()
+        seconds_until_next_call = self.interval_seconds - (current_time % self.interval_seconds)
+        self._timer = threading.Timer(seconds_until_next_call, self._execute)
+        self._timer.start()
+
+    def _execute(self):
+        """Executes the function and schedules the next call."""
+        # self.print_time()
+        self.func(*self.args, **self.kwargs)
+        self._next_call()  # Schedule the next execution
+
+    def start(self):
+        """Starts the repeated function calls."""
+        self._next_call()
+
+    def stop(self):
+        """Stops the repeated function calls."""
+        if self._timer:
+            self._timer.cancel()
+        print("\nTimer stopped.")
+        
+
+        
+        
+
 # %% time-strings
 
 def time_as_str(format_str="%Y_%m_%d_%H_%M_%S"):
