@@ -479,6 +479,22 @@ def str_to_text_file(input_str, filename):
         
 
 ##############################################################################
+# %% pandas
+
+def pandas_df_to_hdf5(df, hdf_path, key="mydata"):
+    """
+    Save a pandas DataFrame to an HDF5 file (including metadata).
+    """
+    df.to_hdf(hdf_path, key, mode='w')
+
+def hdf5_to_pandas_df(hdf_path, key="mydata"):
+    """
+    Read an HDF5 file into a pandas DataFrame, preserving metadata.
+    """
+    return _pd.read_hdf(hdf_path, key)
+
+
+##############################################################################
 # %% HDF5
 
 # ## proposed hdf5 data structure template for future data
