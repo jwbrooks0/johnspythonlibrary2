@@ -541,7 +541,7 @@ def fft_average(
         nperseg=None,
         noverlap=None,
         plot=False,
-        verbose=True,
+        verbose=False,
         trimNegFreqs=False,
         normalizeAmplitude=False,
         sortFreqIndex=False,
@@ -549,6 +549,7 @@ def fft_average(
         zeroTheZeroFrequency=False,
         realAmplitudeUnits=False,
         f_units='Hz',
+        fft_xscale="linear",
         fft_scale='log',
         fig=None,
         ):
@@ -711,12 +712,12 @@ def fft_average(
         
     # optional plot of results
     if plot==True:
-        _fftPlot(da, fft_results,fft_scale=fft_scale, fig=fig)
+        _fftPlot(da, fft_results,fft_scale=fft_scale, fig=fig, fft_xscale=fft_xscale, )
         
     return fft_results
     
     
-def _fftPlot(da_orig, da_fft, fft_scale='log', fig=None):
+def _fftPlot(da_orig, da_fft, fft_scale='log', fig=None, fft_xscale="linear"):
 
     if 'f' in da_fft.dims:
         da_temp=_np.abs(da_fft.copy()).sortby('f')
@@ -737,6 +738,7 @@ def _fftPlot(da_orig, da_fft, fft_scale='log', fig=None):
     ax1.set_ylabel('Orig. signal')
 #     ax1.set_xlabel('Time')
     ax2.set_yscale(fft_scale)
+    ax2.set_xscale(fft_xscale)
     ax1.set_title(da_temp.name)
          # ax2.set_xscale('log')
     ax2.set_ylabel('FFT Amplitude')
