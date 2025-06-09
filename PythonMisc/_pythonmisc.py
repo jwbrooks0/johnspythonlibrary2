@@ -4,7 +4,7 @@ import os as _os
 import importlib.util as _util
 from pathlib import Path as _Path
 # from collections import Sequence as _Sequence
-from numpy.distutils.misc_util import is_sequence as _is_sequence
+# from numpy.distutils.misc_util import is_sequence as _is_sequence
 
 
 # %% python modules
