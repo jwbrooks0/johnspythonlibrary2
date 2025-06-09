@@ -509,10 +509,110 @@ def chen_and_lu_systems():
     # https://www.sciencedirect.com/science/article/pii/S0096300314017937
     
 
-def rossler_attractor():
-    print("TODO")
-    # https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor
+def solve_rossler(
+        a, 
+        b, 
+        c, 
+        N, 
+        dt, 
+        ICs, 
+        plot=False, 
+        ignore_first_M_points=10000, 
+        ):
+    """
+    Solve the Rössler system:
+        dx/dt = -y - z
+        dy/dt =  x + a*y
+        dz/dt =  b + z*(x - c)
     
+    Parameters
+    ----------
+    a, b, c : float
+        Parameters of the Rössler system.
+    N : int
+        Total number of points in the solution.
+    dt : float
+        Time step for the solution.
+    ICs : array-like of length 3
+        Initial conditions [x0, y0, z0].
+    
+    Returns
+    -------
+    ds : xarray.Dataset
+        Dataset containing the time coordinate and the evolution
+        of x, y, and z as a function of time.
+        
+    Examples
+    --------
+    Example 1 ::
+        
+        abc = dict(a=0.2, b=0.2, c=5.7)
+        ds = solve_rossler(**abc, N=10000, dt=0.01, ICs=[1, 0, 0], plot=True, )
+        
+        abc = dict(a=0.1, b=0.1, c=14)
+        ds = solve_rossler(**abc, N=10000, dt=0.01, ICs=[1, 0, 0], plot=True, )
+            
+    """
+    from scipy.integrate import solve_ivp
+    M = ignore_first_M_points
+
+    # Define the system of ODEs
+    def rossler(t, state):
+        x, y, z = state
+        dx = -y - z
+        dy = x + a * y
+        dz = b + z * (x - c)
+        return [dx, dy, dz]
+
+    # Time array
+    t_eval = _np.linspace(0, (N + M - 1) * dt, N + M)
+
+    # Solve the system
+    sol = solve_ivp(
+        fun=rossler,
+        t_span=(0, t_eval[-1]),
+        y0=ICs,
+        t_eval=t_eval,
+        vectorized=False,
+        rtol=1e-9,
+        atol=1e-9
+    )
+
+    # Create an xarray.Dataset with time as the coordinate
+    ds = _xr.Dataset(
+        {
+            "x": ("time", sol.y[0, M:]),
+            "y": ("time", sol.y[1, M:]),
+            "z": ("time", sol.y[2, M:]),
+        },
+        coords={"time": sol.t[M:] - float(sol.t[M])}
+    )
+
+    if plot is True:
+        fig, axes = _plt.subplots(3, sharex=True)
+        
+        keys = list(ds.keys())
+        for i in range(3):
+            ax = axes[i]
+            key = keys[i]
+            ds[key].plot(ax=ax, label=key)
+            ax.legend()
+        axes[2].set_yscale("log")
+            
+        import matplotlib as _mpl
+        _mpl.rcParams.update({'figure.autolayout': False})
+        fig = _plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot(ds.x, ds.y, zs=ds.z)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')		
+        ax.set_title(f"Rossler Attractor: a={a}, b={b}, c={c}")
+		
+            
+    return ds
+
+
     
 def plot_double_pendulum_single_frame(x, i, filename_root=None):
     print("work in progress")
