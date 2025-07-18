@@ -41,10 +41,10 @@ _mpl.rcParams['lines.linewidth'] = 1.0
 
 ## custom fontsizes
 _FONTSIZE = 8
-_mpl.rcParams['xtick.labelsize'] = _FONTSIZE
-_mpl.rcParams['ytick.labelsize'] = _FONTSIZE
+# _mpl.rcParams['xtick.labelsize'] = _FONTSIZE
+# _mpl.rcParams['ytick.labelsize'] = _FONTSIZE
 _mpl.rcParams['font.size'] = _FONTSIZE
-_mpl.rcParams['legend.fontsize'] = _FONTSIZE
+# _mpl.rcParams['legend.fontsize'] = _FONTSIZE
 _mpl.rcParams['axes.titlesize'] = _FONTSIZE + 2
 
 ## legend
